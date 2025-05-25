@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>투석기 디펜스 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #87CEEB;
+            overflow: hidden;
+        }
+        canvas {
+            border: none;
+            background: #87CEEB;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 32px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        #powerMultiplier {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 32px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="score">점수: 0</div>
+        <div id="powerMultiplier">폭발력: 1.0x</div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const powerMultiplierElement = document.getElementById('powerMultiplier');
+
+        // 캔버스 크기를 브라우저 창 크기에 맞춤
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // 초기 크기 설정 및 리사이즈 이벤트 리스너 추가
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 게임 상태
+        let score = 0;
+        let power = 0;
+        let isCharging = false;
+        let angle = 0;  // 초기 각도를 45도에서 0도로 변경
+        let projectiles = [];
+        let enemies = [];
+        let particles = [];
+        let items = [];
+        let lastEnemySpawn = 0;
+        let lastItemSpawn = 0;
+        let particleMultiplier = 1;
+        let playerY = canvas.height * 0.8;  // 화면 높이의 80% 지점에 위치
+        let playerSpeed = 5;
+        let lastShotTime = 0;  // 마지막 발사 시간
+        let cooldownTime = 2000;  // 기본 쿨타임 (2초)
+        let canShoot = true;  // 발사 가능 여부
+
+        // 지형 생성 함수
+        function generateTerrain() {
+            const terrain = [];
+            const segmentWidth = 100;  // 각 지형 세그먼트의 너비
+            const numSegments = Math.ceil(canvas.width / segmentWidth) + 1;  // 화면 너비에 맞는 세그먼트 수
+            let lastHeight = canvas.height - 150;  // 초기 높이를 75에서 150으로 증가 (2배)
+
+            for (let i = 0; i < numSegments; i++) {
+                // 이전 높이에서 최대 ±20픽셀 변화
+                const heightChange = (Math.random() - 0.5) * 40;
+                lastHeight = Math.max(canvas.height - 300, Math.min(canvas.height - 60, lastHeight + heightChange));  // 최소 높이를 150에서 300으로, 최대 높이를 30에서 60으로 조정
+                terrain.push({
+                    x: i * segmentWidth,
+                    y: lastHeight
+                });
+            }
+            return terrain;
+        }
+
+        // 지형 배열 초기화
+        let terrain = generateTerrain();
+
+        // 지형 업데이트 함수
+        function updateTerrain() {
+            // 지형 이동
+            terrain.forEach(point => {
+                point.x -= 0.25;  // 0.5에서 0.25로 감소 (절반 속도)
+            });
+
+            // 새로운 지형 세그먼트 추가
+            if (terrain[terrain.length - 1].x < canvas.width) {
+                const lastPoint = terrain[terrain.length - 1];
+                const heightChange = (Math.random() - 0.5) * 40;
+                const newHeight = Math.max(canvas.height - 300, Math.min(canvas.height - 60, lastPoint.y + heightChange));
+                terrain.push({
+                    x: lastPoint.x + 100,
+                    y: newHeight
+                });
+            }
+
+            // 화면 밖으로 나간 지형 제거
+            terrain = terrain.filter(point => point.x > -100);
+        }
+
+        // 특정 x 좌표에서의 지형 높이 계산
+        function getTerrainHeight(x) {
+            for (let i = 0; i < terrain.length - 1; i++) {
+                if (x >= terrain[i].x && x < terrain[i + 1].x) {
+                    const ratio = (x - terrain[i].x) / (terrain[i + 1].x - terrain[i].x);
+                    return terrain[i].y + (terrain[i + 1].y - terrain[i].y) * ratio;
+                }
+            }
+            return canvas.height - 150;  // 기본값도 75에서 150으로 증가
+        }
+
+        // 구름 클래스
+        class Cloud {
+            constructor() {
+                this.x = canvas.width + Math.random() * 200;
+                this.y = Math.random() * (canvas.height / 3);
+                this.speed = 0.5 + Math.random() * 0.5;
+                this.size = 40 + Math.random() * 30;
+                this.opacity = 0.7 + Math.random() * 0.3;
+            }
+
+            update() {
+                this.x -= this.speed;
+                if (this.x < -this.size * 2) {
+                    this.x = canvas.width + this.size;
+                    this.y = Math.random() * (canvas.height / 3);
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = 'white';
+                
+                // 구름 그리기
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.arc(this.x + this.size * 0.8, this.y, this.size * 0.8, 0, Math.PI * 2);
+                ctx.arc(this.x - this.size * 0.8, this.y, this.size * 0.8, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y - this.size * 0.5, this.size * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+
+        // 구름 배열 생성
+        const clouds = Array.from({length: 5}, () => new Cloud());
+
+        // 투석기 설정
+        const catapult = {
+            x: canvas.width * 0.1,  // 화면 너비의 10% 지점에 위치
+            y: playerY,
+            width: 40,
+            height: 60
+        };
+
+        // 중력 상수
+        const gravity = 0.2;
+
+        // 적 이모티콘 배열
+        const enemyEmojis = ['🚁', '🚛', '🚜', '👾', '🌲'];  // 소나무 이모티콘 추가
+
+        // 키보드 입력 처리
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space' && !isCharging && canShoot) {
+                isCharging = true;
+                power = 0;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+            if (e.code === 'Space' && isCharging) {
+                isCharging = false;
+                fireProjectile();
+            }
+        });
+
+        // 포탄 발사 함수
+        function fireProjectile() {
+            const now = Date.now();
+            if (now - lastShotTime < cooldownTime) {
+                return;  // 쿨타임 중이면 발사하지 않음
+            }
+
+            const radians = angle * Math.PI / 180;
+            const velocity = {
+                x: Math.cos(radians) * power,
+                y: -Math.sin(radians) * power
+            };
+            
+            projectiles.push({
+                x: catapult.x + 20,
+                y: playerY,
+                velocity: velocity,
+                radius: 10,
+                trail: [],
+                power: power
+            });
+
+            lastShotTime = now;  // 마지막 발사 시간 업데이트
+            canShoot = false;  // 발사 불가 상태로 변경
+            setTimeout(() => {
+                canShoot = true;  // 쿨타임이 끝나면 발사 가능 상태로 변경
+            }, cooldownTime);
+        }
+
+        // 포탄이 지형과 충돌하는지 확인하는 함수
+        function checkProjectileTerrainCollision(projectile) {
+            // 현재 x 위치에서의 지형 높이 계산
+            const terrainHeight = getTerrainHeight(projectile.x);
+            // 포탄이 지형보다 아래에 있는지 확인
+            const isColliding = projectile.y >= terrainHeight;
+            
+            if (isColliding) {
+                // 충돌 시 파티클 생성 (폭발력의 절반)
+                const particleCount = Math.floor(projectile.power * 0.5);
+                createParticles(projectile.x, terrainHeight, particleCount, true);
+                createExplosion(projectile.x, terrainHeight, projectile.power);
+                
+                // 추가 파티클 생성 (지면 충돌 효과)
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push({
+                        x: projectile.x + (Math.random() - 0.5) * 20,
+                        y: terrainHeight,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: -Math.random() * 8,  // 위로 튀어오르는 효과
+                        radius: Math.random() * 3 + 1,
+                        alpha: 1,
+                        color: '#8B4513',  // 갈색 (흙 색상)
+                        isExplosion: true,
+                        lifeTime: 60
+                    });
+                }
+            }
+            
+            return isColliding;
+        }
+
+        // 적 생성 함수
+        function spawnEnemy() {
+            const now = Date.now();
+            if (now - lastEnemySpawn > 1333) {
+                const isGroundVehicle = Math.random() < 0.8;
+                let emoji;
+                let speed;
+                
+                if (isGroundVehicle) {
+                    const rand = Math.random();
+                    if (rand < 0.25) {
+                        emoji = '🚛';
+                        speed = 1;  // 트럭 속도 2에서 1로 감소
+                    } else if (rand < 0.5) {
+                        emoji = '🚜';
+                        speed = 0.5;  // 트랙터 속도 1에서 0.5로 감소
+                    } else if (rand < 0.75) {
+                        emoji = '👾';
+                        speed = 1;  // 공격하는 타이탄도 트럭과 같은 속도
+                    } else {
+                        emoji = '🌲';
+                        speed = 0.5;  // 소나무도 트랙터와 같은 속도
+                    }
+                } else {
+                    emoji = '🚁';
+                    speed = 1.5;  // 헬리콥터 속도 3에서 1.5로 감소
+                }
+                
+                enemies.push({
+                    x: canvas.width,
+                    y: isGroundVehicle ? getTerrainHeight(canvas.width) - 5 : Math.random() * (canvas.height/4) + (canvas.height/4),
+                    emoji: emoji,
+                    speed: speed,
+                    isGroundVehicle: isGroundVehicle,
+                    direction: -1,
+                    lastX: canvas.width,
+                    lastY: isGroundVehicle ? getTerrainHeight(canvas.width) - 5 : Math.random() * (canvas.height/4) + (canvas.height/4)
+                });
+                lastEnemySpawn = now;
+            }
+        }
+
+        // 아이템 클래스
+        class Item {
+            constructor() {
+                this.x = canvas.width;
+                // 화면 중간 위쪽 영역에서만 출현 (화면 높이의 1/4 ~ 1/2 지점)
+                this.y = Math.random() * (canvas.height/4) + (canvas.height/4);
+                this.speed = 0.5;
+                // 랜덤하게 아이템 종류 선택 (별: 파티클 증가, 번개: 쿨타임 감소)
+                this.type = Math.random() < 0.7 ? 'star' : 'lightning';
+                this.emoji = this.type === 'star' ? '⭐' : '⚡';
+                this.collected = false;
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+
+            draw() {
+                ctx.font = '22px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+            }
+        }
+
+        // 아이템 생성 함수
+        function spawnItem() {
+            const now = Date.now();
+            if (now - lastItemSpawn > 10000) {  // 5초에서 10초로 변경
+                items.push(new Item());
+                lastItemSpawn = now;
+            }
+        }
+
+        // 파티클 생성 함수
+        function createParticles(x, y, count, isExplosion = false) {
+            const colors = ['#ff4500', '#ff8c00', '#ffd700', '#ff6347', '#ff7f50'];
+            
+            // 파티클 수 제한
+            const maxParticles = 200;
+            const adjustedCount = Math.floor(count * particleMultiplier);  // 파티클 수에 승수 적용
+            if (particles.length + adjustedCount > maxParticles) {
+                particles = particles.slice(-maxParticles + adjustedCount);
+            }
+            
+            for (let i = 0; i < adjustedCount; i++) {
+                const speed = isExplosion ? 8 : 4;
+                const size = isExplosion ? 3 : 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * speed,
+                    vy: (Math.random() - 0.5) * speed,
+                    radius: Math.random() * size + 1,
+                    alpha: 1,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    isExplosion: isExplosion,
+                    lifeTime: 60
+                });
+            }
+        }
+
+        // 폭발 효과 함수
+        function createExplosion(x, y, explosionPower = 400) {
+            // 큰 폭발 원
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2);
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, 30);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.3, 'rgba(255, 165, 0, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // 파워에 비례한 파티클 수 계산 (20~50개)
+            const particleCount = Math.floor(20 + (explosionPower / 400) * 30);
+            createParticles(x, y, particleCount, true);
+        }
+
+        // 충돌 감지 함수
+        function checkCollisions() {
+            // 포탄과 적 충돌 체크
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                
+                // 적과의 충돌 체크
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const dx = projectile.x - enemy.x;
+                    const dy = projectile.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 30) {
+                        projectiles.splice(i, 1);
+                        enemies.splice(j, 1);
+                        score += 100;
+                        scoreElement.textContent = `점수: ${score}`;
+                        // 트럭이나 트랙터인 경우 파티클 생성
+                        if (enemy.emoji === '🚛' || enemy.emoji === '🚜') {
+                            createParticles(projectile.x, projectile.y, Math.floor(projectile.power * 0.5), true);
+                        }
+                        createExplosion(projectile.x, projectile.y, projectile.power);
+                        break;
+                    }
+                }
+
+                // 아이템과의 충돌 체크
+                for (let j = items.length - 1; j >= 0; j--) {
+                    const item = items[j];
+                    if (!item.collected) {
+                        const dx = projectile.x - item.x;
+                        const dy = projectile.y - item.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < 20) {
+                            projectiles.splice(i, 1);
+                            items.splice(j, 1);
+                            score += 200;
+                            scoreElement.textContent = `점수: ${score}`;
+                            
+                            if (item.type === 'star') {
+                                particleMultiplier += 0.5;  // 파티클 수 승수 증가
+                                powerMultiplierElement.textContent = `폭발력: ${particleMultiplier.toFixed(1)}x`;
+                            } else if (item.type === 'lightning') {
+                                cooldownTime = Math.max(500, cooldownTime - 200);  // 쿨타임 감소 (최소 0.5초)
+                                powerMultiplierElement.textContent = `쿨타임: ${(cooldownTime/1000).toFixed(1)}초`;
+                            }
+                            
+                            createExplosion(projectile.x, projectile.y, projectile.power);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 파티클과 적 충돌 체크
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const dx = particle.x - enemy.x;
+                    const dy = particle.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 20) {
+                        enemies.splice(j, 1);
+                        score += 50;
+                        scoreElement.textContent = `점수: ${score}`;
+                        createExplosion(particle.x, particle.y, 200);  // 파티클 폭발은 기본 파워로 설정
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 포탄 궤적 예측 함수
+        function predictTrajectory(startX, startY, velocityX, velocityY) {
+            const points = [];
+            let x = startX;
+            let y = startY;
+            let vx = velocityX;
+            let vy = velocityY;
+            
+            // 200프레임 동안의 궤적 예측 (프레임 수 증가)
+            for (let i = 0; i < 200; i++) {
+                x += vx;
+                y += vy;
+                vy += gravity;
+                
+                // 지면에 닿으면 중단
+                if (y > canvas.height - 50) {
+                    points.push({x, y: canvas.height - 50});
+                    break;
+                }
+                
+                points.push({x, y});
+            }
+            
+            return points;
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            // 화면 클리어
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 구름 업데이트 및 그리기
+            clouds.forEach(cloud => {
+                cloud.update();
+                cloud.draw();
+            });
+
+            // 지형 업데이트
+            updateTerrain();
+
+            // 지형 그리기
+            ctx.beginPath();
+            ctx.moveTo(terrain[0].x, terrain[0].y);
+            for (let i = 1; i < terrain.length; i++) {
+                ctx.lineTo(terrain[i].x, terrain[i].y);
+            }
+            ctx.lineTo(terrain[terrain.length - 1].x, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fillStyle = '#8B4513';
+            ctx.fill();
+
+            // 잔디 그리기
+            ctx.beginPath();
+            ctx.moveTo(terrain[0].x, terrain[0].y);
+            for (let i = 1; i < terrain.length; i++) {
+                ctx.lineTo(terrain[i].x, terrain[i].y);
+            }
+            ctx.strokeStyle = '#228B22';
+            ctx.lineWidth = 10;
+            ctx.stroke();
+
+            // 플레이어 위치 업데이트
+            if (keys['ArrowLeft']) {
+                catapult.x = Math.max(50, catapult.x - playerSpeed);
+            }
+            if (keys['ArrowRight']) {
+                catapult.x = Math.min(canvas.width - 50, catapult.x + playerSpeed);
+            }
+            if (keys['ArrowUp']) {
+                playerY = Math.max(100, playerY - playerSpeed);
+            }
+            if (keys['ArrowDown']) {
+                playerY = Math.min(canvas.height - 100, playerY + playerSpeed);
+            }
+
+            // 투석기(헬리콥터) 그리기
+            ctx.save();
+            ctx.translate(catapult.x, playerY);
+            ctx.scale(-1, 1);  // 좌우 반전
+            ctx.font = '40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🚁', 0, 0);
+            ctx.restore();
+
+            // 파워 게이지 그리기
+            if (isCharging) {
+                power = Math.min(power + 2, 400);
+                const powerPercentage = (power / 400) * 100;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(10, 50, 200, 20);
+                const gradient = ctx.createLinearGradient(10, 50, 210, 50);
+                gradient.addColorStop(0, '#00ff00');
+                gradient.addColorStop(1, '#ff0000');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(10, 50, powerPercentage * 2, 20);
+            }
+
+            // 쿨타임 게이지 그리기
+            const cooldownPercentage = (Date.now() - lastShotTime) / cooldownTime * 100;
+            
+            // 쿨타임 게이지 배경
+            ctx.fillStyle = '#333';
+            ctx.fillRect(10, 80, 200, 20);
+            
+            // 쿨타임 게이지 그라데이션
+            const cooldownGradient = ctx.createLinearGradient(10, 80, 210, 80);
+            cooldownGradient.addColorStop(0, '#00ffff');
+            cooldownGradient.addColorStop(1, '#0088ff');
+            ctx.fillStyle = cooldownGradient;
+            
+            // 쿨타임 게이지 채우기
+            ctx.fillRect(10, 80, Math.min(cooldownPercentage * 2, 200), 20);
+            
+            // 쿨타임 게이지 테두리
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(10, 80, 200, 20);
+            
+            // 쿨타임 텍스트
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const cooldownText = canShoot ? '준비 완료!' : `쿨타임: ${((cooldownTime - (Date.now() - lastShotTime))/1000).toFixed(1)}초`;
+            ctx.fillText(cooldownText, 110, 90);
+
+            // 조준선과 궤적 그리기
+            // 조준선 그리기 (항상 표시)
+            ctx.beginPath();
+            ctx.moveTo(catapult.x, playerY);
+            const radians = angle * Math.PI / 180;
+            const lineLength = 50;
+            ctx.lineTo(
+                catapult.x + Math.cos(radians) * lineLength,
+                playerY - Math.sin(radians) * lineLength
+            );
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 예상 궤적 그리기 (충전 중일 때만)
+            if (isCharging) {
+                const velocity = {
+                    x: Math.cos(radians) * power * 0.1,
+                    y: -Math.sin(radians) * power * 0.1
+                };
+                const trajectory = predictTrajectory(
+                    catapult.x + 20,
+                    playerY,
+                    velocity.x,
+                    velocity.y
+                );
+
+                // 궤적 점 그리기
+                ctx.beginPath();
+                for (let i = 0; i < trajectory.length; i++) {
+                    const point = trajectory[i];
+                    if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                    } else {
+                        ctx.lineTo(point.x, point.y);
+                    }
+                }
+                ctx.strokeStyle = 'rgba(255, 69, 0, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 궤적 점 표시
+                trajectory.forEach((point, index) => {
+                    if (index % 5 === 0) {  // 5프레임마다 점 표시
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255, 69, 0, 0.5)';
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // 포탄 업데이트 및 그리기
+            projectiles.forEach((projectile, index) => {
+                // 궤적 저장
+                projectile.trail.push({x: projectile.x, y: projectile.y});
+                if (projectile.trail.length > 20) {
+                    projectile.trail.shift();
+                }
+
+                // 궤적 그리기
+                ctx.beginPath();
+                ctx.moveTo(projectile.trail[0].x, projectile.trail[0].y);
+                for (let i = 1; i < projectile.trail.length; i++) {
+                    ctx.lineTo(projectile.trail[i].x, projectile.trail[i].y);
+                }
+                ctx.strokeStyle = 'rgba(255, 69, 0, 0.5)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 포탄 이동
+                projectile.x += projectile.velocity.x * 0.1;
+                projectile.y += projectile.velocity.y * 0.1;
+                projectile.velocity.y += gravity;
+
+                // 포탄 그리기 (미사일 이모티콘으로 변경)
+                ctx.save();
+                ctx.translate(projectile.x, projectile.y);
+                // 포탄의 이동 방향에 따라 회전하고 40도 추가 회전 (30도 + 10도)
+                const angle = Math.atan2(projectile.velocity.y, projectile.velocity.x) + (Math.PI / 4.5);  // Math.PI/4.5 ≈ 40도
+                ctx.rotate(angle);
+                ctx.font = '22px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🚀', 0, 0);
+                ctx.restore();
+
+                let shouldRemove = false;
+                let removeX = projectile.x;
+                let removeY = projectile.y;
+
+                // 지형 충돌 체크
+                if (checkProjectileTerrainCollision(projectile)) {
+                    shouldRemove = true;
+                    removeX = projectile.x;
+                    removeY = getTerrainHeight(projectile.x);
+                }
+
+                // 화면 밖으로 나간 포탄 제거
+                if (projectile.x < 0 || projectile.x > canvas.width || 
+                    projectile.y < 0 || projectile.y > canvas.height) {
+                    shouldRemove = true;
+                }
+
+                // 포탄 제거 및 효과 생성
+                if (shouldRemove) {
+                    // 파티클 생성 (폭발력의 절반)
+                    const particleCount = Math.floor(projectile.power * 0.5);
+                    createParticles(removeX, removeY, particleCount, true);
+                    createExplosion(removeX, removeY, projectile.power);
+                    
+                    // 추가 파티클 생성 (지면 충돌 효과)
+                    for (let i = 0; i < particleCount; i++) {
+                        particles.push({
+                            x: removeX + (Math.random() - 0.5) * 20,
+                            y: removeY,
+                            vx: (Math.random() - 0.5) * 4,
+                            vy: -Math.random() * 8,  // 위로 튀어오르는 효과
+                            radius: Math.random() * 3 + 1,
+                            alpha: 1,
+                            color: '#8B4513',  // 갈색 (흙 색상)
+                            isExplosion: true,
+                            lifeTime: 60
+                        });
+                    }
+                    projectiles.splice(index, 1);
+                }
+            });
+
+            // 적 업데이트 및 그리기
+            enemies.forEach((enemy, index) => {
+                // 지상 차량의 경우 지형을 따라 움직임
+                if (enemy.isGroundVehicle) {
+                    // 이전 위치 저장
+                    enemy.lastX = enemy.x;
+                    enemy.lastY = enemy.y;
+                    
+                    // x 위치 업데이트
+                    enemy.x += enemy.direction * enemy.speed;
+                    
+                    // 현재 x 위치에서의 지형 높이 계산
+                    const currentHeight = getTerrainHeight(enemy.x);
+                    enemy.y = currentHeight - 2;  // 5에서 2로 감소하여 잔디에 더 가깝게 위치
+                } else {
+                    // 공중 차량은 기존처럼 이동
+                    enemy.x -= enemy.speed;
+                }
+
+                ctx.font = '22px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                
+                if (enemy.isGroundVehicle) {
+                    // 소나무인 경우 크기를 두 배로
+                    if (enemy.emoji === '🌲') {
+                        ctx.font = '44px Arial';
+                    }
+                    ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+                } else {
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+                }
+
+                if (enemy.x < -22) {
+                    enemies.splice(index, 1);
+                }
+            });
+
+            // 아이템 업데이트 및 그리기
+            items.forEach((item, index) => {
+                item.update();
+                item.draw();
+
+                // 화면 밖으로 나간 아이템 제거
+                if (item.x < -22) {
+                    items.splice(index, 1);
+                }
+            });
+
+            // 아이템 생성
+            spawnItem();
+
+            // 키보드 입력 처리
+            if (keys['KeyE']) angle = Math.min(angle + 1, 90);  // E키로 각도 증가
+            if (keys['KeyR']) angle = Math.max(angle - 1, 0);   // R키로 각도 감소
+
+            // 적 생성
+            spawnEnemy();
+
+            // 파티클 업데이트 및 그리기
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                
+                // 파티클 수명 감소
+                particle.lifeTime--;
+                
+                // 파티클 이동
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vy += 0.1; // 중력 효과
+                particle.alpha = particle.lifeTime / 60;
+                particle.radius = Math.max(0.5, particle.radius - 0.02);
+
+                // 파티클 그리기
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `${particle.color}${Math.floor(particle.alpha * 255).toString(16).padStart(2, '0')}`;
+                ctx.fill();
+
+                // 파티클 제거 조건
+                if (particle.lifeTime <= 0 || 
+                    particle.y > canvas.height - 50 || 
+                    particle.x < 0 || 
+                    particle.x > canvas.width || 
+                    particle.y < 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 충돌 감지
+            checkCollisions();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

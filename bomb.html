@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>디펜스 게임</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            background: #87CEEB;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 게임 상태
+        let gameState = {
+            catapult: {
+                x: 100,
+                y: 500,
+                power: 0,
+                angle: 45,
+                charging: false,
+                maxPower: 400, // 최대 파워를 400으로 증가
+                displayMaxPower: 100 // 표시용 최대 파워
+            },
+            enemies: [],
+            projectiles: [],
+            score: 0,
+            explosions: [],
+            enemyEmojis: ['👾', '👻', '🤖', '👽', '🎃', '💀', '👹', '👺', '🤡', '👿'] // 적 이모티콘 배열
+        };
+
+        // 지면 그리기
+        function drawGround() {
+            // 메인 지면
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+            // 잔디 효과
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 5);
+
+            // 지면 텍스처
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.fillStyle = '#A0522D';
+                ctx.fillRect(i, canvas.height - 20, 10, 20);
+            }
+        }
+
+        // 투석기 그리기
+        function drawCatapult() {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(gameState.catapult.x - 20, gameState.catapult.y - 10, 40, 20);
+            
+            // 발사대 그리기
+            ctx.beginPath();
+            ctx.moveTo(gameState.catapult.x, gameState.catapult.y);
+            ctx.lineTo(
+                gameState.catapult.x + Math.cos(gameState.catapult.angle * Math.PI / 180) * 50,
+                gameState.catapult.y - Math.sin(gameState.catapult.angle * Math.PI / 180) * 50
+            );
+            ctx.strokeStyle = '#4A4A4A';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+        }
+
+        // 포탄 그리기
+        function drawProjectile(projectile) {
+            ctx.beginPath();
+            ctx.arc(projectile.x, projectile.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#FF4500';
+            ctx.fill();
+
+            // 불꽃 효과
+            ctx.beginPath();
+            ctx.moveTo(projectile.x, projectile.y);
+            ctx.lineTo(
+                projectile.x - projectile.vx * 0.5,
+                projectile.y - projectile.vy * 0.5
+            );
+            ctx.strokeStyle = '#FFA500';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        // 적 그리기
+        function drawEnemy(enemy) {
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+        }
+
+        // 예상 궤적 그리기
+        function drawTrajectory() {
+            if (!gameState.catapult.charging) return;
+
+            const power = gameState.catapult.power;
+            const angle = gameState.catapult.angle * Math.PI / 180;
+            // 파워에 따른 속도 계수 조정 (0-400% 범위에서 0.5-2.0으로 매핑)
+            const speedMultiplier = 0.5 + (power / gameState.catapult.maxPower) * 1.5;
+            const vx = Math.cos(angle) * power * speedMultiplier;
+            const vy = -Math.sin(angle) * power * speedMultiplier;
+            
+            ctx.beginPath();
+            ctx.moveTo(gameState.catapult.x, gameState.catapult.y);
+            
+            let x = gameState.catapult.x;
+            let y = gameState.catapult.y;
+            let vxTemp = vx;
+            let vyTemp = vy;
+            
+            for (let i = 0; i < 300; i++) {
+                x += vxTemp;
+                y += vyTemp;
+                vyTemp += 0.1;
+                
+                if (y > canvas.height - 20 || x > canvas.width * 2) break;
+                
+                ctx.lineTo(x, y);
+            }
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // 파워 게이지 그리기
+        function drawPowerGauge() {
+            const gaugeWidth = 400;
+            const gaugeHeight = 40;
+            const gaugeX = 50;
+            const gaugeY = 50;
+
+            // 배경
+            ctx.fillStyle = '#333';
+            ctx.fillRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight);
+
+            // 파워 게이지 (실제 파워의 25%를 100%로 표시)
+            const displayPower = (gameState.catapult.power / gameState.catapult.maxPower) * gameState.catapult.displayMaxPower;
+            const powerWidth = (displayPower / gameState.catapult.displayMaxPower) * gaugeWidth;
+            
+            // 그라데이션 효과 추가
+            const gradient = ctx.createLinearGradient(gaugeX, gaugeY, gaugeX + powerWidth, gaugeY);
+            gradient.addColorStop(0, '#00FF00');
+            gradient.addColorStop(1, '#00CC00');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(gaugeX, gaugeY, powerWidth, gaugeHeight);
+
+            // 게이지 테두리
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(gaugeX, gaugeY, gaugeWidth, gaugeHeight);
+
+            // 거리 표시 (실제 파워의 25%를 100%로 표시)
+            const displayPercentage = Math.floor((gameState.catapult.power / gameState.catapult.maxPower) * gameState.catapult.displayMaxPower);
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText(`파워: ${displayPercentage}%`, gaugeX, gaugeY - 10);
+        }
+
+        // 폭발 효과 그리기
+        function drawExplosion(explosion) {
+            const gradient = ctx.createRadialGradient(
+                explosion.x, explosion.y, 0,
+                explosion.x, explosion.y, explosion.radius
+            );
+            gradient.addColorStop(0, 'rgba(255, 255, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+
+            ctx.beginPath();
+            ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // 폭발 파편 효과
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const x = explosion.x + Math.cos(angle) * explosion.radius;
+                const y = explosion.y + Math.sin(angle) * explosion.radius;
+                
+                ctx.beginPath();
+                ctx.moveTo(explosion.x, explosion.y);
+                ctx.lineTo(x, y);
+                ctx.strokeStyle = 'rgba(255, 200, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // 충돌 감지
+        function checkCollision(projectile, enemy) {
+            const dx = projectile.x - enemy.x;
+            const dy = projectile.y - enemy.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < 25; // 이모티콘 크기에 맞게 충돌 반경 조정
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 지면 그리기
+            drawGround();
+
+            // 투석기 그리기
+            drawCatapult();
+
+            // 예상 궤적 그리기
+            drawTrajectory();
+
+            // 파워 게이지 그리기
+            drawPowerGauge();
+
+            // 포탄 업데이트 및 그리기
+            gameState.projectiles.forEach((projectile, pIndex) => {
+                projectile.x += projectile.vx;
+                projectile.y += projectile.vy;
+                projectile.vy += 0.1;
+
+                drawProjectile(projectile);
+
+                // 적과의 충돌 체크
+                gameState.enemies.forEach((enemy, eIndex) => {
+                    if (checkCollision(projectile, enemy)) {
+                        // 폭발 효과 생성
+                        gameState.explosions.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            radius: 0,
+                            maxRadius: 50,
+                            duration: 20
+                        });
+                        
+                        // 적 제거
+                        gameState.enemies.splice(eIndex, 1);
+                        // 포탄 제거
+                        gameState.projectiles.splice(pIndex, 1);
+                        // 점수 증가
+                        gameState.score += 100;
+                    }
+                });
+
+                // 지면 충돌 체크
+                if (projectile.y > canvas.height - 20 || projectile.x > canvas.width * 2) {
+                    // 폭발 효과
+                    gameState.explosions.push({
+                        x: projectile.x,
+                        y: projectile.y,
+                        radius: 0,
+                        maxRadius: 30,
+                        duration: 15
+                    });
+                    gameState.projectiles.splice(pIndex, 1);
+                }
+            });
+
+            // 폭발 효과 업데이트 및 그리기
+            gameState.explosions.forEach((explosion, index) => {
+                explosion.radius += explosion.maxRadius / explosion.duration;
+                drawExplosion(explosion);
+                
+                if (explosion.radius >= explosion.maxRadius) {
+                    gameState.explosions.splice(index, 1);
+                }
+            });
+
+            // 적 업데이트 및 그리기
+            gameState.enemies.forEach((enemy, index) => {
+                enemy.x += enemy.speed;
+                drawEnemy(enemy);
+
+                // 화면 밖으로 나간 적 제거
+                if (enemy.x < 0) { // 왼쪽으로 나가면 제거
+                    gameState.enemies.splice(index, 1);
+                }
+            });
+
+            // 점수 표시
+            ctx.fillStyle = '#FFF';
+            ctx.font = '20px Arial';
+            ctx.fillText(`점수: ${gameState.score}`, 20, 100);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 적 생성
+        function spawnEnemy() {
+            const randomEmoji = gameState.enemyEmojis[Math.floor(Math.random() * gameState.enemyEmojis.length)];
+            gameState.enemies.push({
+                x: canvas.width,
+                y: Math.random() * (canvas.height - 100) + 50,
+                speed: -0.5, // 음수로 변경하여 왼쪽으로 이동
+                emoji: randomEmoji
+            });
+        }
+
+        // 키보드 이벤트 처리
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                gameState.catapult.angle = Math.min(90, gameState.catapult.angle + 5);
+            }
+            if (e.key === 'ArrowRight') {
+                gameState.catapult.angle = Math.max(0, gameState.catapult.angle - 5);
+            }
+            if (e.key === ' ') {
+                gameState.catapult.charging = true;
+                gameState.catapult.power = 0;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === ' ' && gameState.catapult.charging) {
+                gameState.catapult.charging = false;
+                const power = gameState.catapult.power;
+                const angle = gameState.catapult.angle * Math.PI / 180;
+                
+                // 파워에 따른 속도 계수 조정 (0-400% 범위에서 0.5-2.0으로 매핑)
+                const speedMultiplier = 0.5 + (power / gameState.catapult.maxPower) * 1.5;
+                
+                gameState.projectiles.push({
+                    x: gameState.catapult.x,
+                    y: gameState.catapult.y,
+                    vx: Math.cos(angle) * power * speedMultiplier,
+                    vy: -Math.sin(angle) * power * speedMultiplier
+                });
+            }
+        });
+
+        // 파워 게이지 업데이트
+        setInterval(() => {
+            if (gameState.catapult.charging) {
+                gameState.catapult.power = Math.min(gameState.catapult.maxPower, gameState.catapult.power + 4); // 파워 증가 속도 조정
+            }
+        }, 50);
+
+        // 적 생성 타이머 (2초마다)
+        setInterval(spawnEnemy, 2000);
+
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

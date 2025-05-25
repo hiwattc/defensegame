@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Fiddler - HTTP 트래픽 분석 도구</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #2d2d30;
+            padding: 10px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            background: #0e639c;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #d32f2f;
+        }
+
+        .btn-danger:hover {
+            background: #f44336;
+        }
+
+        .btn-secondary {
+            background: #3c3c3c;
+        }
+
+        .btn-secondary:hover {
+            background: #4c4c4c;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            width: 50%;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            width: 50%;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: #2d2d30;
+            padding: 10px 15px;
+            border-bottom: 1px solid #3e3e42;
+            font-weight: bold;
+        }
+
+        .request-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .request-item {
+            display: flex;
+            padding: 8px 15px;
+            border-bottom: 1px solid #3e3e42;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 13px;
+        }
+
+        .request-item:hover {
+            background: #2a2d2e;
+        }
+
+        .request-item.selected {
+            background: #094771;
+        }
+
+        .request-item .method {
+            width: 60px;
+            font-weight: bold;
+        }
+
+        .request-item .url {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .request-item .status {
+            width: 50px;
+            text-align: center;
+        }
+
+        .request-item .size {
+            width: 80px;
+            text-align: right;
+        }
+
+        .status-200 { color: #4caf50; }
+        .status-300 { color: #ff9800; }
+        .status-400 { color: #f44336; }
+        .status-500 { color: #e91e63; }
+
+        .details-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #3e3e42;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: #2d2d30;
+            border: none;
+            color: #cccccc;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: #ffffff;
+            border-bottom-color: #4fc3f7;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4fc3f7;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+
+        .method-select {
+            padding: 8px 12px;
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .header-item {
+            display: flex;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .header-name {
+            width: 150px;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+
+        .header-value {
+            flex: 1;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+
+        .no-selection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+            font-style: italic;
+        }
+
+        .search-input {
+            padding: 8px 12px;
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .request-body-editor {
+            width: 100%;
+            height: 150px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            color: white;
+            font-family: 'Courier New', monospace;
+            padding: 8px;
+            margin-bottom: 10px;
+            resize: vertical;
+        }
+
+        .filter-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .filter-modal.active {
+            display: block;
+        }
+
+        .filter-options {
+            margin-bottom: 15px;
+        }
+
+        .filter-option {
+            margin-bottom: 10px;
+        }
+
+        .filter-option label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .filter-option select,
+        .filter-option input {
+            width: 100%;
+            padding: 8px;
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+            color: white;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🔍 Web Fiddler</div>
+        <div class="controls">
+            <select class="method-select" id="methodSelect">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+                <option value="PATCH">PATCH</option>
+            </select>
+            <input type="text" class="url-input" id="urlInput" placeholder="URL을 입력하세요 (예: https://api.github.com/users/octocat)">
+            <button id="sendBtn">전송</button>
+            <button id="clearBtn" class="btn-danger">지우기</button>
+            <button id="exportBtn" class="btn-secondary">내보내기</button>
+            <button id="filterBtn" class="btn-secondary">필터</button>
+            <input type="text" id="searchInput" class="search-input" placeholder="요청 검색...">
+        </div>
+        <div class="stats">
+            <span>총 요청: <span id="totalRequests">0</span></span>
+            <span>선택됨: <span id="selectedRequest">-</span></span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="panel-header">HTTP 트래픽</div>
+            <div class="request-list" id="requestList">
+                <!-- 요청 목록이 여기에 표시됩니다 -->
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel-header">요청 상세정보</div>
+            <div class="details-panel" id="detailsPanel">
+                <div class="no-selection">
+                    요청을 선택하여 상세정보를 확인하세요
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-modal" id="filterModal">
+        <h3>요청 필터</h3>
+        <div class="filter-options">
+            <div class="filter-option">
+                <label>HTTP 메소드</label>
+                <select id="filterMethod">
+                    <option value="">모든 메소드</option>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+            </div>
+            <div class="filter-option">
+                <label>상태 코드</label>
+                <select id="filterStatus">
+                    <option value="">모든 상태</option>
+                    <option value="200">200 (성공)</option>
+                    <option value="300">300 (리다이렉션)</option>
+                    <option value="400">400 (클라이언트 오류)</option>
+                    <option value="500">500 (서버 오류)</option>
+                </select>
+            </div>
+            <div class="filter-option">
+                <label>URL 포함</label>
+                <input type="text" id="filterUrl" placeholder="URL에 포함된 텍스트">
+            </div>
+        </div>
+        <button id="applyFilter">적용</button>
+        <button id="resetFilter">초기화</button>
+    </div>
+
+    <script>
+        class WebFiddler {
+            constructor() {
+                this.requests = [];
+                this.selectedRequest = null;
+                this.requestCounter = 0;
+                this.filters = {
+                    method: '',
+                    status: '',
+                    url: ''
+                };
+                this.initEventListeners();
+            }
+
+            initEventListeners() {
+                document.getElementById('sendBtn').addEventListener('click', () => this.sendRequest());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearRequests());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportRequests());
+                document.getElementById('filterBtn').addEventListener('click', () => this.toggleFilterModal());
+                document.getElementById('applyFilter').addEventListener('click', () => this.applyFilters());
+                document.getElementById('resetFilter').addEventListener('click', () => this.resetFilters());
+                document.getElementById('searchInput').addEventListener('input', (e) => this.searchRequests(e.target.value));
+                document.getElementById('urlInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendRequest();
+                });
+            }
+
+            async sendRequest() {
+                const url = document.getElementById('urlInput').value.trim();
+                const method = document.getElementById('methodSelect').value;
+                const requestBody = document.getElementById('requestBody')?.value || '';
+
+                if (!url) {
+                    alert('URL을 입력해주세요.');
+                    return;
+                }
+
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    alert('올바른 URL 형식을 입력해주세요 (http:// 또는 https://)');
+                    return;
+                }
+
+                const requestId = ++this.requestCounter;
+                const startTime = Date.now();
+
+                const requestData = {
+                    id: requestId,
+                    method: method,
+                    url: url,
+                    startTime: startTime,
+                    status: 'Pending',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    requestBody: requestBody,
+                    responseHeaders: {},
+                    responseBody: '',
+                    responseSize: 0,
+                    duration: 0
+                };
+
+                this.requests.unshift(requestData);
+                this.updateRequestList();
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: requestData.headers,
+                        body: method !== 'GET' ? requestBody : undefined
+                    });
+
+                    const endTime = Date.now();
+                    requestData.duration = endTime - startTime;
+                    requestData.status = response.status;
+                    
+                    // 응답 헤더 수집
+                    response.headers.forEach((value, key) => {
+                        requestData.responseHeaders[key] = value;
+                    });
+
+                    // 응답 본문 처리
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        requestData.responseBody = JSON.stringify(await response.json(), null, 2);
+                    } else {
+                        requestData.responseBody = await response.text();
+                    }
+
+                    requestData.responseSize = new Blob([requestData.responseBody]).size;
+                } catch (error) {
+                    requestData.status = 'Error';
+                    requestData.error = error.message;
+                    requestData.duration = Date.now() - startTime;
+                }
+
+                this.updateRequestList();
+            }
+
+            toggleFilterModal() {
+                const modal = document.getElementById('filterModal');
+                modal.classList.toggle('active');
+            }
+
+            applyFilters() {
+                this.filters = {
+                    method: document.getElementById('filterMethod').value,
+                    status: document.getElementById('filterStatus').value,
+                    url: document.getElementById('filterUrl').value
+                };
+                this.updateRequestList();
+                this.toggleFilterModal();
+            }
+
+            resetFilters() {
+                this.filters = {
+                    method: '',
+                    status: '',
+                    url: ''
+                };
+                document.getElementById('filterMethod').value = '';
+                document.getElementById('filterStatus').value = '';
+                document.getElementById('filterUrl').value = '';
+                this.updateRequestList();
+            }
+
+            searchRequests(query) {
+                const filteredRequests = this.requests.filter(request => {
+                    return request.url.toLowerCase().includes(query.toLowerCase()) ||
+                           request.method.toLowerCase().includes(query.toLowerCase()) ||
+                           String(request.status).includes(query);
+                });
+                this.updateRequestList(filteredRequests);
+            }
+
+            exportRequests() {
+                const exportData = {
+                    requests: this.requests,
+                    exportDate: new Date().toISOString(),
+                    version: '1.0'
+                };
+
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `webfiddler-export-${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            updateRequestList(requests = null) {
+                const listElement = document.getElementById('requestList');
+                listElement.innerHTML = '';
+
+                const requestsToShow = requests || this.requests.filter(request => {
+                    if (this.filters.method && request.method !== this.filters.method) return false;
+                    if (this.filters.status && String(request.status).startsWith(this.filters.status)) return false;
+                    if (this.filters.url && !request.url.toLowerCase().includes(this.filters.url.toLowerCase())) return false;
+                    return true;
+                });
+
+                requestsToShow.forEach(request => {
+                    const item = document.createElement('div');
+                    item.className = 'request-item';
+                    if (this.selectedRequest && this.selectedRequest.id === request.id) {
+                        item.classList.add('selected');
+                    }
+
+                    const statusClass = this.getStatusClass(request.status);
+                    const size = request.responseSize > 0 ? this.formatBytes(request.responseSize) : '-';
+                    const duration = request.duration > 0 ? `${request.duration}ms` : 'Pending';
+                    const status = request.status === 'Error' ? 'Error' : request.status;
+
+                    item.innerHTML = `
+                        <div class="method">${request.method}</div>
+                        <div class="url" title="${request.url}">${request.url}</div>
+                        <div class="status ${statusClass}">${status}</div>
+                        <div class="size">${size}</div>
+                        <div class="size">${duration}</div>
+                    `;
+
+                    item.addEventListener('click', () => this.selectRequest(request));
+                    listElement.appendChild(item);
+                });
+
+                document.getElementById('totalRequests').textContent = this.requests.length;
+            }
+
+            selectRequest(request) {
+                this.selectedRequest = request;
+                this.updateRequestList();
+                this.showRequestDetails(request);
+                document.getElementById('selectedRequest').textContent = request.id;
+            }
+
+            showRequestDetails(request) {
+                const detailsPanel = document.getElementById('detailsPanel');
+                
+                detailsPanel.innerHTML = `
+                    <div class="tabs">
+                        <button class="tab active" onclick="showTab('overview')">개요</button>
+                        <button class="tab" onclick="showTab('headers')">헤더</button>
+                        <button class="tab" onclick="showTab('request')">요청</button>
+                        <button class="tab" onclick="showTab('response')">응답</button>
+                        <button class="tab" onclick="showTab('timing')">타이밍</button>
+                    </div>
+
+                    <div class="tab-content active" id="overview">
+                        <div class="section">
+                            <div class="section-title">요청 정보</div>
+                            <div class="header-item">
+                                <div class="header-name">Method:</div>
+                                <div class="header-value">${request.method}</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">URL:</div>
+                                <div class="header-value">${request.url}</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">Status:</div>
+                                <div class="header-value ${this.getStatusClass(request.status)}">${request.status}</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">Duration:</div>
+                                <div class="header-value">${request.duration}ms</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">Size:</div>
+                                <div class="header-value">${this.formatBytes(request.responseSize)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="headers">
+                        <div class="section">
+                            <div class="section-title">요청 헤더</div>
+                            ${Object.entries(request.headers).map(([key, value]) => `
+                                <div class="header-item">
+                                    <div class="header-name">${key}:</div>
+                                    <div class="header-value">${value}</div>
+                                </div>
+                            `).join('')}
+                            <div class="section-title">응답 헤더</div>
+                            ${Object.entries(request.responseHeaders).map(([key, value]) => `
+                                <div class="header-item">
+                                    <div class="header-name">${key}:</div>
+                                    <div class="header-value">${value}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="request">
+                        <div class="section">
+                            <div class="section-title">요청 본문</div>
+                            <textarea class="request-body-editor" id="requestBody">${request.requestBody || ''}</textarea>
+                            <button onclick="fiddler.resendRequest(${request.id})">요청 재전송</button>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="response">
+                        <div class="section">
+                            <div class="section-title">응답 본문</div>
+                            <div class="code-block">${request.responseBody || '응답 본문이 없습니다.'}</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="timing">
+                        <div class="section">
+                            <div class="section-title">타이밍 정보</div>
+                            <div class="header-item">
+                                <div class="header-name">시작 시간:</div>
+                                <div class="header-value">${new Date(request.startTime).toLocaleString()}</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">소요 시간:</div>
+                                <div class="header-value">${request.duration}ms</div>
+                            </div>
+                            <div class="header-item">
+                                <div class="header-name">완료 시간:</div>
+                                <div class="header-value">${new Date(request.startTime + request.duration).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            async resendRequest(requestId) {
+                const request = this.requests.find(r => r.id === requestId);
+                if (!request) return;
+
+                document.getElementById('methodSelect').value = request.method;
+                document.getElementById('urlInput').value = request.url;
+                await this.sendRequest();
+            }
+
+            getStatusClass(status) {
+                if (typeof status === 'string' && status === 'Error') return 'status-500';
+                const statusNum = parseInt(status);
+                if (statusNum >= 200 && statusNum < 300) return 'status-200';
+                if (statusNum >= 300 && statusNum < 400) return 'status-300';
+                if (statusNum >= 400 && statusNum < 500) return 'status-400';
+                if (statusNum >= 500) return 'status-500';
+                return '';
+            }
+
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            clearRequests() {
+                this.requests = [];
+                this.selectedRequest = null;
+                this.requestCounter = 0;
+                this.updateRequestList();
+                document.getElementById('detailsPanel').innerHTML = `
+                    <div class="no-selection">요청을 선택하여 상세정보를 확인하세요</div>
+                `;
+                document.getElementById('selectedRequest').textContent = '-';
+            }
+        }
+
+        // 탭 전환 함수
+        function showTab(tabName) {
+            // 모든 탭과 콘텐츠 비활성화
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // 선택된 탭과 콘텐츠 활성화
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // 앱 초기화
+        const fiddler = new WebFiddler();
+
+        // 예제 URL들을 빠르게 테스트할 수 있도록 추가
+        document.getElementById('urlInput').placeholder = 'https://api.github.com/users/octocat 또는 https://jsonplaceholder.typicode.com/posts/1';
+    </script>
+</body>
+</html>

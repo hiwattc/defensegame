@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>디펜스 게임</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #333;
+        }
+        #gameCanvas {
+            background: #87CEEB;
+            transform: perspective(1000px) rotateX(45deg);
+            transform-origin: center center;
+        }
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .unit-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .unit-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="controls">
+        <button class="unit-button" id="meleeBtn" onclick="spawnUnit('melee')">격투병</button>
+        <button class="unit-button" id="archerBtn" onclick="spawnUnit('archer')">궁병</button>
+        <button class="unit-button" id="cannonBtn" onclick="spawnUnit('cannon')">포병</button>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html> 

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슬라이딩 퍼즐 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f0f0f0;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .game-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .game-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .moves, .time {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            background: #ddd;
+            padding: 5px;
+            border-radius: 5px;
+        }
+
+        .tile {
+            width: 80px;
+            height: 80px;
+            background: #4CAF50;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border-radius: 5px;
+        }
+
+        .tile:hover {
+            transform: scale(0.95);
+        }
+
+        .tile.empty {
+            background: #ddd;
+            cursor: default;
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .win-message {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .win-message h2 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>슬라이딩 퍼즐</h1>
+        </div>
+        <div class="game-info">
+            <div class="moves">이동 횟수: <span id="moves">0</span></div>
+            <div class="time">시간: <span id="time">00:00</span></div>
+        </div>
+        <div class="puzzle-board" id="puzzleBoard"></div>
+        <div class="controls">
+            <button onclick="startNewGame()">새 게임</button>
+        </div>
+    </div>
+
+    <div class="win-message" id="winMessage">
+        <h2>축하합니다!</h2>
+        <p>퍼즐을 완성했습니다!</p>
+        <p>이동 횟수: <span id="finalMoves">0</span></p>
+        <p>소요 시간: <span id="finalTime">00:00</span></p>
+        <button onclick="startNewGame()">다시 시작</button>
+    </div>
+
+    <script>
+        let board = [];
+        let moves = 0;
+        let timer = null;
+        let seconds = 0;
+        let isPlaying = false;
+
+        function initializeBoard() {
+            board = [];
+            for (let i = 0; i < 15; i++) {
+                board.push(i + 1);
+            }
+            board.push(null); // 빈 공간
+        }
+
+        function shuffleBoard() {
+            for (let i = board.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [board[i], board[j]] = [board[j], board[i]];
+            }
+            // 퍼즐이 풀 수 있는 상태인지 확인
+            if (!isSolvable()) {
+                shuffleBoard();
+            }
+        }
+
+        function isSolvable() {
+            let inversions = 0;
+            const boardWithoutEmpty = board.filter(tile => tile !== null);
+            
+            for (let i = 0; i < boardWithoutEmpty.length - 1; i++) {
+                for (let j = i + 1; j < boardWithoutEmpty.length; j++) {
+                    if (boardWithoutEmpty[i] > boardWithoutEmpty[j]) {
+                        inversions++;
+                    }
+                }
+            }
+            
+            return inversions % 2 === 0;
+        }
+
+        function updateBoard() {
+            const puzzleBoard = document.getElementById('puzzleBoard');
+            puzzleBoard.innerHTML = '';
+            
+            board.forEach((tile, index) => {
+                const tileElement = document.createElement('div');
+                tileElement.className = `tile ${tile === null ? 'empty' : ''}`;
+                tileElement.textContent = tile;
+                tileElement.onclick = () => moveTile(index);
+                puzzleBoard.appendChild(tileElement);
+            });
+        }
+
+        function moveTile(index) {
+            if (!isPlaying) return;
+            
+            const emptyIndex = board.indexOf(null);
+            const row = Math.floor(index / 4);
+            const col = index % 4;
+            const emptyRow = Math.floor(emptyIndex / 4);
+            const emptyCol = emptyIndex % 4;
+
+            // 인접한 타일만 이동 가능
+            if ((Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                (Math.abs(col - emptyCol) === 1 && row === emptyRow)) {
+                [board[index], board[emptyIndex]] = [board[emptyIndex], board[index]];
+                moves++;
+                document.getElementById('moves').textContent = moves;
+                updateBoard();
+                checkWin();
+            }
+        }
+
+        function startTimer() {
+            if (timer) clearInterval(timer);
+            seconds = 0;
+            updateTimer();
+            timer = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            document.getElementById('time').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+            seconds++;
+        }
+
+        function checkWin() {
+            const isWin = board.every((tile, index) => {
+                if (index === 15) return tile === null;
+                return tile === index + 1;
+            });
+
+            if (isWin) {
+                isPlaying = false;
+                clearInterval(timer);
+                document.getElementById('finalMoves').textContent = moves;
+                document.getElementById('finalTime').textContent = document.getElementById('time').textContent;
+                document.getElementById('winMessage').style.display = 'block';
+            }
+        }
+
+        function startNewGame() {
+            initializeBoard();
+            shuffleBoard();
+            updateBoard();
+            moves = 0;
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('winMessage').style.display = 'none';
+            isPlaying = true;
+            startTimer();
+        }
+
+        // 게임 시작
+        startNewGame();
+    </script>
+</body>
+</html> 

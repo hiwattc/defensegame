@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹사이트 보안 헤더 분석기</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .url-input {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input[type="url"] {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="url"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #667eea;
+        }
+
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+
+        .security-score {
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .score-excellent {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .score-good {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .score-fair {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+            color: white;
+        }
+
+        .score-poor {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .cookie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .cookie-table th,
+        .cookie-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .cookie-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .cookie-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .security-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-secure {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .url-input {
+                flex-direction: column;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 웹사이트 보안 헤더 분석기</h1>
+        
+        <div class="input-section">
+            <div class="url-input">
+                <input type="url" id="urlInput" placeholder="분석할 웹사이트 URL을 입력하세요 (예: https://example.com)" />
+                <button onclick="analyzeWebsite()" id="analyzeBtn">분석 시작</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div>🔄 웹사이트를 분석 중입니다...</div>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" class="results">
+            <div id="securityScore" class="security-score"></div>
+            
+            <div class="section">
+                <h3><span class="section-icon"></span>서버 정보</h3>
+                <div class="info-grid" id="serverInfo"></div>
+            </div>
+
+            <div class="section">
+                <h3><span class="section-icon"></span>보안 헤더</h3>
+                <div class="info-grid" id="securityHeaders"></div>
+            </div>
+
+            <div class="section">
+                <h3><span class="section-icon"></span>쿠키 보안 분석</h3>
+                <div id="cookieAnalysis"></div>
+            </div>
+
+            <div class="section">
+                <h3><span class="section-icon"></span>응답 헤더 전체</h3>
+                <div id="allHeaders"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUrl = '';
+
+        async function analyzeWebsite() {
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('URL을 입력해주세요.');
+                return;
+            }
+
+            if (!isValidUrl(url)) {
+                showError('올바른 URL 형식을 입력해주세요. (예: https://example.com)');
+                return;
+            }
+
+            currentUrl = url;
+            showLoading(true);
+            hideError();
+            hideResults();
+
+            try {
+                // CORS 프록시를 사용하여 헤더 정보 가져오기
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error('웹사이트에 접근할 수 없습니다.');
+                }
+
+                const data = await response.json();
+                
+                // 실제 사이트로 직접 요청하여 헤더 정보 확인 시도
+                let actualResponse;
+                try {
+                    actualResponse = await fetch(url, { mode: 'cors', method: 'HEAD' });
+                } catch (e) {
+                    // CORS 에러인 경우 GET 요청으로 재시도
+                    try {
+                        actualResponse = await fetch(url, { mode: 'no-cors' });
+                    } catch (e2) {
+                        // 프록시 응답만 사용
+                        actualResponse = null;
+                    }
+                }
+
+                analyzeResponse(actualResponse, data);
+                showResults();
+                
+            } catch (error) {
+                showError('분석 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function analyzeResponse(response, proxyData) {
+            const headers = {};
+            
+            // 실제 응답에서 헤더 추출
+            if (response && response.headers) {
+                for (let [key, value] of response.headers.entries()) {
+                    headers[key.toLowerCase()] = value;
+                }
+            }
+
+            // 프록시 데이터에서 추가 정보 추출
+            if (proxyData && proxyData.status) {
+                // 상태 코드 정보 추가
+                headers['status'] = proxyData.status.toString();
+            }
+
+            displayServerInfo(headers);
+            displaySecurityHeaders(headers);
+            displayCookieAnalysis(headers);
+            displayAllHeaders(headers);
+            calculateSecurityScore(headers);
+        }
+
+        function displayServerInfo(headers) {
+            const serverInfo = document.getElementById('serverInfo');
+            const info = [];
+
+            if (headers['server']) {
+                info.push({ label: '웹서버', value: headers['server'] });
+            }
+
+            if (headers['x-powered-by']) {
+                info.push({ label: '플랫폼/프레임워크', value: headers['x-powered-by'] });
+            }
+
+            if (headers['content-type']) {
+                info.push({ label: 'Content-Type', value: headers['content-type'] });
+            }
+
+            if (headers['status']) {
+                info.push({ label: 'HTTP 상태', value: headers['status'] });
+            }
+
+            if (headers['date']) {
+                info.push({ label: '응답 시간', value: headers['date'] });
+            }
+
+            if (headers['last-modified']) {
+                info.push({ label: '최종 수정일', value: headers['last-modified'] });
+            }
+
+            if (info.length === 0) {
+                info.push({ label: '서버 정보', value: '정보를 가져올 수 없습니다 (CORS 제한)' });
+            }
+
+            serverInfo.innerHTML = info.map(item => `
+                <div class="info-item">
+                    <div class="info-label">${item.label}</div>
+                    <div class="info-value">${item.value}</div>
+                </div>
+            `).join('');
+        }
+
+        function displaySecurityHeaders(headers) {
+            const securityHeaders = document.getElementById('securityHeaders');
+            const securityChecks = [
+                {
+                    header: 'strict-transport-security',
+                    name: 'HSTS (HTTP Strict Transport Security)',
+                    description: 'HTTPS 강제 사용'
+                },
+                {
+                    header: 'content-security-policy',
+                    name: 'CSP (Content Security Policy)',
+                    description: 'XSS 공격 방지'
+                },
+                {
+                    header: 'x-frame-options',
+                    name: 'X-Frame-Options',
+                    description: 'Clickjacking 방지'
+                },
+                {
+                    header: 'x-content-type-options',
+                    name: 'X-Content-Type-Options',
+                    description: 'MIME 타입 스누핑 방지'
+                },
+                {
+                    header: 'x-xss-protection',
+                    name: 'X-XSS-Protection',
+                    description: 'XSS 필터 활성화'
+                },
+                {
+                    header: 'referrer-policy',
+                    name: 'Referrer Policy',
+                    description: 'Referrer 정보 제어'
+                }
+            ];
+
+            securityHeaders.innerHTML = securityChecks.map(check => {
+                const value = headers[check.header];
+                const status = value ? 'secure' : 'danger';
+                const displayValue = value || '설정되지 않음';
+                
+                return `
+                    <div class="info-item">
+                        <div class="info-label">
+                            ${check.name}
+                            <span class="security-status status-${status}">
+                                ${value ? '✓ 설정됨' : '✗ 미설정'}
+                            </span>
+                        </div>
+                        <div class="info-value">${displayValue}</div>
+                        <small style="color: #666; margin-top: 5px; display: block;">${check.description}</small>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayCookieAnalysis(headers) {
+            const cookieAnalysis = document.getElementById('cookieAnalysis');
+            const setCookieHeaders = [];
+            
+            // Set-Cookie 헤더 찾기
+            Object.keys(headers).forEach(key => {
+                if (key.toLowerCase().includes('set-cookie')) {
+                    setCookieHeaders.push(headers[key]);
+                }
+            });
+
+            if (setCookieHeaders.length === 0) {
+                cookieAnalysis.innerHTML = '<p>설정된 쿠키가 없거나 정보를 가져올 수 없습니다.</p>';
+                return;
+            }
+
+            const cookies = setCookieHeaders.map(cookie => parseCookie(cookie));
+            
+            cookieAnalysis.innerHTML = `
+                <table class="cookie-table">
+                    <thead>
+                        <tr>
+                            <th>쿠키명</th>
+                            <th>HttpOnly</th>
+                            <th>Secure</th>
+                            <th>SameSite</th>
+                            <th>보안 점수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cookies.map(cookie => `
+                            <tr>
+                                <td>${cookie.name}</td>
+                                <td>
+                                    <span class="security-status ${cookie.httpOnly ? 'status-secure' : 'status-danger'}">
+                                        ${cookie.httpOnly ? '✓' : '✗'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="security-status ${cookie.secure ? 'status-secure' : 'status-warning'}">
+                                        ${cookie.secure ? '✓' : '✗'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="security-status ${cookie.sameSite ? 'status-secure' : 'status-warning'}">
+                                        ${cookie.sameSite || '미설정'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="security-status status-${cookie.securityLevel}">
+                                        ${cookie.securityScore}/3
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function parseCookie(cookieString) {
+            const parts = cookieString.split(';').map(part => part.trim());
+            const [nameValue] = parts[0].split('=');
+            
+            const cookie = {
+                name: nameValue || 'Unknown',
+                httpOnly: parts.some(part => part.toLowerCase() === 'httponly'),
+                secure: parts.some(part => part.toLowerCase() === 'secure'),
+                sameSite: null
+            };
+
+            const sameSitePart = parts.find(part => part.toLowerCase().startsWith('samesite='));
+            if (sameSitePart) {
+                cookie.sameSite = sameSitePart.split('=')[1];
+            }
+
+            // 보안 점수 계산
+            let score = 0;
+            if (cookie.httpOnly) score++;
+            if (cookie.secure) score++;
+            if (cookie.sameSite) score++;
+
+            cookie.securityScore = score;
+            cookie.securityLevel = score >= 2 ? 'secure' : score === 1 ? 'warning' : 'danger';
+
+            return cookie;
+        }
+
+        function displayAllHeaders(headers) {
+            const allHeaders = document.getElementById('allHeaders');
+            const headerEntries = Object.entries(headers);
+
+            if (headerEntries.length === 0) {
+                allHeaders.innerHTML = '<p>헤더 정보를 가져올 수 없습니다.</p>';
+                return;
+            }
+
+            allHeaders.innerHTML = `
+                <div class="info-grid">
+                    ${headerEntries.map(([key, value]) => `
+                        <div class="info-item">
+                            <div class="info-label">${key}</div>
+                            <div class="info-value">${value}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function calculateSecurityScore(headers) {
+            const securityScore = document.getElementById('securityScore');
+            let score = 0;
+            let maxScore = 6;
+
+            // 보안 헤더 체크
+            if (headers['strict-transport-security']) score++;
+            if (headers['content-security-policy']) score++;
+            if (headers['x-frame-options']) score++;
+            if (headers['x-content-type-options']) score++;
+            if (headers['x-xss-protection']) score++;
+            if (headers['referrer-policy']) score++;
+
+            const percentage = Math.round((score / maxScore) * 100);
+            let level = 'poor';
+            let message = '보안 설정이 부족합니다';
+
+            if (percentage >= 80) {
+                level = 'excellent';
+                message = '우수한 보안 설정입니다';
+            } else if (percentage >= 60) {
+                level = 'good';
+                message = '양호한 보안 설정입니다';
+            } else if (percentage >= 40) {
+                level = 'fair';
+                message = '보통의 보안 설정입니다';
+            }
+
+            securityScore.className = `security-score score-${level}`;
+            securityScore.innerHTML = `
+                <div>🛡️ 보안 점수: ${score}/${maxScore} (${percentage}%)</div>
+                <div style="margin-top: 10px; font-size: 0.9em;">${message}</div>
+            `;
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('analyzeBtn').disabled = show;
+        }
+
+        function showResults() {
+            document.getElementById('results').classList.add('show');
+        }
+
+        function hideResults() {
+            document.getElementById('results').classList.remove('show');
+        }
+
+        // Enter 키로 분석 시작
+        document.getElementById('urlInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeWebsite();
+            }
+        });
+
+        // 페이지 로드 시 예시 URL 설정
+        window.addEventListener('load', function() {
+            document.getElementById('urlInput').value = 'https://github.com';
+        });
+    </script>
+</body>
+</html>

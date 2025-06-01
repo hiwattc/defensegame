@@ -17,7 +17,7 @@
 - Visual Studio 2022
 
 ## 프로젝트 구조
-
+12
 ```
 Assets/
 ├── Scripts/

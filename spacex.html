@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단한 로켓 착륙 게임</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+        }
+        canvas {
+            border: 1px solid #333;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 게임 상태
+        const rocket = {
+            x: canvas.width / 2,
+            y: 50,
+            speed: 0,
+            fuel: 100
+        };
+
+        const landingPad = {
+            x: canvas.width / 2,
+            y: canvas.height - 20,
+            width: 60
+        };
+
+        // 키보드 상태
+        let isSpacePressed = false;
+
+        // 키보드 이벤트
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') isSpacePressed = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') isSpacePressed = false;
+        });
+
+        // 게임 루프
+        function gameLoop() {
+            // 화면 지우기
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 로켓 업데이트
+            if (isSpacePressed && rocket.fuel > 0) {
+                rocket.speed -= 0.2; // 추력
+                rocket.fuel -= 0.5;
+            } else {
+                rocket.speed += 0.1; // 중력
+            }
+
+            rocket.y += rocket.speed;
+
+            // 착륙 체크
+            if (rocket.y + 20 >= landingPad.y) {
+                if (Math.abs(rocket.x - landingPad.x) < landingPad.width / 2 && 
+                    Math.abs(rocket.speed) < 2) {
+                    alert('착륙 성공!');
+                    resetGame();
+                } else {
+                    alert('착륙 실패!');
+                    resetGame();
+                }
+            }
+
+            // 로켓 그리기
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(rocket.x, rocket.y);
+            ctx.lineTo(rocket.x - 10, rocket.y + 20);
+            ctx.lineTo(rocket.x + 10, rocket.y + 20);
+            ctx.closePath();
+            ctx.fill();
+
+            // 엔진 불꽃
+            if (isSpacePressed && rocket.fuel > 0) {
+                ctx.fillStyle = '#ff4500';
+                ctx.beginPath();
+                ctx.moveTo(rocket.x - 5, rocket.y + 20);
+                ctx.lineTo(rocket.x, rocket.y + 30);
+                ctx.lineTo(rocket.x + 5, rocket.y + 20);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // 착륙장 그리기
+            ctx.fillStyle = '#0f0';
+            ctx.fillRect(landingPad.x - landingPad.width/2, landingPad.y, landingPad.width, 5);
+
+            // 연료 표시
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText(`연료: ${Math.floor(rocket.fuel)}%`, 10, 30);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetGame() {
+            rocket.y = 50;
+            rocket.speed = 0;
+            rocket.fuel = 100;
+        }
+
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>이모티콘 볼링 게임</title>
+  <style>
+    body { background: #222; color: #fff; text-align: center; }
+    #gameCanvas { background: #333; display: block; margin: 0 auto; }
+    .emoji-pin {
+      position: absolute;
+      font-size: 2.5rem;
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>이모티콘 볼링 게임 🎳</h1>
+  <canvas id="gameCanvas" width="600" height="800"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    // Matter.js 모듈
+    const { Engine, Render, Runner, World, Bodies, Body, Events, Mouse, MouseConstraint } = Matter;
+
+    // 엔진과 월드 생성
+    const engine = Engine.create();
+    const world = engine.world;
+
+    // 캔버스 렌더러
+    const canvas = document.getElementById('gameCanvas');
+    const render = Render.create({
+      canvas: canvas,
+      engine: engine,
+      options: {
+        width: 600,
+        height: 800,
+        wireframes: false,
+        background: '#333',
+      }
+    });
+    Render.run(render);
+    Runner.run(Runner.create(), engine);
+
+    // 바닥, 벽
+    const ground = Bodies.rectangle(300, 790, 600, 20, { isStatic: true });
+    const leftWall = Bodies.rectangle(10, 400, 20, 800, { isStatic: true });
+    const rightWall = Bodies.rectangle(590, 400, 20, 800, { isStatic: true });
+    World.add(world, [ground, leftWall, rightWall]);
+
+    // 볼링핀 이모티콘 위치 저장
+    const pinEmojis = [];
+    const pinBodies = [];
+    const pinEmoji = '🎳'; // 원하는 이모티콘으로 변경 가능
+    const pinRows = 4;
+    let pinCount = 0;
+    for (let row = 0; row < pinRows; row++) {
+      for (let i = 0; i <= row; i++) {
+        const x = 300 + (i - row / 2) * 40;
+        const y = 200 + row * 45;
+        const pin = Bodies.rectangle(x, y, 30, 40, {
+          label: 'pin',
+          restitution: 0.4,
+          render: { visible: false }
+        });
+        pinBodies.push(pin);
+        pinEmojis.push({ x, y, body: pin });
+        World.add(world, pin);
+        pinCount++;
+      }
+    }
+
+    // 볼링공
+    const ball = Bodies.circle(300, 700, 30, {
+      label: 'ball',
+      restitution: 0.7,
+      render: { fillStyle: '#fff' }
+    });
+    World.add(world, ball);
+
+    // 마우스 드래그로 볼링공 발사
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      },
+      collisionFilter: {
+        mask: 0x0001
+      }
+    });
+    World.add(world, mouseConstraint);
+    render.mouse = mouse;
+
+    // 볼링공만 드래그 가능하게
+    Events.on(mouseConstraint, 'startdrag', function(event) {
+      if (event.body !== ball) {
+        mouseConstraint.constraint.bodyB = null;
+      }
+    });
+
+    // 이모티콘 핀 그리기
+    function drawPins() {
+      const ctx = render.context;
+      ctx.font = '2.5rem serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const pin of pinEmojis) {
+        ctx.save();
+        ctx.translate(pin.body.position.x, pin.body.position.y);
+        ctx.rotate(pin.body.angle);
+        ctx.globalAlpha = pin.body.speed > 0.1 ? 0.7 : 1;
+        ctx.fillText(pinEmoji, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    // 렌더 후 이모티콘 핀 그리기
+    Events.on(render, 'afterRender', function() {
+      drawPins();
+    });
+
+    // 리셋 기능 (필요시)
+    function resetGame() {
+      Body.setPosition(ball, { x: 300, y: 700 });
+      Body.setVelocity(ball, { x: 0, y: 0 });
+      Body.setAngularVelocity(ball, 0);
+      for (let i = 0; i < pinBodies.length; i++) {
+        Body.setPosition(pinBodies[i], { x: pinEmojis[i].x, y: pinEmojis[i].y });
+        Body.setVelocity(pinBodies[i], { x: 0, y: 0 });
+        Body.setAngle(pinBodies[i], 0);
+        Body.setAngularVelocity(pinBodies[i], 0);
+      }
+    }
+    // R키로 리셋
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') resetGame();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula 1 Racing Game 3D</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 18px;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 14px;
+        }
+        #speedometer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div>랩 시간: <span id="lapTime">00:00</span></div>
+            <div>최고 기록: <span id="bestTime">--:--</span></div>
+        </div>
+        <div id="controls">
+            <div>조작법:</div>
+            <div>W/S - 가속/감속</div>
+            <div>A/D - 좌회전/우회전</div>
+            <div>스페이스바 - 브레이크</div>
+        </div>
+        <div id="speedometer">
+            속도: <span id="speed">0</span> km/h
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 게임 변수들
+        let scene, camera, renderer, car, track;
+        let keys = {};
+        let carSpeed = 0;
+        let carRotation = 0;
+        let maxSpeed = 0.8;
+        let acceleration = 0.02;
+        let friction = 0.98;
+        let turnSpeed = 0.03;
+        
+        // 시간 관련
+        let startTime = Date.now();
+        let lapStartTime = startTime;
+        let bestLapTime = null;
+        
+        // 체크포인트
+        let checkpoints = [];
+        let currentCheckpoint = 0;
+        let lapComplete = false;
+
+        function init() {
+            // Scene 생성
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+
+            // 카메라 생성 (3인칭)
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // 렌더러 생성
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setClearColor(0x87CEEB);
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+            // 조명 설정
+            setupLighting();
+            
+            // 자동차 생성
+            createCar();
+            
+            // 트랙 생성
+            createTrack();
+            
+            // 환경 생성
+            createEnvironment();
+            
+            // 이벤트 리스너
+            setupEventListeners();
+            
+            // 게임 루프 시작
+            animate();
+        }
+
+        function setupLighting() {
+            // 태양광
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // 환경광
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+        }
+
+        function createCar() {
+            const carGroup = new THREE.Group();
+
+            // 자동차 본체
+            const bodyGeometry = new THREE.BoxGeometry(2, 0.5, 4);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.5;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // 자동차 코크핏
+            const cockpitGeometry = new THREE.BoxGeometry(1.5, 0.3, 2);
+            const cockpitMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+            cockpit.position.y = 0.9;
+            cockpit.position.z = -0.5;
+            cockpit.castShadow = true;
+            carGroup.add(cockpit);
+
+            // 바퀴들
+            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8);
+            const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+
+            const wheels = [];
+            const wheelPositions = [
+                { x: -1.2, z: 1.5 },  // 앞왼쪽
+                { x: 1.2, z: 1.5 },   // 앞오른쪽
+                { x: -1.2, z: -1.5 }, // 뒤왼쪽
+                { x: 1.2, z: -1.5 }   // 뒤오른쪽
+            ];
+
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.position.set(pos.x, 0.4, pos.z);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.castShadow = true;
+                wheels.push(wheel);
+                carGroup.add(wheel);
+            });
+
+            // 윙
+            const wingGeometry = new THREE.BoxGeometry(2.5, 0.1, 0.3);
+            const wingMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            const frontWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            frontWing.position.y = 0.2;
+            frontWing.position.z = 2.2;
+            carGroup.add(frontWing);
+
+            const rearWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rearWing.position.y = 1.2;
+            rearWing.position.z = -2.2;
+            carGroup.add(rearWing);
+
+            car = carGroup;
+            // 트랙의 첫 번째 포인트에서 시작
+            car.position.set(80, 25, 0); // 롤러코스터 트랙 시작점
+            scene.add(car);
+        }
+
+        function createTrack() {
+            const trackGroup = new THREE.Group();
+
+            // 롤러코스터 트랙 포인트들 (4배 더 긴 복잡한 경로)
+            const trackPoints = [];
+            const trackSegments = [];
+            
+            // 복잡한 롤러코스터 경로 생성
+            const numPoints = 120; // 원래의 4배
+            for (let i = 0; i < numPoints; i++) {
+                const t = (i / numPoints) * Math.PI * 4; // 2바퀴 돌기
+                
+                // 기본 큰 원형 + 작은 원형 조합으로 복잡한 경로
+                const mainRadius = 80; // 4배 증가
+                const subRadius = 30;
+                const x = (mainRadius + subRadius * Math.cos(t * 3)) * Math.cos(t);
+                const z = (mainRadius + subRadius * Math.cos(t * 3)) * Math.sin(t);
+                
+                // 롤러코스터 높이 변화 (언덕과 계곡)
+                const y = 15 * Math.sin(t * 2) + 10 * Math.cos(t * 1.5) + 20 * Math.sin(t * 0.5);
+                
+                trackPoints.push({ x: x, y: y, z: z });
+            }
+
+            // 트랙 세그먼트 생성
+            for (let i = 0; i < trackPoints.length; i++) {
+                const current = trackPoints[i];
+                const next = trackPoints[(i + 1) % trackPoints.length];
+                
+                // 각 세그먼트의 방향 계산
+                const direction = new THREE.Vector3(
+                    next.x - current.x,
+                    next.y - current.y,
+                    next.z - current.z
+                ).normalize();
+                
+                // 트랙 세그먼트 생성
+                const segmentGeometry = new THREE.BoxGeometry(8, 0.5, 
+                    Math.sqrt(Math.pow(next.x - current.x, 2) + 
+                             Math.pow(next.y - current.y, 2) + 
+                             Math.pow(next.z - current.z, 2)));
+                const segmentMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+                const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+                
+                // 세그먼트 위치와 회전 설정
+                segment.position.set(
+                    (current.x + next.x) / 2,
+                    (current.y + next.y) / 2,
+                    (current.z + next.z) / 2
+                );
+                
+                // 세그먼트를 경로 방향으로 회전
+                segment.lookAt(next.x, next.y, next.z);
+                segment.receiveShadow = true;
+                segment.castShadow = true;
+                trackGroup.add(segment);
+                
+                // 트랙 경계선 추가
+                const borderMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                const leftBorder = segment.clone();
+                leftBorder.position.x += direction.z * 4.2;
+                leftBorder.position.z -= direction.x * 4.2;
+                leftBorder.scale.set(0.1, 1.2, 1);
+                leftBorder.material = borderMaterial;
+                trackGroup.add(leftBorder);
+                
+                const rightBorder = segment.clone();
+                rightBorder.position.x -= direction.z * 4.2;
+                rightBorder.position.z += direction.x * 4.2;
+                rightBorder.scale.set(0.1, 1.2, 1);
+                rightBorder.material = borderMaterial;
+                trackGroup.add(rightBorder);
+            }
+
+            // 시작/골 라인 (첫 번째 포인트에)
+            const startPoint = trackPoints[0];
+            const startLineGeometry = new THREE.PlaneGeometry(12, 1);
+            const startLineMaterial = new THREE.MeshLambertMaterial({ color: 0xffff00 });
+            const startLine = new THREE.Mesh(startLineGeometry, startLineMaterial);
+            startLine.position.set(startPoint.x, startPoint.y + 0.3, startPoint.z);
+            startLine.rotation.x = -Math.PI / 2;
+            trackGroup.add(startLine);
+
+            // 체크포인트 생성 (트랙을 따라 32개)
+            checkpoints = [];
+            for (let i = 0; i < 32; i++) {
+                const pointIndex = Math.floor((i / 32) * trackPoints.length);
+                const point = trackPoints[pointIndex];
+                checkpoints.push({ x: point.x, y: point.y, z: point.z, passed: false });
+
+                // 체크포인트 표시
+                const checkpointGeometry = new THREE.PlaneGeometry(3, 0.2);
+                const checkpointMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x00ff00, 
+                    transparent: true, 
+                    opacity: 0.4 
+                });
+                const checkpoint = new THREE.Mesh(checkpointGeometry, checkpointMaterial);
+                checkpoint.position.set(point.x, point.y + 0.5, point.z);
+                checkpoint.rotation.x = -Math.PI / 2;
+                trackGroup.add(checkpoint);
+            }
+
+            // 서포트 기둥들 추가 (롤러코스터 느낌)
+            trackPoints.forEach((point, index) => {
+                if (point.y > 5 && index % 8 === 0) {
+                    const supportGeometry = new THREE.CylinderGeometry(0.8, 1.2, point.y);
+                    const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+                    const support = new THREE.Mesh(supportGeometry, supportMaterial);
+                    support.position.set(point.x, point.y / 2, point.z);
+                    support.castShadow = true;
+                    trackGroup.add(support);
+                }
+            });
+
+            track = trackGroup;
+            scene.add(track);
+        }
+
+        function createEnvironment() {
+            // 그라운드 (4배 더 크게)
+            const groundGeometry = new THREE.PlaneGeometry(800, 800);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -10;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 산들 추가 (원거리 배경)
+            for (let i = 0; i < 12; i++) {
+                const mountainGeometry = new THREE.ConeGeometry(20 + Math.random() * 30, 60 + Math.random() * 40, 8);
+                const mountainMaterial = new THREE.MeshLambertMaterial({ color: 0x8B7355 });
+                const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+                
+                const angle = (i / 12) * Math.PI * 2;
+                const distance = 300 + Math.random() * 100;
+                mountain.position.set(
+                    Math.cos(angle) * distance,
+                    15,
+                    Math.sin(angle) * distance
+                );
+                mountain.castShadow = true;
+                scene.add(mountain);
+            }
+
+            // 나무들 (4배 더 많이, 더 넓은 범위에)
+            for (let i = 0; i < 80; i++) {
+                const treeGroup = new THREE.Group();
+                
+                // 나무 줄기
+                const trunkHeight = 8 + Math.random() * 12;
+                const trunkGeometry = new THREE.CylinderGeometry(0.5 + Math.random() * 0.5, 0.8 + Math.random() * 0.4, trunkHeight);
+                const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.y = trunkHeight / 2;
+                trunk.castShadow = true;
+                treeGroup.add(trunk);
+
+                // 나무 잎
+                const leavesSize = 4 + Math.random() * 3;
+                const leavesGeometry = new THREE.SphereGeometry(leavesSize);
+                const leavesColor = Math.random() > 0.5 ? 0x228B22 : 0x32CD32;
+                const leavesMaterial = new THREE.MeshLambertMaterial({ color: leavesColor });
+                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+                leaves.position.y = trunkHeight + leavesSize - 2;
+                leaves.castShadow = true;
+                treeGroup.add(leaves);
+
+                // 랜덤 위치 (트랙 밖에, 더 넓은 범위)
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 150 + Math.random() * 200;
+                treeGroup.position.x = Math.cos(angle) * distance;
+                treeGroup.position.z = Math.sin(angle) * distance;
+                
+                scene.add(treeGroup);
+            }
+
+            // 바위들 추가
+            for (let i = 0; i < 30; i++) {
+                const rockSize = 2 + Math.random() * 4;
+                const rockGeometry = new THREE.DodecahedronGeometry(rockSize);
+                const rockMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 120 + Math.random() * 150;
+                rock.position.set(
+                    Math.cos(angle) * distance,
+                    rockSize / 2,
+                    Math.sin(angle) * distance
+                );
+                rock.castShadow = true;
+                scene.add(rock);
+            }
+
+            // 구름들 (더 많이, 더 넓은 범위)
+            for (let i = 0; i < 25; i++) {
+                const cloudGeometry = new THREE.SphereGeometry(8 + Math.random() * 5, 8, 6);
+                const cloudMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.7 + Math.random() * 0.2
+                });
+                const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                cloud.position.set(
+                    (Math.random() - 0.5) * 600,
+                    40 + Math.random() * 30,
+                    (Math.random() - 0.5) * 600
+                );
+                scene.add(cloud);
+            }
+
+            // 새들 추가 (움직이는 점들)
+            for (let i = 0; i < 15; i++) {
+                const birdGeometry = new THREE.SphereGeometry(0.3);
+                const birdMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+                const bird = new THREE.Mesh(birdGeometry, birdMaterial);
+                bird.position.set(
+                    (Math.random() - 0.5) * 400,
+                    20 + Math.random() * 15,
+                    (Math.random() - 0.5) * 400
+                );
+                scene.add(bird);
+            }
+        }
+
+        function setupEventListeners() {
+            // 키보드 이벤트
+            document.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+            });
+
+            document.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+            });
+
+            // 윈도우 리사이즈
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function updateCar() {
+            // 가속/감속
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                carSpeed = Math.min(carSpeed + acceleration, maxSpeed);
+            }
+            if (keys['KeyS'] || keys['ArrowDown']) {
+                carSpeed = Math.max(carSpeed - acceleration, -maxSpeed * 0.5);
+            }
+            if (keys['Space']) {
+                carSpeed *= 0.9; // 브레이크
+            }
+
+            // 조향
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                if (Math.abs(carSpeed) > 0.01) {
+                    carRotation += turnSpeed * (carSpeed > 0 ? 1 : -1);
+                }
+            }
+            if (keys['KeyD'] || keys['ArrowRight']) {
+                if (Math.abs(carSpeed) > 0.01) {
+                    carRotation -= turnSpeed * (carSpeed > 0 ? 1 : -1);
+                }
+            }
+
+            // 마찰력 적용
+            carSpeed *= friction;
+
+            // 자동차 위치 업데이트 (3D 움직임)
+            const newX = car.position.x + Math.sin(carRotation) * carSpeed;
+            const newZ = car.position.z + Math.cos(carRotation) * carSpeed;
+            
+            // 트랙 높이에 맞춰 자동차 Y 위치 조정
+            const trackHeight = getTrackHeightAt(newX, newZ);
+            
+            car.position.x = newX;
+            car.position.z = newZ;
+            car.position.y = trackHeight + 1; // 트랙 위에 자동차 위치
+            car.rotation.y = carRotation;
+
+            // 트랙을 벗어났는지 체크 (더 관대한 범위)
+            const nearestTrackPoint = findNearestTrackPoint(car.position.x, car.position.z);
+            const distanceFromTrack = Math.sqrt(
+                Math.pow(car.position.x - nearestTrackPoint.x, 2) + 
+                Math.pow(car.position.z - nearestTrackPoint.z, 2)
+            );
+            
+            if (distanceFromTrack > 15) {
+                carSpeed *= 0.85; // 트랙 밖에서 속도 감소
+            }
+
+            // 체크포인트 체크
+            checkCheckpoints();
+
+            // 속도계 업데이트
+            const speedKmh = Math.abs(carSpeed) * 120; // 롤러코스터라서 더 빠른 느낌
+            document.getElementById('speed').textContent = Math.round(speedKmh);
+        }
+
+        // 특정 위치에서의 트랙 높이 계산
+        function getTrackHeightAt(x, z) {
+            // 간단한 높이 계산 (실제로는 더 정확한 계산이 필요)
+            const distance = Math.sqrt(x * x + z * z);
+            const angle = Math.atan2(z, x);
+            const t = angle / (Math.PI * 2) * 4; // 트랙 경로에 맞춤
+            
+            return 15 * Math.sin(t * 2) + 10 * Math.cos(t * 1.5) + 20 * Math.sin(t * 0.5);
+        }
+
+        // 가장 가까운 트랙 포인트 찾기
+        function findNearestTrackPoint(x, z) {
+            let minDistance = Infinity;
+            let nearestPoint = { x: 0, y: 0, z: 0 };
+            
+            checkpoints.forEach(point => {
+                const distance = Math.sqrt(
+                    Math.pow(x - point.x, 2) + Math.pow(z - point.z, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearestPoint = point;
+                }
+            });
+            
+            return nearestPoint;
+        }
+
+        function checkCheckpoints() {
+            const carPos = car.position;
+            const currentCP = checkpoints[currentCheckpoint];
+            
+            if (currentCP && !currentCP.passed) {
+                const distance = Math.sqrt(
+                    Math.pow(carPos.x - currentCP.x, 2) + 
+                    Math.pow(carPos.y - currentCP.y, 2) + 
+                    Math.pow(carPos.z - currentCP.z, 2)
+                );
+                
+                if (distance < 8) { // 3D에서는 더 관대한 범위
+                    currentCP.passed = true;
+                    currentCheckpoint = (currentCheckpoint + 1) % checkpoints.length;
+                    
+                    // 모든 체크포인트 통과하면 랩 완료
+                    if (currentCheckpoint === 0 && checkpoints.every(cp => cp.passed)) {
+                        completeLap();
+                        // 체크포인트 리셋
+                        checkpoints.forEach(cp => cp.passed = false);
+                    }
+                }
+            }
+        }
+
+        function completeLap() {
+            const lapTime = Date.now() - lapStartTime;
+            const lapTimeSeconds = lapTime / 1000;
+            const minutes = Math.floor(lapTimeSeconds / 60);
+            const seconds = (lapTimeSeconds % 60).toFixed(2);
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(5, '0')}`;
+            
+            if (!bestLapTime || lapTime < bestLapTime) {
+                bestLapTime = lapTime;
+                document.getElementById('bestTime').textContent = timeString;
+            }
+            
+            lapStartTime = Date.now();
+        }
+
+        function updateCamera() {
+            // 3인칭 카메라 (자동차 뒤쪽, 롤러코스터용 개선)
+            const cameraDistance = 20;
+            const cameraHeightOffset = 12;
+            
+            const targetX = car.position.x - Math.sin(carRotation) * cameraDistance;
+            const targetZ = car.position.z - Math.cos(carRotation) * cameraDistance;
+            const targetY = car.position.y + cameraHeightOffset;
+            
+            // 부드러운 카메라 추적
+            camera.position.x += (targetX - camera.position.x) * 0.08;
+            camera.position.y += (targetY - camera.position.y) * 0.08;
+            camera.position.z += (targetZ - camera.position.z) * 0.08;
+            
+            // 자동차를 바라보되, 높이 변화도 고려
+            camera.lookAt(car.position.x, car.position.y + 3, car.position.z);
+        }
+
+        function updateUI() {
+            const currentTime = Date.now() - lapStartTime;
+            const timeSeconds = currentTime / 1000;
+            const minutes = Math.floor(timeSeconds / 60);
+            const seconds = (timeSeconds % 60).toFixed(1);
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(4, '0')}`;
+            
+            document.getElementById('lapTime').textContent = timeString;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateCar();
+            updateCamera();
+            updateUI();
+            
+            renderer.render(scene, camera);
+        }
+
+        // 게임 시작
+        init();
+    </script>
+</body>
+</html>

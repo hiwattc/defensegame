@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>앵그리버드 스타일 게임 (Matter.js)</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #87ceeb;
+    }
+    #gameCanvas {
+      display: block;
+      background: linear-gradient(to top, #87ceeb 80%, #fff 100%);
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    // 기본 설정
+    const GAME_WIDTH = 3000; // 가로로 긴 월드
+    const GAME_HEIGHT = 800;
+    const VIEWPORT_WIDTH = window.innerWidth;
+    const VIEWPORT_HEIGHT = window.innerHeight;
+
+    // Matter.js 모듈
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Body = Matter.Body,
+          Composite = Matter.Composite,
+          Mouse = Matter.Mouse,
+          MouseConstraint = Matter.MouseConstraint,
+          Events = Matter.Events,
+          Constraint = Matter.Constraint;
+
+    // 엔진 생성
+    const engine = Engine.create();
+    const world = engine.world;
+
+    // 캔버스와 렌더러 설정
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = VIEWPORT_WIDTH;
+    canvas.height = VIEWPORT_HEIGHT;
+    const context = canvas.getContext('2d');
+
+    // 바닥
+    const ground = Bodies.rectangle(GAME_WIDTH/2, GAME_HEIGHT-40, GAME_WIDTH, 80, { isStatic: true, render: { fillStyle: '#654321' } });
+    Composite.add(world, ground);
+
+    // 장애물(박스)
+    for(let i=0; i<5; i++) {
+      Composite.add(world, Bodies.rectangle(1800 + i*60, GAME_HEIGHT-120, 60, 60, { restitution: 0.4 }));
+    }
+
+    // 새(포탄)
+    let bird = Bodies.circle(300, GAME_HEIGHT-120, 30, { restitution: 0.8, density: 0.004, render: { fillStyle: 'red' } });
+    Composite.add(world, bird);
+
+    // 슬링샷(고무줄)
+    let sling = Constraint.create({
+      pointA: { x: 300, y: GAME_HEIGHT-120 },
+      bodyB: bird,
+      stiffness: 0.05,
+      length: 0
+    });
+    Composite.add(world, sling);
+
+    // 마우스 컨트롤
+    let mouse = Mouse.create(canvas);
+    let mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.02,
+        render: { visible: false }
+      }
+    });
+    Composite.add(world, mouseConstraint);
+
+    // 새 발사 상태
+    let isBirdFlying = false;
+    Events.on(mouseConstraint, 'enddrag', function(event) {
+      if(event.body === bird) {
+        setTimeout(() => {
+          sling.bodyB = null;
+          isBirdFlying = true;
+        }, 100);
+      }
+    });
+
+    // 새가 멀리 가면 새로 생성
+    function resetBird() {
+      Composite.remove(world, bird);
+      bird = Bodies.circle(300, GAME_HEIGHT-120, 30, { restitution: 0.8, density: 0.004, render: { fillStyle: 'red' } });
+      Composite.add(world, bird);
+      sling.bodyB = bird;
+      isBirdFlying = false;
+    }
+
+    // 화면 패닝 변수
+    let cameraX = 0;
+    function updateCamera() {
+      if(isBirdFlying) {
+        // 새가 날아가면 새를 따라가며 패닝
+        let targetX = Math.max(0, Math.min(bird.position.x - VIEWPORT_WIDTH/3, GAME_WIDTH - VIEWPORT_WIDTH));
+        cameraX += (targetX - cameraX) * 0.08; // 부드럽게 이동
+      } else {
+        // 새가 대기 중이면 시작 위치 고정
+        cameraX += (0 - cameraX) * 0.08;
+      }
+    }
+
+    // 렌더링 함수
+    function renderWorld() {
+      context.clearRect(0, 0, VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
+      context.save();
+      context.translate(-cameraX, 0);
+
+      // 바닥
+      context.fillStyle = '#654321';
+      context.fillRect(0, GAME_HEIGHT-80, GAME_WIDTH, 80);
+
+      // 장애물
+      context.fillStyle = '#888';
+      world.bodies.forEach(body => {
+        if(body === ground || body === bird) return;
+        if(body.circleRadius) {
+          context.beginPath();
+          context.arc(body.position.x, body.position.y, body.circleRadius, 0, 2 * Math.PI);
+          context.fill();
+        } else {
+          context.save();
+          context.translate(body.position.x, body.position.y);
+          context.rotate(body.angle);
+          context.fillRect(-body.bounds.max.x + body.position.x, -body.bounds.max.y + body.position.y, body.bounds.max.x - body.bounds.min.x, body.bounds.max.y - body.bounds.min.y);
+          context.restore();
+        }
+      });
+
+      // 새(포탄)
+      context.fillStyle = 'red';
+      context.beginPath();
+      context.arc(bird.position.x, bird.position.y, bird.circleRadius, 0, 2 * Math.PI);
+      context.fill();
+
+      // 슬링샷(고무줄)
+      if(sling.bodyB) {
+        context.strokeStyle = '#222';
+        context.lineWidth = 6;
+        context.beginPath();
+        context.moveTo(sling.pointA.x, sling.pointA.y);
+        context.lineTo(bird.position.x, bird.position.y);
+        context.stroke();
+      }
+
+      context.restore();
+    }
+
+    // 게임 루프
+    function gameLoop() {
+      Engine.update(engine, 1000 / 60);
+      updateCamera();
+      renderWorld();
+
+      // 새가 화면 밖으로 나가면 리셋
+      if(isBirdFlying && (bird.position.y > GAME_HEIGHT + 100 || bird.position.x > GAME_WIDTH + 100 || bird.position.x < -100)) {
+        setTimeout(resetBird, 1000);
+      }
+      requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+
+    // 리사이즈 대응
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>

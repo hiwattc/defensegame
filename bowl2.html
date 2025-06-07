@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>100층 블럭 빌딩 게임</title>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #222; }
+    #gameCanvas { display: block; margin: 0 auto; background: #333; }
+    .info { position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif; z-index: 10; }
+  </style>
+</head>
+<body>
+  <div class="info">마우스를 클릭하면 공이 발사됩니다!</div>
+  <canvas id="gameCanvas"></canvas>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    // 기본 세팅
+    const { Engine, Render, Runner, World, Bodies, Body, Events, Mouse, MouseConstraint, Vector } = Matter;
+
+    const width = 500;
+    const height = 900;
+    const blockWidth = 40;
+    const blockHeight = 15;
+    const floors = 100;
+    const buildingX = width / 2 - blockWidth / 2;
+    const buildingY = height - 50;
+
+    // 엔진, 월드, 렌더러 생성
+    const engine = Engine.create();
+    const world = engine.world;
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = width;
+    canvas.height = height;
+    const render = Render.create({
+      canvas: canvas,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: '#333',
+      }
+    });
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // 바닥
+    const ground = Bodies.rectangle(width/2, height-10, width, 20, { isStatic: true, render: { fillStyle: '#666' } });
+    World.add(world, ground);
+
+    // 100층 빌딩 쌓기
+    let blocks = [];
+    for(let i=0; i<floors; i++) {
+      const block = Bodies.rectangle(
+        buildingX + blockWidth/2,
+        buildingY - i * (blockHeight - 0.5),
+        blockWidth,
+        blockHeight,
+        {
+          friction: 0.8,
+          frictionStatic: 1.0,
+          density: 0.06,
+          restitution: 0.01,
+          render: { fillStyle: `hsl(${(i*3)%360}, 60%, 60%)` },
+          chamfer: { radius: 3 }
+        }
+      );
+      blocks.push(block);
+    }
+    World.add(world, blocks);
+
+    // 공 발사 관련
+    let ball = null;
+    function shootBall(x, y) {
+      if(ball) World.remove(world, ball);
+      ball = Bodies.circle(80, height-80, 18, {
+        restitution: 0.8,
+        density: 0.04,
+        render: { fillStyle: '#f5d142' }
+      });
+      World.add(world, ball);
+      // 클릭 위치로 발사
+      const force = Vector.normalise({ x: x-80, y: y-(height-80) });
+      Body.applyForce(ball, ball.position, { x: force.x*0.15, y: force.y*0.15 });
+    }
+
+    // 마우스 클릭 이벤트
+    canvas.addEventListener('mousedown', function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      shootBall(mouseX, mouseY);
+    });
+
+    // 화면 리사이즈 방지
+    window.addEventListener('resize', () => {
+      canvas.width = width;
+      canvas.height = height;
+    });
+  </script>
+</body>
+</html>

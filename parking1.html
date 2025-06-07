@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4축 바퀴 자동차 운전 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #2a4a2a;
+            border: 2px solid #333;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .parking-spot {
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
+    
+    <div id="controls">
+        <strong>🚗 운전 조작법</strong><br>
+        ↓/↑: 전진/후진<br>
+        →/←: 좌/우 조향<br>
+        Space: 브레이크<br>
+        R: 리셋
+    </div>
+    
+    <div id="info">
+        <div>속도: <span id="speed">0</span> km/h</div>
+        <div>기어: <span id="gear">P</span></div>
+        <div class="parking-spot">🅿️ 주차 구역에 정확히 주차하세요!</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 상태
+        const keys = {};
+        let gameTime = 0;
+        
+        // 자동차 클래스
+        class Car {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.speed = 0;
+                this.maxSpeed = 8;
+                this.acceleration = 0.2;
+                this.deceleration = 0.1;
+                this.turnSpeed = 0;
+                this.maxTurnSpeed = 0.04;
+                this.friction = 0.95;
+                this.width = 60;
+                this.height = 30;
+                
+                // 4축 바퀴 위치 (상대적)
+                this.wheels = [
+                    {x: -25, y: -12, angle: 0}, // 앞 왼쪽
+                    {x: -25, y: 12, angle: 0},  // 앞 오른쪽
+                    {x: 25, y: -12, angle: 0},  // 뒤 왼쪽
+                    {x: 25, y: 12, angle: 0}    // 뒤 오른쪽
+                ];
+            }
+            
+            update() {
+                // 조향 입력
+                let steering = 0;
+                if (keys['ArrowRight']) steering = -1;
+                if (keys['ArrowLeft']) steering = 1;
+                
+                // 가속/감속 입력
+                let throttle = 0;
+                if (keys['ArrowDown']) throttle = 1;
+                if (keys['ArrowUp']) throttle = -1;
+                
+                // 브레이크
+                let brake = keys[' '];
+                
+                // 속도 계산
+                if (throttle !== 0) {
+                    this.speed += throttle * this.acceleration;
+                } else if (!brake) {
+                    this.speed *= this.friction;
+                }
+                
+                // 브레이크 적용
+                if (brake) {
+                    this.speed *= 0.9;
+                }
+                
+                // 최대 속도 제한
+                this.speed = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.speed));
+                
+                // 조향 (속도에 따라 조향력 조절)
+                if (Math.abs(this.speed) > 0.1) {
+                    this.turnSpeed = steering * this.maxTurnSpeed * (Math.abs(this.speed) / this.maxSpeed);
+                    this.angle += this.turnSpeed * (this.speed > 0 ? 1 : -1);
+                }
+                
+                // 앞바퀴 각도 (조향) - 반대로 변경
+                this.wheels[0].angle = -steering * 0.3;
+                this.wheels[1].angle = -steering * 0.3;
+                
+                // 위치 업데이트
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                
+                // 무한 공간 처리 (화면을 넘어가면 반대편에서 나타남)
+                if (this.x < -this.width/2) this.x = canvas.width + this.width/2;
+                if (this.x > canvas.width + this.width/2) this.x = -this.width/2;
+                if (this.y < -this.height/2) this.y = canvas.height + this.height/2;
+                if (this.y > canvas.height + this.height/2) this.y = -this.height/2;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                // 자동차 본체
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // 자동차 윈도우
+                ctx.fillStyle = '#87ceeb';
+                ctx.fillRect(-this.width/2 + 5, -this.height/2 + 5, this.width - 10, this.height - 10);
+                
+                // 헤드라이트
+                ctx.fillStyle = '#ffff99';
+                ctx.fillRect(-this.width/2 - 3, -8, 6, 4);
+                ctx.fillRect(-this.width/2 - 3, 4, 6, 4);
+                
+                // 4개 바퀴 그리기
+                this.wheels.forEach((wheel, index) => {
+                    ctx.save();
+                    ctx.translate(wheel.x, wheel.y);
+                    ctx.rotate(wheel.angle);
+                    
+                    // 바퀴
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(-6, -3, 12, 6);
+                    
+                    // 바퀴 테두리
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-6, -3, 12, 6);
+                    
+                    ctx.restore();
+                });
+                
+                ctx.restore();
+            }
+            
+            reset() {
+                this.x = 100;
+                this.y = 100;
+                this.angle = 0;
+                this.speed = 0;
+                this.turnSpeed = 0;
+            }
+        }
+        
+        // 주차 구역 클래스
+        class ParkingSpot {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.occupied = false;
+            }
+            
+            draw() {
+                // 주차 구역 테두리
+                ctx.strokeStyle = this.occupied ? '#00ff00' : '#ffff00';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 5]);
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                ctx.setLineDash([]);
+                
+                // 주차 표시
+                ctx.fillStyle = this.occupied ? '#00ff0030' : '#ffff0030';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // P 표시
+                ctx.fillStyle = this.occupied ? '#00ff00' : '#ffff00';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('P', this.x + this.width/2, this.y + this.height/2 + 7);
+            }
+            
+            checkParking(car) {
+                const carLeft = car.x - car.width/2;
+                const carRight = car.x + car.width/2;
+                const carTop = car.y - car.height/2;
+                const carBottom = car.y + car.height/2;
+                
+                const inX = carLeft >= this.x && carRight <= this.x + this.width;
+                const inY = carTop >= this.y && carBottom <= this.y + this.height;
+                const slowEnough = Math.abs(car.speed) < 0.5;
+                
+                this.occupied = inX && inY && slowEnough;
+                return this.occupied;
+            }
+        }
+        
+        // 도로 그리기 함수
+        function drawRoad() {
+            // 기본 도로 배경
+            ctx.fillStyle = '#444';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 도로 차선
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 20]);
+            
+            // 수직 차선
+            for (let x = 200; x < canvas.width; x += 100) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // 수평 차선
+            for (let y = 150; y < canvas.height; y += 100) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            ctx.setLineDash([]);
+        }
+        
+        // 게임 객체 생성
+        const car = new Car(100, 100);
+        const parkingSpots = [
+            new ParkingSpot(800, 200, 80, 120),
+            new ParkingSpot(900, 200, 80, 120),
+            new ParkingSpot(1000, 200, 80, 120),
+            new ParkingSpot(300, 600, 80, 120),
+            new ParkingSpot(400, 600, 80, 120),
+            new ParkingSpot(600, 400, 120, 80),
+            new ParkingSpot(750, 400, 120, 80)
+        ];
+        
+        // UI 업데이트
+        function updateUI() {
+            document.getElementById('speed').textContent = Math.round(Math.abs(car.speed * 15));
+            
+            let gear = 'P';
+            if (car.speed > 0.1) gear = 'D';
+            else if (car.speed < -0.1) gear = 'R';
+            document.getElementById('gear').textContent = gear;
+        }
+        
+        // 게임 루프
+        function gameLoop() {
+            // 배경 지우기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 도로 그리기
+            drawRoad();
+            
+            // 주차 구역 그리기 및 체크
+            parkingSpots.forEach(spot => {
+                spot.draw();
+                spot.checkParking(car);
+            });
+            
+            // 자동차 업데이트 및 그리기
+            car.update();
+            car.draw();
+            
+            // UI 업데이트
+            updateUI();
+            
+            gameTime++;
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 키보드 이벤트
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            // 리셋
+            if (e.key === 'r' || e.key === 'R') {
+                car.reset();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

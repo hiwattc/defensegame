@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구름 점프 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, 
+                #87CEEB 0%, 
+                #98D8E8 30%, 
+                #B0E2FF 60%, 
+                #E0F6FF 100%);
+        }
+        
+        #gameInfo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            text-align: right;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameInfo">
+        <div>점수: <span id="score">0</span></div>
+        <div>높이: <span id="height">0</span>m</div>
+        <div>최고점수: <span id="bestScore">0</span></div>
+    </div>
+    
+    <div id="gameOverScreen" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 30px; border-radius: 15px; text-align: center; z-index: 20;">
+        <h2 style="margin: 0 0 20px 0; color: #FF6B6B;">게임 종료!</h2>
+        <div style="font-size: 18px; margin-bottom: 10px;">점수: <span id="finalScore">0</span></div>
+        <div style="font-size: 16px; margin-bottom: 20px;">최고점수: <span id="finalBestScore">0</span></div>
+        <button id="restartBtn" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer;">다시 시작</button>
+    </div>
+    
+    <div id="instructions">
+        방향키 또는 WASD로 움직이기<br>
+        스페이스바로 점프<br>
+        구름을 밟아서 더 높이 올라가세요!<br>
+        ✨특수 구름: 슈퍼 점프!<br>
+        🚀로켓: 타고 하늘로!
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const heightEl = document.getElementById('height');
+        const bestScoreEl = document.getElementById('bestScore');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreEl = document.getElementById('finalScore');
+        const finalBestScoreEl = document.getElementById('finalBestScore');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // 캔버스 크기 설정
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 게임 상태
+        const game = {
+            camera: { y: 0 },
+            score: 0,
+            maxHeight: 0,
+            isGameOver: false,
+            bestScore: 0
+        };
+
+        // 플레이어
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            width: 30,
+            height: 30,
+            velX: 0,
+            velY: 0,
+            speed: 5,
+            jumpPower: 15,
+            onGround: false,
+            onCloud: null, // 현재 서있는 구름
+            onRocket: null, // 현재 타고있는 로켓
+            color: '#FF6B6B'
+        };
+
+        // 구름들
+        const clouds = [];
+        
+        // 구름 생성
+        function createCloud(x, y, width = 80, height = 40, type = 'normal') {
+            const cloud = {
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                velX: (Math.random() - 0.5) * 2, // -1 ~ 1 사이의 속도
+                opacity: 0.8 + Math.random() * 0.2,
+                type: type
+            };
+            
+            if (type === 'special') {
+                cloud.jumpPower = 2 + Math.random() * 8; // 2배~10배 점프력
+                cloud.emoji = ['⭐', '💫', '✨', '🌟', '💎'][Math.floor(Math.random() * 5)];
+            }
+            
+            return cloud;
+        }
+
+        // 로켓 생성
+        const rockets = [];
+        function createRocket() {
+            return {
+                x: Math.random() * canvas.width,
+                y: canvas.height + 50,
+                width: 40,
+                height: 60,
+                velY: -3 - Math.random() * 2,
+                emoji: '🚀'
+            };
+        }
+
+        // 게임 초기화
+        function initGame() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            player.velX = 0;
+            player.velY = 0;
+            player.onGround = false;
+            player.onCloud = null;
+            player.onRocket = null;
+            
+            game.camera.y = 0;
+            game.score = 0;
+            game.maxHeight = 0;
+            game.isGameOver = false;
+            
+            clouds.length = 0;
+            rockets.length = 0;
+            initClouds();
+            
+            gameOverScreen.style.display = 'none';
+            updateUI();
+        }
+        
+        // UI 업데이트
+        function updateUI() {
+            scoreEl.textContent = game.score;
+            heightEl.textContent = Math.max(0, Math.floor((canvas.height - player.y) / 10));
+            bestScoreEl.textContent = game.bestScore;
+        }
+        
+        // 게임 종료 처리
+        function gameOver() {
+            game.isGameOver = true;
+            
+            // 최고점수 업데이트
+            if (game.score > game.bestScore) {
+                game.bestScore = game.score;
+            }
+            
+            // 게임 오버 화면 표시
+            finalScoreEl.textContent = game.score;
+            finalBestScoreEl.textContent = game.bestScore;
+            gameOverScreen.style.display = 'block';
+        }
+        // 초기 구름들 생성
+        function initClouds() {
+            // 바닥 구름
+            for (let i = 0; i < 8; i++) {
+                clouds.push(createCloud(
+                    Math.random() * canvas.width,
+                    canvas.height - 50,
+                    100 + Math.random() * 50,
+                    30 + Math.random() * 20
+                ));
+            }
+            
+            // 상공의 구름들 - 더 촘촘하게
+            for (let i = 0; i < 50; i++) {
+                // 각 층마다 여러 개의 구름 생성
+                const layerHeight = canvas.height - 150 - (i * 80);
+                for (let j = 0; j < 3; j++) {
+                    const cloudType = Math.random() < 0.15 ? 'special' : 'normal'; // 15% 확률로 특수 구름
+                    clouds.push(createCloud(
+                        (canvas.width / 3) * j + Math.random() * (canvas.width / 3),
+                        layerHeight - Math.random() * 40,
+                        60 + Math.random() * 60,
+                        25 + Math.random() * 20,
+                        cloudType
+                    ));
+                }
+            }
+        }
+
+        // 키 입력 처리
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            if (game.isGameOver) return;
+            
+            keys[e.key.toLowerCase()] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (player.onGround) {
+                    player.velY = -player.jumpPower;
+                    player.onGround = false;
+                }
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // 다시 시작 버튼 이벤트
+        restartBtn.addEventListener('click', initGame);
+
+        // 구름 그리기
+        function drawCloud(cloud) {
+            const screenY = cloud.y + game.camera.y;
+            if (screenY > canvas.height + 50 || screenY < -100) return;
+
+            ctx.save();
+            ctx.globalAlpha = cloud.opacity;
+            ctx.fillStyle = cloud.type === 'special' ? '#FFD700' : 'white';
+            
+            // 구름 모양 그리기 (여러 원으로 구성)
+            const centerX = cloud.x + cloud.width / 2;
+            const centerY = screenY + cloud.height / 2;
+            
+            ctx.beginPath();
+            ctx.arc(centerX - cloud.width * 0.3, centerY, cloud.height * 0.4, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY - cloud.height * 0.2, cloud.height * 0.5, 0, Math.PI * 2);
+            ctx.arc(centerX + cloud.width * 0.3, centerY, cloud.height * 0.4, 0, Math.PI * 2);
+            ctx.arc(centerX - cloud.width * 0.1, centerY + cloud.height * 0.1, cloud.height * 0.3, 0, Math.PI * 2);
+            ctx.arc(centerX + cloud.width * 0.1, centerY + cloud.height * 0.1, cloud.height * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 특수 구름 이모티콘
+            if (cloud.type === 'special') {
+                ctx.globalAlpha = 1;
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(cloud.emoji, centerX, centerY - 5);
+            }
+            
+            ctx.restore();
+        }
+
+        // 로켓 그리기
+        function drawRocket(rocket) {
+            const screenY = rocket.y + game.camera.y;
+            if (screenY > canvas.height + 100 || screenY < -200) return;
+
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(rocket.emoji, rocket.x + rocket.width/2, screenY + rocket.height/2);
+        }
+
+        // 플레이어 그리기
+        function drawPlayer() {
+            const screenY = player.y + game.camera.y;
+            
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x - player.width/2, screenY - player.height/2, player.width, player.height);
+            
+            // 간단한 얼굴 추가
+            ctx.fillStyle = 'white';
+            ctx.fillRect(player.x - player.width/2 + 5, screenY - player.height/2 + 5, 6, 6);
+            ctx.fillRect(player.x - player.width/2 + 19, screenY - player.height/2 + 5, 6, 6);
+            
+            ctx.fillStyle = 'black';
+            ctx.fillRect(player.x - player.width/2 + 7, screenY - player.height/2 + 7, 2, 2);
+            ctx.fillRect(player.x - player.width/2 + 21, screenY - player.height/2 + 7, 2, 2);
+        }
+
+        // 충돌 검사
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // 게임 업데이트
+        function update() {
+            if (game.isGameOver) return;
+            
+            // 바닥 추락 검사
+            if (player.y > canvas.height + 100) {
+                gameOver();
+                return;
+            }
+            
+            // 로켓 생성 (간간히)
+            if (Math.random() < 0.005) {
+                rockets.push(createRocket());
+            }
+            
+            // 플레이어 입력 처리
+            if (keys['a'] || keys['arrowleft']) {
+                player.velX = -player.speed;
+            } else if (keys['d'] || keys['arrowright']) {
+                player.velX = player.speed;
+            } else {
+                player.velX *= 0.8; // 마찰
+            }
+
+            if (keys['w'] || keys['arrowup']) {
+                if (player.onGround) {
+                    let jumpPower = player.jumpPower;
+                    if (player.onCloud && player.onCloud.type === 'special') {
+                        jumpPower *= player.onCloud.jumpPower;
+                    }
+                    player.velY = -jumpPower;
+                    player.onGround = false;
+                    player.onCloud = null;
+                    player.onRocket = null;
+                }
+            }
+
+            // 중력 적용 (로켓을 타고 있지 않을 때만)
+            if (!player.onRocket) {
+                player.velY += 0.8;
+            }
+            
+            // 플레이어 위치 업데이트
+            player.x += player.velX;
+            
+            // 구름 위에 있을 때 구름과 같이 움직이기
+            if (player.onCloud && player.onGround) {
+                player.x += player.onCloud.velX;
+            }
+            
+            // 로켓을 타고 있을 때
+            if (player.onRocket) {
+                player.x = player.onRocket.x + player.onRocket.width/2;
+                player.y += player.onRocket.velY;
+                player.velY = player.onRocket.velY;
+            } else {
+                player.y += player.velY;
+            }
+            
+            // 화면 경계 처리
+            if (player.x < 0) player.x = canvas.width;
+            if (player.x > canvas.width) player.x = 0;
+            
+            player.onGround = false;
+            player.onCloud = null;
+            
+            // 로켓과 충돌 검사
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const rocket = rockets[i];
+                if (checkCollision({
+                    x: player.x - player.width/2,
+                    y: player.y - player.height/2,
+                    width: player.width,
+                    height: player.height
+                }, rocket)) {
+                    player.onRocket = rocket;
+                    player.onGround = true;
+                    break;
+                }
+                
+                // 로켓이 너무 높이 올라가면 제거
+                if (rocket.y < -game.camera.y - 300) {
+                    rockets.splice(i, 1);
+                }
+            }
+            
+            // 구름과 충돌 검사
+            if (!player.onRocket) {
+                for (let cloud of clouds) {
+                    if (checkCollision({
+                        x: player.x - player.width/2,
+                        y: player.y - player.height/2,
+                        width: player.width,
+                        height: player.height
+                    }, cloud)) {
+                        // 위에서 떨어지는 경우만 착지
+                        if (player.velY > 0 && player.y - player.height/2 < cloud.y + cloud.height/2) {
+                            player.y = cloud.y - player.height/2;
+                            player.velY = 0;
+                            player.onGround = true;
+                            player.onCloud = cloud;
+                            
+                            // 점수 증가
+                            const height = Math.max(0, canvas.height - player.y);
+                            if (height > game.maxHeight) {
+                                let scoreBonus = Math.floor((height - game.maxHeight) / 10);
+                                if (cloud.type === 'special') {
+                                    scoreBonus *= 2; // 특수 구름에서 2배 점수
+                                }
+                                game.score += scoreBonus;
+                                game.maxHeight = height;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 구름 이동
+            for (let cloud of clouds) {
+                cloud.x += cloud.velX;
+                
+                // 화면 경계에서 반사
+                if (cloud.x < -cloud.width || cloud.x > canvas.width + cloud.width) {
+                    cloud.velX *= -1;
+                }
+            }
+            
+            // 로켓 이동
+            for (let rocket of rockets) {
+                rocket.y += rocket.velY;
+            }
+            
+            // 카메라 업데이트 (플레이어를 따라가기)
+            const targetCameraY = canvas.height * 0.7 - player.y;
+            game.camera.y += (targetCameraY - game.camera.y) * 0.1;
+            
+            // 새로운 구름 생성 - 더 자주, 더 촘촘하게
+            if (Math.random() < 0.05) {
+                const highestCloud = Math.min(...clouds.map(c => c.y));
+                if (highestCloud > -game.camera.y - 200) {
+                    // 각 층에 여러 개의 구름 생성
+                    const layerY = highestCloud - 80 - Math.random() * 40;
+                    for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+                        const cloudType = Math.random() < 0.15 ? 'special' : 'normal';
+                        clouds.push(createCloud(
+                            Math.random() * canvas.width,
+                            layerY - Math.random() * 30,
+                            60 + Math.random() * 60,
+                            25 + Math.random() * 20,
+                            cloudType
+                        ));
+                    }
+                }
+            }
+            
+            updateUI();
+        }
+
+        // 게임 렌더링
+        function render() {
+            // 배경 그리기 (그라데이션은 CSS에서 처리)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 로켓들 그리기
+            for (let rocket of rockets) {
+                drawRocket(rocket);
+            }
+            
+            // 구름들 그리기
+            for (let cloud of clouds) {
+                drawCloud(cloud);
+            }
+            
+            // 플레이어 그리기
+            drawPlayer();
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 게임 시작
+        initGame();
+        
+        // 게임 루프
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>

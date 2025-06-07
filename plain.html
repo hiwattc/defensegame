@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 복엽기 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #87CEEB, #98FB98);
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 200;
+            font-size: 24px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="startScreen">
+            <h1>✈️ 비행기 게임</h1>
+            <p>자유롭게 하늘을 날아보세요!</p>
+            <button onclick="startGame()">게임 시작</button>
+        </div>
+        
+        <div id="ui">
+            <div>고도: <span id="altitude">0</span>m</div>
+            <div>속도: <span id="speed">0</span> km/h</div>
+
+            <div>체력: <span id="health">100</span>%</div>
+        </div>
+        
+        <div id="controls">
+            <div>조작법:</div>
+            <div>WASD: 비행기 조종</div>
+            <div>스페이스바: 총알 발사</div>
+            <div>마우스: 카메라 회전</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 게임 변수들
+        let scene, camera, renderer, plane, bullets = [], terrain;
+        let gameStarted = false;
+        let health = 100;
+        let planeSpeed = 0;
+        let altitude = 0;
+        
+        // 키 입력 상태
+        let keys = {};
+        let mouseX = 0, mouseY = 0;
+        
+        // 게임 설정
+        const WORLD_SIZE = 2000;
+        const RUNWAY_LENGTH = 200;
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameStarted = true;
+            init();
+            animate();
+        }
+        
+        function init() {
+            // 씬 생성
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87CEEB, 500, 2000);
+            
+            // 카메라 설정 (3인칭 시점)
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            
+            // 렌더러 설정
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x87CEEB);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+            
+            // 조명 설정
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(100, 200, 100);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // 지형 생성
+            createTerrain();
+            
+            // 주인공 비행기 생성 (복엽기)
+            createPlayerPlane();
+            
+            // 이벤트 리스너
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousemove', onMouseMove);
+            
+            // 윈도우 리사이즈 대응
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function createTerrain() {
+            // 지면 생성
+            const groundGeometry = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, 50, 50);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // 활주로 생성
+            const runwayGeometry = new THREE.PlaneGeometry(RUNWAY_LENGTH, 20);
+            const runwayMaterial = new THREE.MeshLambertMaterial({ color: 0x404040 });
+            const runway = new THREE.Mesh(runwayGeometry, runwayMaterial);
+            runway.rotation.x = -Math.PI / 2;
+            runway.position.y = 0.1;
+            scene.add(runway);
+            
+            // 활주로 중앙선
+            const lineGeometry = new THREE.PlaneGeometry(RUNWAY_LENGTH, 2);
+            const lineMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            const centerLine = new THREE.Mesh(lineGeometry, lineMaterial);
+            centerLine.rotation.x = -Math.PI / 2;
+            centerLine.position.y = 0.2;
+            scene.add(centerLine);
+            
+            // 건물들 생성
+            for(let i = 0; i < 15; i++) {
+                createBuilding();
+            }
+            
+            // 나무들 생성
+            for(let i = 0; i < 30; i++) {
+                createTree();
+            }
+            
+            // 호수 생성
+            createLake();
+            
+            // 하천 생성
+            createRiver();
+        }
+        
+        function createBuilding() {
+            const width = Math.random() * 30 + 20;
+            const height = Math.random() * 80 + 40;
+            const depth = Math.random() * 30 + 20;
+            
+            const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+            const buildingMaterial = new THREE.MeshLambertMaterial({ 
+                color: new THREE.Color().setHSL(Math.random() * 0.1, 0.5, 0.7) 
+            });
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            
+            building.position.x = (Math.random() - 0.5) * WORLD_SIZE * 0.8;
+            building.position.y = height / 2;
+            building.position.z = (Math.random() - 0.5) * WORLD_SIZE * 0.8;
+            
+            // 활주로와 충돌하지 않도록
+            if(Math.abs(building.position.x) < RUNWAY_LENGTH/2 && Math.abs(building.position.z) < 50) {
+                building.position.x += RUNWAY_LENGTH;
+            }
+            
+            building.castShadow = true;
+            building.receiveShadow = true;
+            scene.add(building);
+        }
+        
+        function createTree() {
+            // 나무 줄기
+            const trunkGeometry = new THREE.CylinderGeometry(2, 3, 15);
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            
+            // 나무 잎
+            const leavesGeometry = new THREE.SphereGeometry(8);
+            const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.y = 15;
+            
+            const tree = new THREE.Group();
+            tree.add(trunk);
+            tree.add(leaves);
+            
+            tree.position.x = (Math.random() - 0.5) * WORLD_SIZE * 0.9;
+            tree.position.y = 7.5;
+            tree.position.z = (Math.random() - 0.5) * WORLD_SIZE * 0.9;
+            
+            // 활주로와 충돌하지 않도록
+            if(Math.abs(tree.position.x) < RUNWAY_LENGTH/2 && Math.abs(tree.position.z) < 50) {
+                tree.position.x += RUNWAY_LENGTH;
+            }
+            
+            trunk.castShadow = true;
+            leaves.castShadow = true;
+            scene.add(tree);
+        }
+        
+        function createLake() {
+            const lakeGeometry = new THREE.CircleGeometry(100, 32);
+            const lakeMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x4169E1,
+                transparent: true,
+                opacity: 0.8
+            });
+            const lake = new THREE.Mesh(lakeGeometry, lakeMaterial);
+            lake.rotation.x = -Math.PI / 2;
+            lake.position.set(300, 0.5, 300);
+            scene.add(lake);
+        }
+        
+        function createRiver() {
+            const riverGeometry = new THREE.PlaneGeometry(800, 30);
+            const riverMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x4169E1,
+                transparent: true,
+                opacity: 0.7
+            });
+            const river = new THREE.Mesh(riverGeometry, riverMaterial);
+            river.rotation.x = -Math.PI / 2;
+            river.rotation.z = Math.PI / 4;
+            river.position.set(-200, 0.5, -200);
+            scene.add(river);
+        }
+        
+        function createPlayerPlane() {
+            // 간단한 직사각형 비행기
+            const planeGeometry = new THREE.BoxGeometry(20, 2, 8);
+            const planeMaterial = new THREE.MeshLambertMaterial({ color: 0x8B0000 });
+            plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            
+            plane.position.set(0, 2, -RUNWAY_LENGTH/2);
+            plane.castShadow = true;
+            scene.add(plane);
+        }
+        
+
+        
+        function onKeyDown(event) {
+            keys[event.code] = true;
+            
+            if(event.code === 'Space') {
+                event.preventDefault();
+                shoot();
+            }
+        }
+        
+        function onKeyUp(event) {
+            keys[event.code] = false;
+        }
+        
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function shoot() {
+            if(!plane) return;
+            
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2),
+                new THREE.MeshLambertMaterial({ color: 0xFFFF00 })
+            );
+            
+            bullet.position.copy(plane.position);
+            bullet.position.x += 12; // 비행기 앞쪽에서 발사
+            
+            const direction = new THREE.Vector3(1, 0, 0);
+            direction.applyQuaternion(plane.quaternion);
+            
+            bullet.userData = {
+                velocity: direction.multiplyScalar(10),
+                life: 100
+            };
+            
+            bullets.push(bullet);
+            scene.add(bullet);
+        }
+        
+        function updatePlane() {
+            if(!plane) return;
+            
+            let thrust = 0;
+            let pitch = 0;
+            let yaw = 0;
+            let roll = 0;
+            
+            // 키보드 입력 처리
+            if(keys['KeyW'] || keys['ArrowUp']) thrust = 1;
+            if(keys['KeyS'] || keys['ArrowDown']) thrust = -0.5;
+            if(keys['KeyA'] || keys['ArrowLeft']) yaw = 0.02;
+            if(keys['KeyD'] || keys['ArrowRight']) yaw = -0.02;
+            if(keys['KeyQ']) pitch = 0.02;
+            if(keys['KeyE']) pitch = -0.02;
+            
+            // 마우스 입력으로 추가 조종
+            yaw += mouseX * 0.01;
+            pitch += mouseY * 0.01;
+            
+            // 속도 계산
+            planeSpeed += thrust * 0.5;
+            planeSpeed = Math.max(0, Math.min(planeSpeed, 8));
+            
+            // 최소 속도 유지 (실속 방지)
+            if(planeSpeed < 2 && plane.position.y > 5) {
+                planeSpeed = 2;
+            }
+            
+            // 비행기 회전
+            plane.rotation.y += yaw;
+            plane.rotation.x += pitch;
+            plane.rotation.z += roll - yaw * 2; // 뱅킹
+            
+            // 회전 제한
+            plane.rotation.x = Math.max(-Math.PI/3, Math.min(Math.PI/3, plane.rotation.x));
+            plane.rotation.z = Math.max(-Math.PI/4, Math.min(Math.PI/4, plane.rotation.z));
+            
+            // 이동
+            const forward = new THREE.Vector3(1, 0, 0);
+            forward.applyQuaternion(plane.quaternion);
+            forward.multiplyScalar(planeSpeed);
+            
+            plane.position.add(forward);
+            
+            // 중력과 양력
+            const lift = planeSpeed * 0.3;
+            const gravity = 0.1;
+            plane.position.y += (lift - gravity) * Math.cos(plane.rotation.x);
+            
+            // 지면 충돌 검사
+            if(plane.position.y < 2) {
+                plane.position.y = 2;
+                planeSpeed *= 0.8; // 마찰
+            }
+            
+            // 고도와 속도 업데이트
+            altitude = Math.max(0, plane.position.y - 2);
+            
+            // 카메라 위치 업데이트 (3인칭 시점)
+            const cameraDistance = 50;
+            const cameraHeight = 20;
+            const behind = new THREE.Vector3(-1, 0, 0);
+            behind.applyQuaternion(plane.quaternion);
+            behind.multiplyScalar(cameraDistance);
+            
+            camera.position.copy(plane.position);
+            camera.position.add(behind);
+            camera.position.y += cameraHeight;
+            camera.lookAt(plane.position);
+        }
+        
+
+        
+        function updateBullets() {
+            bullets.forEach((bullet, bulletIndex) => {
+                if(!bullet.parent) return;
+                
+                bullet.position.add(bullet.userData.velocity);
+                bullet.userData.life--;
+                
+                // 총알 생명주기 끝
+                if(bullet.userData.life <= 0) {
+                    scene.remove(bullet);
+                    bullets.splice(bulletIndex, 1);
+                    return;
+                }
+            });
+        }
+        
+
+        
+        function updateUI() {
+            document.getElementById('altitude').textContent = Math.round(altitude);
+            document.getElementById('speed').textContent = Math.round(planeSpeed * 50);
+            document.getElementById('health').textContent = health;
+        }
+        
+        function animate() {
+            if(!gameStarted) return;
+            
+            requestAnimationFrame(animate);
+            
+            updatePlane();
+            updateBullets();
+            updateUI();
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>

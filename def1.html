@@ -1,0 +1,2380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중세 성 방어 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 18px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            z-index: 100;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid red;
+            border-radius: 50%;
+            z-index: 100;
+        }
+        
+        #powerGauge {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid white;
+            border-radius: 10px;
+            z-index: 100;
+            display: none;
+        }
+        
+        #powerBar {
+            height: 100%;
+            background: linear-gradient(to right, #00ff00, #ffff00, #ff0000);
+            border-radius: 8px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        #powerText {
+            position: absolute;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            z-index: 100;
+            display: none;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div>점수: <span id="score">0</span></div>
+            <div>생명력: <span id="health">100</span></div>
+            <div>수류탄: <span id="grenades">∞</span></div>
+            <div>웨이브: <span id="wave">1</span></div>
+        </div>
+        
+        <div id="crosshair"></div>
+        
+        <div id="powerText">마우스를 누르고 있어서 파워 충전!</div>
+        <div id="powerGauge">
+            <div id="powerBar"></div>
+        </div>
+        
+        <div id="controls">
+            <div>W/S: 앞뒤 이동 | A/D: 좌우 회전 | 스페이스: 점프 | 마우스: 조준 | 마우스 길게 누르기: 파워 충전 후 투척</div>
+        </div>
+        
+        <div id="gameOver">
+            <h2>게임 오버!</h2>
+            <p>최종 점수: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()">다시 시작</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r158/three.min.js" 
+            onload="console.log('Three.js loaded successfully')" 
+            onerror="console.error('Three.js failed to load')">
+    </script>
+    <script>
+        // 게임 변수들
+        let scene, camera, renderer, world;
+        let player, castle, enemies = [], grenades = [], explosions = [];
+        let king = null; // 적의 왕
+        let kingStones = []; // 왕이 던진 돌들
+        let keys = {};
+        let mouse = { x: 0, y: 0 };
+        let gameStats = {
+            score: 0,
+            health: 100,
+            wave: 1,
+            enemiesKilled: 0
+        };
+        let gameRunning = true;
+        let enemySpawnTimer = 0;
+        let waveEnemiesRemaining = 10; // 1단계: 10마리
+        
+        // 파워 게이지 관련 변수들
+        let isCharging = false;
+        let chargePower = 0;
+        let maxChargePower = 100;
+        let chargeSpeed = 2;
+        
+        // 플레이어 물리 및 회전 변수들
+        let playerRotation = 0;
+        let playerVelocityY = 0;
+        let isJumping = false;
+        let jumpPower = 0.9;
+        let gravity = -0.02;
+        let groundLevel = 1;
+        let covers = []; // 엄폐물 배열
+        let debris = []; // 파편 배열
+        let flowers = []; // 꽃들 배열
+        let trees = []; // 나무들 배열
+        let castleWalls = []; // 성벽들 배열 (충돌 감지용)
+        let obstacles = []; // 모든 장애물 통합 배열
+        let trajectoryLine = null; // 탄도 궤적 라인
+        let impactMarker = null; // 낙하지점 동심원
+        
+        // 게임 초기화
+        function init() {
+            // 씬 생성
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x404040, 50, 200);
+            
+            // 카메라 설정 (3인칭)
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 8, 15);
+            camera.lookAt(0, 1, 0);
+            
+            // 렌더러 설정
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x87CEEB); // 하늘색
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+            
+            // 조명 설정 (더 밝게)
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.0);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            // 환경 및 플레이어 생성
+            createPlayer();
+            createGround();
+            createCovers();
+            createFlowers();
+            createTrees();
+            createEnemyCastle();
+            
+            // 모든 장애물 통합 (엄폐물과 나무들 생성 후)
+            updateObstacles();
+            
+            // 이벤트 리스너
+            setupEventListeners();
+            
+            // 게임 루프 시작
+            animate();
+        }
+        
+        function createWatchtower() {
+            // 감시탑 기둥 (원형)
+            const towerGeometry = new THREE.CylinderGeometry(3, 4, 15, 12);
+            const towerMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            
+            const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+            tower.position.set(0, 7.5, 0);
+            tower.castShadow = true;
+            tower.receiveShadow = true;
+            scene.add(tower);
+            
+            // 감시탑 플랫폼 (플레이어가 서는 곳)
+            const platformGeometry = new THREE.CylinderGeometry(4, 4, 1, 12);
+            const platformMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+            
+            const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.position.set(0, 15.5, 0);
+            platform.receiveShadow = true;
+            scene.add(platform);
+            
+            // 플랫폼 가장자리 (난간)
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const railingGeometry = new THREE.BoxGeometry(0.2, 1.5, 0.2);
+                const railingMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+                const railing = new THREE.Mesh(railingGeometry, railingMaterial);
+                
+                railing.position.set(
+                    Math.cos(angle) * 3.5,
+                    16.75,
+                    Math.sin(angle) * 3.5
+                );
+                railing.castShadow = true;
+                scene.add(railing);
+            }
+            
+            castle = { tower, platform };
+        }
+        
+        function createPlayer() {
+            // 플레이어 모델 (간단한 캐릭터)
+            const playerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 8);
+            const playerMaterial = new THREE.MeshLambertMaterial({ color: 0x0066cc });
+            
+            player = new THREE.Mesh(playerGeometry, playerMaterial);
+            player.position.set(0, 1, 0); // 바닥 레벨
+            player.castShadow = true; // 그림자 생성
+            player.receiveShadow = true; // 그림자 받기
+            scene.add(player);
+            
+            // 머리 부분
+            const headGeometry = new THREE.SphereGeometry(0.3);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 1.3, 0);
+            head.castShadow = true; // 그림자 생성
+            head.receiveShadow = true; // 그림자 받기
+            player.add(head);
+            
+            // 무기 (수류탄 투척기 표현)
+            const weaponGeometry = new THREE.BoxGeometry(0.3, 1.5, 0.3);
+            const weaponMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            
+            const weapon = new THREE.Mesh(weaponGeometry, weaponMaterial);
+            weapon.position.set(0.7, 0.5, 0);
+            weapon.castShadow = true; // 그림자 생성
+            weapon.receiveShadow = true; // 그림자 받기
+            player.add(weapon);
+        }
+        
+        function createGround() {
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+        }
+        
+        function createFlowers() {
+            // 빼곡하게 꽃들 생성 (300-400개)
+            const flowerCount = 300 + Math.floor(Math.random() * 101);
+            
+            for (let i = 0; i < flowerCount; i++) {
+                // 꽃잎 그룹 생성
+                const flowerGroup = new THREE.Group();
+                
+                // 랜덤 위치 (엄폐물과 성 주변은 피함)
+                let posX, posZ;
+                let validPosition = false;
+                let attempts = 0;
+                
+                while (!validPosition && attempts < 50) {
+                    posX = (Math.random() - 0.5) * 180;
+                    posZ = (Math.random() - 0.5) * 180;
+                    
+                    // 엄폐물, 플레이어 스폰, 적 성과 충돌하지 않는지 확인
+                    validPosition = true;
+                    
+                    // 플레이어 스폰 지점 피하기
+                    if (Math.sqrt(posX * posX + posZ * posZ) < 5) {
+                        validPosition = false;
+                    }
+                    
+                    // 적 성 주변 피하기
+                    if (Math.abs(posX) < 15 && posZ > -60 && posZ < -40) {
+                        validPosition = false;
+                    }
+                    
+                    attempts++;
+                }
+                
+                if (!validPosition) continue;
+                
+                flowerGroup.position.set(posX, 0, posZ);
+                
+                // 꽃잎들 (5-8개)
+                const petalCount = 5 + Math.floor(Math.random() * 4);
+                const flowerColors = [0xFF69B4, 0xFF1493, 0xFFB6C1, 0xFF6347, 0xFFFFE0, 0xFFA500, 0x9370DB];
+                const flowerColor = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+                
+                for (let p = 0; p < petalCount; p++) {
+                    const angle = (p / petalCount) * Math.PI * 2;
+                    const petalGeometry = new THREE.SphereGeometry(0.1, 6, 6);
+                    const petalMaterial = new THREE.MeshLambertMaterial({ color: flowerColor });
+                    const petal = new THREE.Mesh(petalGeometry, petalMaterial);
+                    
+                    petal.position.set(
+                        Math.cos(angle) * 0.15,
+                        0.05,
+                        Math.sin(angle) * 0.15
+                    );
+                    petal.castShadow = true;
+                    flowerGroup.add(petal);
+                }
+                
+                // 꽃 중앙 (노란색)
+                const centerGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+                const centerMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFF00 });
+                const center = new THREE.Mesh(centerGeometry, centerMaterial);
+                center.position.set(0, 0.05, 0);
+                center.castShadow = true;
+                flowerGroup.add(center);
+                
+                // 줄기 (초록색)
+                const stemGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6);
+                const stemMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+                const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+                stem.position.set(0, 0.15, 0);
+                stem.castShadow = true;
+                flowerGroup.add(stem);
+                
+                scene.add(flowerGroup);
+                flowers.push(flowerGroup);
+            }
+        }
+        
+        function createTrees() {
+            // 나무들 생성 (80-120개)
+            const treeCount = 80 + Math.floor(Math.random() * 41);
+            
+            for (let i = 0; i < treeCount; i++) {
+                const treeGroup = new THREE.Group();
+                
+                // 랜덤 위치 (다른 요소들과 충돌하지 않게)
+                let posX, posZ;
+                let validPosition = false;
+                let attempts = 0;
+                
+                while (!validPosition && attempts < 50) {
+                    posX = (Math.random() - 0.5) * 170;
+                    posZ = (Math.random() - 0.5) * 170;
+                    
+                    validPosition = true;
+                    
+                    // 플레이어 스폰 지점 피하기
+                    if (Math.sqrt(posX * posX + posZ * posZ) < 8) {
+                        validPosition = false;
+                    }
+                    
+                    // 적 성 주변 피하기
+                    if (Math.abs(posX) < 25 && posZ > -70 && posZ < -30) {
+                        validPosition = false;
+                    }
+                    
+                    // 엄폐물과 너무 가깝지 않게
+                    if (covers.length > 0) {
+                        for (let cover of covers) {
+                            const distance = Math.sqrt(
+                                Math.pow(posX - cover.position.x, 2) + 
+                                Math.pow(posZ - cover.position.z, 2)
+                            );
+                            if (distance < 3) {
+                                validPosition = false;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    attempts++;
+                }
+                
+                if (!validPosition) continue;
+                
+                treeGroup.position.set(posX, 0, posZ);
+                
+                // 나무 높이와 크기 랜덤
+                const treeHeight = 3 + Math.random() * 4; // 3-7m
+                const trunkRadius = 0.2 + Math.random() * 0.2; // 0.2-0.4m
+                const crownRadius = 1 + Math.random() * 1.5; // 1-2.5m
+                
+                // 나무 줄기 (갈색)
+                const trunkGeometry = new THREE.CylinderGeometry(trunkRadius, trunkRadius * 1.2, treeHeight * 0.6, 8);
+                const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.set(0, treeHeight * 0.3, 0);
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                treeGroup.add(trunk);
+                
+                // 나무 잎사귀 (초록색 구형)
+                const crownGeometry = new THREE.SphereGeometry(crownRadius, 8, 8);
+                const crownColors = [0x228B22, 0x32CD32, 0x90EE90, 0x006400];
+                const crownColor = crownColors[Math.floor(Math.random() * crownColors.length)];
+                const crownMaterial = new THREE.MeshLambertMaterial({ color: crownColor });
+                const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+                crown.position.set(0, treeHeight * 0.7, 0);
+                crown.castShadow = true;
+                crown.receiveShadow = true;
+                treeGroup.add(crown);
+                
+                // 일부 나무에 과일 추가 (20% 확률)
+                if (Math.random() < 0.2) {
+                    const fruitCount = 3 + Math.floor(Math.random() * 5);
+                    for (let f = 0; f < fruitCount; f++) {
+                        const fruitGeometry = new THREE.SphereGeometry(0.1, 6, 6);
+                        const fruitColors = [0xFF0000, 0xFF6600, 0xFFFF00];
+                        const fruitColor = fruitColors[Math.floor(Math.random() * fruitColors.length)];
+                        const fruitMaterial = new THREE.MeshLambertMaterial({ color: fruitColor });
+                        const fruit = new THREE.Mesh(fruitGeometry, fruitMaterial);
+                        
+                        const fruitAngle = Math.random() * Math.PI * 2;
+                        const fruitDistance = crownRadius * 0.8;
+                        fruit.position.set(
+                            Math.cos(fruitAngle) * fruitDistance,
+                            treeHeight * 0.7 + (Math.random() - 0.5) * crownRadius,
+                            Math.sin(fruitAngle) * fruitDistance
+                        );
+                        fruit.castShadow = true;
+                        treeGroup.add(fruit);
+                    }
+                }
+                
+                // 충돌 감지를 위한 정보 저장
+                treeGroup.userData = {
+                    width: crownRadius * 2,
+                    height: treeHeight,
+                    depth: crownRadius * 2,
+                    isTree: true
+                };
+                
+                scene.add(treeGroup);
+                trees.push(treeGroup);
+            }
+        }
+        
+        function createCovers() {
+            // 랜덤하게 엄폐물 생성 (60-80개) - 4배 증가
+            const coverCount = 60 + Math.floor(Math.random() * 21);
+            
+            for (let i = 0; i < coverCount; i++) {
+                // 정사각형 블럭 엄폐물
+                const coverSize = 2 + Math.random() * 2; // 크기 2-4
+                const coverHeight = 1.5 + Math.random() * 2; // 높이 1.5-3.5
+                
+                const coverGeometry = new THREE.BoxGeometry(coverSize, coverHeight, coverSize);
+                const coverMaterial = new THREE.MeshLambertMaterial({ 
+                    color: new THREE.Color(0.4 + Math.random() * 0.4, 0.3 + Math.random() * 0.3, 0.2 + Math.random() * 0.2)
+                });
+                
+                const cover = new THREE.Mesh(coverGeometry, coverMaterial);
+                
+                // 전체 지도에 골고루 배치
+                let posX, posZ;
+                let validPosition = false;
+                let attempts = 0;
+                
+                while (!validPosition && attempts < 100) {
+                    // 더 넓은 범위에서 랜덤 위치 생성 (-90 ~ 90)
+                    posX = (Math.random() - 0.5) * 180;
+                    posZ = (Math.random() - 0.5) * 180;
+                    
+                    validPosition = true;
+                    
+                    // 플레이어 스폰 지점 주변 10m는 비워둠
+                    if (Math.sqrt(posX * posX + posZ * posZ) < 10) {
+                        validPosition = false;
+                    }
+                    
+                    // 적의 성 주변 25m는 비워둠 (성 위치: x=0, z=-50)
+                    const distanceToEnemyCastle = Math.sqrt(posX * posX + Math.pow(posZ + 50, 2));
+                    if (distanceToEnemyCastle < 25) {
+                        validPosition = false;
+                    }
+                    
+                    // 기존 엄폐물과 너무 가깝지 않게 (최소 5m 간격)
+                    for (let existingCover of covers) {
+                        const distance = Math.sqrt(
+                            Math.pow(posX - existingCover.position.x, 2) + 
+                            Math.pow(posZ - existingCover.position.z, 2)
+                        );
+                        if (distance < 5) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attempts++;
+                }
+                
+                // 유효한 위치를 찾지 못했다면 건너뛰기
+                if (!validPosition) continue;
+                
+                cover.position.set(posX, coverHeight / 2, posZ);
+                cover.castShadow = true;
+                cover.receiveShadow = true;
+                
+                // 충돌 감지를 위한 정보 저장
+                cover.userData = {
+                    width: coverSize,
+                    height: coverHeight,
+                    depth: coverSize
+                };
+                
+                scene.add(cover);
+                covers.push(cover);
+            }
+        }
+        
+        function createEnemyCastle() {
+            // 적의 성 위치 (플레이어 반대편 먼 곳)
+            const castleX = 0;
+            const castleZ = -50;
+            const wallHeight = 8;
+            const wallThickness = 2;
+            const castleSize = 20;
+            
+            // 4면 성벽 생성
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+            
+            // 앞벽 (플레이어 쪽 - 성문 있음)
+            const frontWallLeft = new THREE.Mesh(
+                new THREE.BoxGeometry(6, wallHeight, wallThickness),
+                wallMaterial
+            );
+            frontWallLeft.position.set(castleX - 7, wallHeight/2, castleZ + castleSize/2);
+            frontWallLeft.castShadow = true;
+            frontWallLeft.receiveShadow = true;
+            frontWallLeft.userData = {
+                width: 6,
+                height: wallHeight,
+                depth: wallThickness,
+                isWall: true
+            };
+            scene.add(frontWallLeft);
+            castleWalls.push(frontWallLeft);
+            
+            const frontWallRight = new THREE.Mesh(
+                new THREE.BoxGeometry(6, wallHeight, wallThickness),
+                wallMaterial
+            );
+            frontWallRight.position.set(castleX + 7, wallHeight/2, castleZ + castleSize/2);
+            frontWallRight.castShadow = true;
+            frontWallRight.receiveShadow = true;
+            frontWallRight.userData = {
+                width: 6,
+                height: wallHeight,
+                depth: wallThickness,
+                isWall: true
+            };
+            scene.add(frontWallRight);
+            castleWalls.push(frontWallRight);
+            
+            // 성문 (중앙 통로)
+            const gateGeometry = new THREE.BoxGeometry(8, 6, wallThickness);
+            const gateMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const gate = new THREE.Mesh(gateGeometry, gateMaterial);
+            gate.position.set(castleX, 3, castleZ + castleSize/2);
+            gate.castShadow = true;
+            scene.add(gate);
+            
+            // 뒷벽
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(castleSize + wallThickness, wallHeight, wallThickness),
+                wallMaterial
+            );
+            backWall.position.set(castleX, wallHeight/2, castleZ - castleSize/2);
+            backWall.castShadow = true;
+            backWall.receiveShadow = true;
+            backWall.userData = {
+                width: castleSize + wallThickness,
+                height: wallHeight,
+                depth: wallThickness,
+                isWall: true
+            };
+            scene.add(backWall);
+            castleWalls.push(backWall);
+            
+            // 왼쪽 벽
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, castleSize),
+                wallMaterial
+            );
+            leftWall.position.set(castleX - castleSize/2, wallHeight/2, castleZ);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            leftWall.userData = {
+                width: wallThickness,
+                height: wallHeight,
+                depth: castleSize,
+                isWall: true
+            };
+            scene.add(leftWall);
+            castleWalls.push(leftWall);
+            
+            // 오른쪽 벽
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(wallThickness, wallHeight, castleSize),
+                wallMaterial
+            );
+            rightWall.position.set(castleX + castleSize/2, wallHeight/2, castleZ);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            rightWall.userData = {
+                width: wallThickness,
+                height: wallHeight,
+                depth: castleSize,
+                isWall: true
+            };
+            scene.add(rightWall);
+            castleWalls.push(rightWall);
+            
+            // 4개 모서리 타워
+            const towerGeometry = new THREE.CylinderGeometry(2, 2, wallHeight + 2, 8);
+            const towerMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 });
+            
+            const towers = [
+                { x: castleX - castleSize/2, z: castleZ - castleSize/2 }, // 왼쪽 뒤
+                { x: castleX + castleSize/2, z: castleZ - castleSize/2 }, // 오른쪽 뒤
+                { x: castleX - castleSize/2, z: castleZ + castleSize/2 }, // 왼쪽 앞
+                { x: castleX + castleSize/2, z: castleZ + castleSize/2 }  // 오른쪽 앞
+            ];
+            
+            towers.forEach(towerPos => {
+                const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+                tower.position.set(towerPos.x, wallHeight/2 + 1, towerPos.z);
+                tower.castShadow = true;
+                scene.add(tower);
+                
+                // 타워 지붕
+                const roofGeometry = new THREE.ConeGeometry(2.5, 3, 8);
+                const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x8B0000 });
+                const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                roof.position.set(towerPos.x, wallHeight + 2.5, towerPos.z);
+                scene.add(roof);
+            });
+            
+            // 적의 왕 생성 (성 중앙)
+            createKing(castleX, castleZ);
+            
+            // 적 스폰 위치 저장 (성문 앞)
+            window.enemySpawnPoint = { x: castleX, z: castleZ + 12 };
+            
+            // 모든 장애물 통합
+            updateObstacles();
+        }
+        
+        function updateObstacles() {
+            // 모든 충돌 가능한 객체를 하나의 배열로 통합
+            obstacles = [...covers, ...castleWalls, ...trees];
+        }
+        
+        function createKing(x, z) {
+            // 왕의 기본 체력 (웨이브별로 20% 증가)
+            const baseHealth = 100;
+            const kingHealth = baseHealth * (1 + (gameStats.wave - 1) * 0.2);
+            
+            // 왕의 몸체 (크고 금색)
+            const kingGeometry = new THREE.CylinderGeometry(1, 1, 3, 8);
+            const kingMaterial = new THREE.MeshLambertMaterial({ color: 0xFFD700 }); // 금색
+            
+            king = new THREE.Mesh(kingGeometry, kingMaterial);
+            king.position.set(x, 1.5, z);
+            king.castShadow = true; // 그림자 생성
+            king.receiveShadow = true; // 그림자 받기
+            
+            // 왕의 머리 (왕관)
+            const crownGeometry = new THREE.CylinderGeometry(0.8, 0.6, 0.8, 8);
+            const crownMaterial = new THREE.MeshLambertMaterial({ color: 0xFF6600 }); // 주황색 왕관
+            const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+            crown.position.set(0, 2, 0);
+            crown.castShadow = true; // 그림자 생성
+            crown.receiveShadow = true; // 그림자 받기
+            king.add(crown);
+            
+            // 왕관 장식 (작은 구체들)
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const jewelGeometry = new THREE.SphereGeometry(0.1);
+                const jewelMaterial = new THREE.MeshLambertMaterial({ color: 0xFF0000 }); // 빨간 보석
+                const jewel = new THREE.Mesh(jewelGeometry, jewelMaterial);
+                jewel.position.set(
+                    Math.cos(angle) * 0.7,
+                    2.4,
+                    Math.sin(angle) * 0.7
+                );
+                jewel.castShadow = true; // 그림자 생성
+                jewel.receiveShadow = true; // 그림자 받기
+                king.add(jewel);
+            }
+            
+            // 왕의 망토
+            const capeGeometry = new THREE.CylinderGeometry(1.2, 0.8, 2, 8);
+            const capeMaterial = new THREE.MeshLambertMaterial({ color: 0x800080 }); // 보라색 망토
+            const cape = new THREE.Mesh(capeGeometry, capeMaterial);
+            cape.position.set(0, 0.5, -0.3);
+            cape.castShadow = true; // 그림자 생성
+            cape.receiveShadow = true; // 그림자 받기
+            king.add(cape);
+            
+            // 왕의 속성 설정
+            king.health = kingHealth;
+            king.maxHealth = kingHealth;
+            king.isKing = true;
+            king.speed = 0.02; // 느린 이동 속도
+            king.throwTimer = 0;
+            king.throwCooldown = 180; // 3초마다 돌 던지기
+            king.movementTimer = 0;
+            king.movementDirection = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                0,
+                (Math.random() - 0.5) * 2
+            ).normalize();
+            
+            // 왕 위에 체력바 생성
+            createKingHealthBar();
+            
+            scene.add(king);
+            
+            console.log(`웨이브 ${gameStats.wave}: 왕 생성됨 (체력: ${kingHealth})`);
+        }
+        
+        function createKingHealthBar() {
+            // 왕의 체력바 UI 요소 생성
+            if (!document.getElementById('kingHealthBar')) {
+                const kingHealthContainer = document.createElement('div');
+                kingHealthContainer.id = 'kingHealthContainer';
+                kingHealthContainer.style.cssText = `
+                    position: absolute;
+                    top: 100px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 100;
+                    text-align: center;
+                `;
+                
+                const kingTitle = document.createElement('div');
+                kingTitle.textContent = '적의 왕';
+                kingTitle.style.cssText = `
+                    color: gold;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                `;
+                
+                const kingHealthBar = document.createElement('div');
+                kingHealthBar.id = 'kingHealthBar';
+                kingHealthBar.style.cssText = `
+                    width: 300px;
+                    height: 25px;
+                    background: rgba(0, 0, 0, 0.7);
+                    border: 2px solid gold;
+                    border-radius: 12px;
+                    overflow: hidden;
+                `;
+                
+                const kingHealthFill = document.createElement('div');
+                kingHealthFill.id = 'kingHealthFill';
+                kingHealthFill.style.cssText = `
+                    height: 100%;
+                    background: linear-gradient(to right, #ff0000, #ffaa00, #00ff00);
+                    width: 100%;
+                    transition: width 0.3s ease;
+                `;
+                
+                kingHealthBar.appendChild(kingHealthFill);
+                kingHealthContainer.appendChild(kingTitle);
+                kingHealthContainer.appendChild(kingHealthBar);
+                document.getElementById('ui').appendChild(kingHealthContainer);
+            }
+        }
+        
+        function createEnemy() {
+            const enemyGeometry = new THREE.CylinderGeometry(0.4, 0.4, 1.8, 6);
+            const enemyMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+            
+            const             enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+            enemy.castShadow = true; // 그림자 생성
+            enemy.receiveShadow = true; // 그림자 받기
+            
+            // 적 머리
+            const enemyHeadGeometry = new THREE.SphereGeometry(0.25);
+            const enemyHeadMaterial = new THREE.MeshLambertMaterial({ color: 0x800000 });
+            const enemyHead = new THREE.Mesh(enemyHeadGeometry, enemyHeadMaterial);
+            enemyHead.position.set(0, 1.1, 0);
+            enemyHead.castShadow = true; // 그림자 생성
+            enemyHead.receiveShadow = true; // 그림자 받기
+            enemy.add(enemyHead);
+            
+            // 적의 성문에서 스폰 (약간의 랜덤 위치)
+            const spawnPoint = window.enemySpawnPoint || { x: 0, z: -45 };
+            const spawnX = spawnPoint.x + (Math.random() - 0.5) * 6; // 성문 주변
+            const spawnZ = spawnPoint.z + Math.random() * 3; // 성문 앞쪽
+            
+            enemy.position.set(spawnX, 1, spawnZ);
+            enemy.castShadow = true;
+            
+            enemy.health = 1;
+            enemy.speed = (0.1 + Math.random() * 0.05) * 0.5; // 2배 느리게
+            enemy.attackTimer = 0;
+            enemy.attackCooldown = 60; // 1초마다 공격 가능
+            enemy.isAttacking = false;
+            enemy.pathPoints = []; // 계산된 경로 점들
+            enemy.currentPathIndex = 0; // 현재 목표 지점 인덱스
+            enemy.pathUpdateTimer = 0; // 경로 재계산 타이머
+            
+            // 칼자루 추가
+            const swordGeometry = new THREE.BoxGeometry(0.1, 1.2, 0.1);
+            const swordMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 }); // 갈색 자루
+            const sword = new THREE.Mesh(swordGeometry, swordMaterial);
+            sword.position.set(0.3, 0.2, 0);
+            sword.castShadow = true; // 그림자 생성
+            sword.receiveShadow = true; // 그림자 받기
+            enemy.add(sword);
+            
+            // 칼날 (작은 회색 부분)
+            const bladeGeometry = new THREE.BoxGeometry(0.05, 0.6, 0.05);
+            const bladeMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc }); // 회색 칼날
+            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            blade.position.set(0, 0.8, 0);
+            blade.castShadow = true; // 그림자 생성
+            blade.receiveShadow = true; // 그림자 받기
+            sword.add(blade);
+            
+            enemy.sword = sword; // 칼 참조 저장
+            
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+        
+        function createGrenade(startPos, direction, powerMultiplier = 1.0, isDirectFire = false) {
+            const grenadeGeometry = new THREE.SphereGeometry(0.2);
+            // 직선 발사일 때는 색상을 다르게 (더 밝게)
+            const grenadeColor = isDirectFire ? 0x666666 : 0x333333;
+            const grenadeMaterial = new THREE.MeshLambertMaterial({ color: grenadeColor });
+            
+            const grenade = new THREE.Mesh(grenadeGeometry, grenadeMaterial);
+            grenade.position.copy(startPos);
+            grenade.castShadow = true;
+            
+            // 직선 발사 모드
+            if (isDirectFire) {
+                grenade.velocity = direction.clone().multiplyScalar(1.5); // 더 빠른 속도
+                grenade.velocity.y = 0; // 직선 발사 (포물선 없음)
+                grenade.life = 100; // 충분한 시간 확보
+                grenade.isDirectFire = true; // 직선 발사 표시
+            } else {
+                // 기존 포물선 모드
+                grenade.velocity = direction.clone().multiplyScalar(0.8 * powerMultiplier);
+                grenade.velocity.y = 0.3 * powerMultiplier; // 포물선 궤도도 파워에 비례
+                grenade.life = Math.floor(80 * powerMultiplier); // 충분한 시간 확보 (최소 80프레임)
+                grenade.isDirectFire = false;
+            }
+            
+            scene.add(grenade);
+            grenades.push(grenade);
+        }
+        
+        function createExplosion(position) {
+            const explosionGeometry = new THREE.SphereGeometry(3);
+            const explosionMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff4400,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+            explosion.position.copy(position);
+            explosion.life = 20;
+            explosion.maxLife = 20;
+            
+            scene.add(explosion);
+            explosions.push(explosion);
+            
+            // 항상 파편 생성 (수류탄 폭발 시)
+            createExplosionDebris(position);
+            
+            // 폭발 범위 내 적들에게 데미지
+            enemies.forEach((enemy, enemyIndex) => {
+                const distance = enemy.position.distanceTo(position);
+                if (distance < 4) {
+                    enemy.health -= 1;
+                    if (enemy.health <= 0) {
+                        // 적이 죽을 때 추가 파편 효과 생성
+                        createEnemyDebris(enemy.position);
+                        
+                        scene.remove(enemy);
+                        enemies.splice(enemyIndex, 1);
+                        gameStats.score += 10;
+                        gameStats.enemiesKilled++;
+                    }
+                }
+            });
+            
+            // 왕에게도 데미지 확인
+            if (king && king.health > 0) {
+                const distanceToKing = king.position.distanceTo(position);
+                if (distanceToKing < 4) {
+                    king.health -= 10; // 왕은 더 많은 데미지를 받음
+                    if (king.health <= 0) {
+                        king.health = 0;
+                        // 왕이 죽으면 특별한 효과
+                        createKingDeathEffect(king.position);
+                        console.log(`왕이 처치되었습니다! 웨이브 ${gameStats.wave} 완료`);
+                        gameStats.score += 100; // 왕 처치 보너스
+                    }
+                    updateKingHealthBar();
+                }
+            }
+        }
+        
+        function createEnemyDebris(position) {
+            // 파편 개수 (20-30개) - 2배 증가
+            const debrisCount = 20 + Math.floor(Math.random() * 11);
+            
+            for (let i = 0; i < debrisCount; i++) {
+                // 다양한 크기의 파편
+                const size = 0.1 + Math.random() * 0.15;
+                const debrisGeometry = new THREE.BoxGeometry(size, size, size);
+                
+                // 화려한 색상들 (빨강, 주황, 노랑 계열)
+                const colors = [0xff0000, 0xff4500, 0xff6600, 0xff8800, 0xffaa00, 0xffcc00, 0xffffff];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                const debrisMaterial = new THREE.MeshLambertMaterial({ 
+                    color: randomColor,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const debrisPiece = new THREE.Mesh(debrisGeometry, debrisMaterial);
+                debrisPiece.position.copy(position);
+                debrisPiece.position.y += 0.5; // 약간 높은 곳에서 시작
+                
+                // 랜덤한 방향으로 날아가는 속도
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.2 + Math.random() * 0.3;
+                const verticalSpeed = 0.1 + Math.random() * 0.3;
+                
+                debrisPiece.velocity = new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    verticalSpeed,
+                    Math.sin(angle) * speed
+                );
+                
+                // 회전 속도
+                debrisPiece.rotationSpeed = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3,
+                    (Math.random() - 0.5) * 0.3
+                );
+                
+                // 생명력
+                debrisPiece.life = 60 + Math.floor(Math.random() * 40); // 1-1.7초
+                debrisPiece.maxLife = debrisPiece.life;
+                
+                debrisPiece.castShadow = true;
+                scene.add(debrisPiece);
+                debris.push(debrisPiece);
+            }
+            
+            // 추가 폭발 효과 - 작은 폭발들
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const smallExplosionGeometry = new THREE.SphereGeometry(1.5);
+                    const smallExplosionMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0xff6600,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    
+                    const smallExplosion = new THREE.Mesh(smallExplosionGeometry, smallExplosionMaterial);
+                    const offset = new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        Math.random() * 1,
+                        (Math.random() - 0.5) * 2
+                    );
+                    smallExplosion.position.copy(position).add(offset);
+                    smallExplosion.life = 15;
+                    smallExplosion.maxLife = 15;
+                    
+                    scene.add(smallExplosion);
+                    explosions.push(smallExplosion);
+                }, i * 100);
+            }
+        }
+        
+        function createExplosionDebris(position) {
+            // 수류탄 폭발 파편 (15-25개)
+            const debrisCount = 15 + Math.floor(Math.random() * 11);
+            
+            for (let i = 0; i < debrisCount; i++) {
+                // 다양한 크기의 파편
+                const size = 0.08 + Math.random() * 0.12;
+                const debrisGeometry = new THREE.BoxGeometry(size, size, size);
+                
+                // 폭발 파편 색상들 (회색, 갈색, 검은색 계열)
+                const colors = [0x888888, 0x666666, 0x444444, 0x8B4513, 0x654321, 0x333333];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                const debrisMaterial = new THREE.MeshLambertMaterial({ 
+                    color: randomColor,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const debrisPiece = new THREE.Mesh(debrisGeometry, debrisMaterial);
+                debrisPiece.position.copy(position);
+                debrisPiece.position.y += 0.3; // 폭발 지점에서 시작
+                
+                // 랜덤한 방향으로 날아가는 속도
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.15 + Math.random() * 0.25;
+                const verticalSpeed = 0.05 + Math.random() * 0.2;
+                
+                debrisPiece.velocity = new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    verticalSpeed,
+                    Math.sin(angle) * speed
+                );
+                
+                // 회전 속도
+                debrisPiece.rotationSpeed = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2
+                );
+                
+                // 생명력
+                debrisPiece.life = 40 + Math.floor(Math.random() * 30); // 0.7-1.2초
+                debrisPiece.maxLife = debrisPiece.life;
+                debrisPiece.isExplosionDebris = true; // 수류탄 파편 표시
+                
+                debrisPiece.castShadow = true;
+                scene.add(debrisPiece);
+                debris.push(debrisPiece);
+            }
+        }
+        
+        function setupEventListeners() {
+            // 키보드 이벤트
+            document.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+                
+                // 점프 (스페이스바)
+                if (event.code === 'Space' && !isJumping) {
+                    isJumping = true;
+                    playerVelocityY = jumpPower;
+                    event.preventDefault();
+                }
+            });
+            
+            document.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+            });
+            
+            // 마우스 이벤트
+            document.addEventListener('mousemove', (event) => {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                // 충전 중일 때 마우스 움직임에 따라 궤적 업데이트
+                if (isCharging) {
+                    updateTrajectoryPreview();
+                }
+            });
+            
+            // 마우스 버튼 누르기 시작 - 파워 충전 시작
+            document.addEventListener('mousedown', (event) => {
+                if (gameRunning && event.button === 0) { // 왼쪽 버튼만
+                    isCharging = true;
+                    chargePower = 0;
+                    document.getElementById('powerGauge').style.display = 'block';
+                    document.getElementById('powerText').style.display = 'block';
+                }
+            });
+            
+            // 마우스 버튼 떼기 - 수류탄 투척
+            document.addEventListener('mouseup', (event) => {
+                if (gameRunning && event.button === 0 && isCharging) {
+                    throwGrenade(chargePower);
+                    isCharging = false;
+                    chargePower = 0;
+                    document.getElementById('powerGauge').style.display = 'none';
+                    document.getElementById('powerText').style.display = 'none';
+                    hideTrajectoryLine(); // 궤적 라인 숨기기
+                }
+            });
+            
+            // 창 크기 조정
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+        
+        function throwGrenade(power = 50) {
+            const startPos = player.position.clone();
+            startPos.y += 1;
+            
+            // 파워에 따른 속도 계산 (최소 50%, 최대 200%)
+            const powerMultiplier = 0.5 + (power / maxChargePower) * 1.5;
+            
+            // 최대 파워인지 확인 (95% 이상)
+            const isMaxPower = power >= maxChargePower * 0.95;
+            
+            // 플레이어 회전과 마우스 위치를 고려한 투척 방향
+            const forwardDirection = new THREE.Vector3(
+                Math.sin(playerRotation), // 플레이어가 바라보는 방향의 X
+                0,
+                Math.cos(playerRotation)  // 플레이어가 바라보는 방향의 Z
+            );
+            
+            // 플레이어의 오른쪽 방향 벡터
+            const rightDirection = new THREE.Vector3(
+                Math.cos(playerRotation),  // 오른쪽 방향의 X
+                0,
+                -Math.sin(playerRotation) // 오른쪽 방향의 Z
+            );
+            
+            // 마우스 X 위치에 따른 좌우 조준 (-1 ~ 1)
+            const mouseInfluence = mouse.x * -0.3; // 마우스 영향도 조절 (음수로 방향 반전)
+            
+            // 최종 방향 계산 (전진 방향 + 오른쪽 방향 * 마우스 좌우)
+            const direction = new THREE.Vector3()
+                .addVectors(forwardDirection, rightDirection.multiplyScalar(mouseInfluence))
+                .normalize();
+            
+            createGrenade(startPos, direction, powerMultiplier, isMaxPower);
+        }
+        
+        function calculateTrajectory(startPos, direction, powerMultiplier, isDirectFire = false) {
+            // 궤적 계산을 위한 포인트들
+            const points = [];
+            
+            if (isDirectFire) {
+                // 직선 궤적 계산
+                const velocity = direction.clone().multiplyScalar(1.5);
+                let pos = startPos.clone();
+                
+                // 직선으로 30개 점 계산 (더 멀리)
+                for (let i = 0; i < 30; i++) {
+                    points.push(pos.clone());
+                    pos.add(velocity);
+                    
+                    // 너무 멀리 가면 중단
+                    const distance = startPos.distanceTo(pos);
+                    if (distance > 50) break;
+                }
+            } else {
+                // 포물선 궤적 계산
+                const velocity = direction.clone().multiplyScalar(0.8 * powerMultiplier);
+                velocity.y = 0.3 * powerMultiplier;
+                
+                let pos = startPos.clone();
+                let vel = velocity.clone();
+                
+                // 궤적을 50개 점으로 계산
+                for (let i = 0; i < 50; i++) {
+                    points.push(pos.clone());
+                    
+                    // 다음 위치 계산
+                    pos.add(vel);
+                    vel.y -= 0.01; // 중력
+                    
+                    // 지면에 닿으면 중단
+                    if (pos.y <= 0.2) {
+                        points.push(new THREE.Vector3(pos.x, 0.2, pos.z));
+                        break;
+                    }
+                }
+            }
+            
+            return points;
+        }
+        
+        function createTrajectoryLine(points, isDirectFire = false) {
+            // 기존 궤적 라인 제거
+            if (trajectoryLine) {
+                scene.remove(trajectoryLine);
+                trajectoryLine = null;
+            }
+            
+            // 기존 낙하지점 마커 제거
+            if (impactMarker) {
+                scene.remove(impactMarker);
+                impactMarker = null;
+            }
+            
+            if (points.length < 2) return;
+            
+            // 점선 궤적을 위한 geometry 생성
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // 점선 재질 (직선 발사일 때는 다른 색상)
+            const material = new THREE.LineDashedMaterial({
+                color: isDirectFire ? 0x00ff00 : 0xff0000, // 직선: 초록, 포물선: 빨강
+                linewidth: 3,
+                scale: 1,
+                dashSize: isDirectFire ? 0.8 : 0.5, // 직선일 때 더 긴 대시
+                gapSize: isDirectFire ? 0.2 : 0.3,  // 직선일 때 더 짧은 간격
+                transparent: true,
+                opacity: isDirectFire ? 0.9 : 0.8   // 직선일 때 더 진함
+            });
+            
+            // 라인 생성
+            trajectoryLine = new THREE.Line(geometry, material);
+            trajectoryLine.computeLineDistances(); // 점선을 위해 필요
+            
+            scene.add(trajectoryLine);
+            
+            // 낙하지점에 동심원 마커 생성
+            const impactPoint = points[points.length - 1];
+            createImpactMarker(impactPoint, isDirectFire);
+        }
+        
+        function createImpactMarker(position, isDirectFire = false) {
+            // 동심원 그룹 생성
+            impactMarker = new THREE.Group();
+            
+            const markerColor = isDirectFire ? 0x00ff00 : 0xff0000;
+            
+            // 3개의 동심원 생성
+            for (let i = 1; i <= 3; i++) {
+                const circleGeometry = new THREE.RingGeometry(i * 0.8, i * 0.9, 16);
+                const circleMaterial = new THREE.MeshBasicMaterial({
+                    color: markerColor,
+                    transparent: true,
+                    opacity: 0.3 + (i * 0.1),
+                    side: THREE.DoubleSide
+                });
+                
+                const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+                circle.rotation.x = -Math.PI / 2; // 바닥에 평행하게
+                circle.position.copy(position);
+                circle.position.y = 0.05; // 약간 땅 위에
+                
+                impactMarker.add(circle);
+            }
+            
+            // 중앙 점 표시
+            const centerGeometry = new THREE.CircleGeometry(0.3, 8);
+            const centerMaterial = new THREE.MeshBasicMaterial({
+                color: markerColor,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const center = new THREE.Mesh(centerGeometry, centerMaterial);
+            center.rotation.x = -Math.PI / 2;
+            center.position.copy(position);
+            center.position.y = 0.06;
+            
+            impactMarker.add(center);
+            scene.add(impactMarker);
+        }
+        
+        function updateTrajectoryPreview() {
+            if (isCharging) {
+                const startPos = player.position.clone();
+                startPos.y += 1;
+                
+                // 현재 파워에 따른 배수 계산
+                const powerMultiplier = 0.5 + (chargePower / maxChargePower) * 1.5;
+                
+                // 최대 파워인지 확인 (95% 이상)
+                const isMaxPower = chargePower >= maxChargePower * 0.95;
+                
+                // 현재 투척 방향 계산
+                const forwardDirection = new THREE.Vector3(
+                    Math.sin(playerRotation),
+                    0,
+                    Math.cos(playerRotation)
+                );
+                
+                // 플레이어의 오른쪽 방향 벡터
+                const rightDirection = new THREE.Vector3(
+                    Math.cos(playerRotation),
+                    0,
+                    -Math.sin(playerRotation)
+                );
+                
+                const mouseInfluence = mouse.x * -0.3; // 음수로 방향 반전
+                const direction = new THREE.Vector3()
+                    .addVectors(forwardDirection, rightDirection.multiplyScalar(mouseInfluence))
+                    .normalize();
+                
+                // 궤적 계산 및 표시
+                const trajectoryPoints = calculateTrajectory(startPos, direction, powerMultiplier, isMaxPower);
+                createTrajectoryLine(trajectoryPoints, isMaxPower);
+            }
+        }
+        
+        function hideTrajectoryLine() {
+            if (trajectoryLine) {
+                scene.remove(trajectoryLine);
+                trajectoryLine = null;
+            }
+            if (impactMarker) {
+                scene.remove(impactMarker);
+                impactMarker = null;
+            }
+        }
+        
+        function updatePlayer() {
+            // 회전 (A/D 키) - 2배 더 세밀하게
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                playerRotation += 0.025;
+                player.rotation.y = playerRotation;
+            }
+            if (keys['KeyD'] || keys['ArrowRight']) {
+                playerRotation -= 0.025;
+                player.rotation.y = playerRotation;
+            }
+            
+            // 이동 (W/S 키) - 플레이어가 바라보는 방향 기준
+            const moveSpeed = 0.2;
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                // 앞으로 이동 (플레이어가 바라보는 방향)
+                const moveX = Math.sin(playerRotation) * moveSpeed;
+                const moveZ = Math.cos(playerRotation) * moveSpeed;
+                
+                const newX = player.position.x + moveX;
+                const newZ = player.position.z + moveZ;
+                
+                if (!checkCollision(newX, player.position.z, player.position.y)) {
+                    player.position.x = newX;
+                }
+                if (!checkCollision(player.position.x, newZ, player.position.y)) {
+                    player.position.z = newZ;
+                }
+            }
+            if (keys['KeyS'] || keys['ArrowDown']) {
+                // 뒤로 이동 (플레이어가 바라보는 방향의 반대)
+                const moveX = Math.sin(playerRotation) * moveSpeed;
+                const moveZ = Math.cos(playerRotation) * moveSpeed;
+                
+                const newX = player.position.x - moveX;
+                const newZ = player.position.z - moveZ;
+                
+                if (!checkCollision(newX, player.position.z, player.position.y)) {
+                    player.position.x = newX;
+                }
+                if (!checkCollision(player.position.x, newZ, player.position.y)) {
+                    player.position.z = newZ;
+                }
+            }
+            
+            // 중력 및 점프 처리
+            if (isJumping || player.position.y > groundLevel) {
+                playerVelocityY += gravity;
+                player.position.y += playerVelocityY;
+                
+                // 엄폐물 위에 착지 확인
+                const coverBelow = getCoverBelow(player.position.x, player.position.z);
+                if (coverBelow && player.position.y <= coverBelow.position.y + coverBelow.userData.height/2 + 1) {
+                    player.position.y = coverBelow.position.y + coverBelow.userData.height/2 + 1;
+                    playerVelocityY = 0;
+                    isJumping = false;
+                } else if (player.position.y <= groundLevel) {
+                    // 지면에 착지
+                    player.position.y = groundLevel;
+                    playerVelocityY = 0;
+                    isJumping = false;
+                }
+            }
+            
+            // 카메라 위치 업데이트 (3인칭) - 부드러운 추적
+            const cameraDistance = 12;
+            const cameraHeight = 7;
+            
+            const targetCameraX = player.position.x - Math.sin(playerRotation) * cameraDistance;
+            const targetCameraY = player.position.y + cameraHeight;
+            const targetCameraZ = player.position.z - Math.cos(playerRotation) * cameraDistance;
+            
+            camera.position.x += (targetCameraX - camera.position.x) * 0.1;
+            camera.position.y += (targetCameraY - camera.position.y) * 0.1;
+            camera.position.z += (targetCameraZ - camera.position.z) * 0.1;
+            
+            camera.lookAt(player.position.x, player.position.y, player.position.z);
+        }
+        
+        function checkCollision(x, z, playerY = player.position.y) {
+            // 모든 장애물과의 충돌 확인
+            for (let obstacle of obstacles) {
+                const dx = Math.abs(x - obstacle.position.x);
+                const dz = Math.abs(z - obstacle.position.z);
+                
+                // 성벽은 항상 충돌 (통과 불가)
+                if (obstacle.userData.isWall) {
+                    if (dx < obstacle.userData.width/2 + 0.5 && dz < obstacle.userData.depth/2 + 0.5) {
+                        return true; // 충돌
+                    }
+                }
+                // 나무는 줄기 부분만 충돌 (잎사귀는 통과 가능)
+                else if (obstacle.userData.isTree) {
+                    const trunkRadius = 0.4; // 나무 줄기 반지름
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    if (distance < trunkRadius + 0.5) {
+                        return true; // 충돌
+                    }
+                }
+                // 엄폐물은 위에 있으면 충돌하지 않음
+                else {
+                    const obstacleTop = obstacle.position.y + obstacle.userData.height/2;
+                    if (playerY > obstacleTop + 0.5) {
+                        continue; // 엄폐물 위에 있으므로 충돌 무시
+                    }
+                    
+                    if (dx < obstacle.userData.width/2 + 0.5 && dz < obstacle.userData.depth/2 + 0.5) {
+                        return true; // 충돌
+                    }
+                }
+            }
+            return false; // 충돌 없음
+        }
+        
+        function getCoverBelow(x, z) {
+            // 플레이어 아래에 있는 가장 높은 엄폐물 찾기
+            let highestCover = null;
+            let highestY = 0;
+            
+            for (let cover of covers) {
+                const dx = Math.abs(x - cover.position.x);
+                const dz = Math.abs(z - cover.position.z);
+                
+                if (dx < cover.userData.width/2 - 0.1 && dz < cover.userData.depth/2 - 0.1) {
+                    const coverTop = cover.position.y + cover.userData.height/2;
+                    if (coverTop > highestY) {
+                        highestY = coverTop;
+                        highestCover = cover;
+                    }
+                }
+            }
+            return highestCover;
+        }
+        
+        function checkEnemyCollision(x, z, enemyRadius = 0.5) {
+            // 적과 모든 장애물의 충돌 확인
+            for (let obstacle of obstacles) {
+                const dx = Math.abs(x - obstacle.position.x);
+                const dz = Math.abs(z - obstacle.position.z);
+                
+                // 성벽은 항상 충돌
+                if (obstacle.userData.isWall) {
+                    if (dx < obstacle.userData.width/2 + enemyRadius && dz < obstacle.userData.depth/2 + enemyRadius) {
+                        return obstacle; // 충돌하는 장애물 반환
+                    }
+                }
+                // 나무는 줄기 부분만 충돌
+                else if (obstacle.userData.isTree) {
+                    const trunkRadius = 0.4; // 나무 줄기 반지름
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    if (distance < trunkRadius + enemyRadius) {
+                        return obstacle; // 충돌하는 장애물 반환
+                    }
+                }
+                // 엄폐물 충돌
+                else {
+                    if (dx < obstacle.userData.width/2 + enemyRadius && dz < obstacle.userData.depth/2 + enemyRadius) {
+                        return obstacle; // 충돌하는 장애물 반환
+                    }
+                }
+            }
+            return null; // 충돌 없음
+        }
+        
+        function findPathAroundCover(currentPos, targetPos, blockedCover) {
+            // 엄폐물을 우회하는 경로 찾기
+            const coverPos = blockedCover.position;
+            const coverWidth = blockedCover.userData.width;
+            const coverDepth = blockedCover.userData.depth;
+            
+            // 엄폐물의 네 모서리 주변 경로 계산
+            const avoidancePoints = [
+                { x: coverPos.x - coverWidth/2 - 1, z: coverPos.z - coverDepth/2 - 1 }, // 왼쪽 아래
+                { x: coverPos.x + coverWidth/2 + 1, z: coverPos.z - coverDepth/2 - 1 }, // 오른쪽 아래
+                { x: coverPos.x - coverWidth/2 - 1, z: coverPos.z + coverDepth/2 + 1 }, // 왼쪽 위
+                { x: coverPos.x + coverWidth/2 + 1, z: coverPos.z + coverDepth/2 + 1 }  // 오른쪽 위
+            ];
+            
+            // 가장 가까운 우회 지점 찾기
+            let bestPoint = avoidancePoints[0];
+            let shortestDistance = Infinity;
+            
+            avoidancePoints.forEach(point => {
+                const distanceFromCurrent = Math.sqrt(
+                    Math.pow(point.x - currentPos.x, 2) + Math.pow(point.z - currentPos.z, 2)
+                );
+                const distanceToTarget = Math.sqrt(
+                    Math.pow(point.x - targetPos.x, 2) + Math.pow(point.z - targetPos.z, 2)
+                );
+                const totalDistance = distanceFromCurrent + distanceToTarget;
+                
+                if (totalDistance < shortestDistance) {
+                    shortestDistance = totalDistance;
+                    bestPoint = point;
+                }
+            });
+            
+            return bestPoint;
+        }
+        
+        function findBetterPathAroundCover(currentPos, targetPos, blockedCover) {
+            // 더 정밀한 우회 경로 찾기
+            const coverPos = blockedCover.position;
+            const coverWidth = blockedCover.userData.width;
+            const coverDepth = blockedCover.userData.depth;
+            
+            // 8방향으로 우회점 계산 (더 많은 옵션)
+            const avoidancePoints = [];
+            const distance = 1.5; // 엄폐물로부터의 거리
+            
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const point = {
+                    x: coverPos.x + Math.cos(angle) * (Math.max(coverWidth, coverDepth) / 2 + distance),
+                    z: coverPos.z + Math.sin(angle) * (Math.max(coverWidth, coverDepth) / 2 + distance)
+                };
+                
+                // 이 지점이 다른 엄폐물과 충돌하지 않는지 확인
+                if (!checkEnemyCollision(point.x, point.z)) {
+                    avoidancePoints.push(point);
+                }
+            }
+            
+            if (avoidancePoints.length === 0) {
+                // 모든 지점이 막혔다면 기본 우회점 사용
+                return findPathAroundCover(currentPos, targetPos, blockedCover);
+            }
+            
+            // 가장 좋은 우회 지점 선택
+            let bestPoint = avoidancePoints[0];
+            let bestScore = Infinity;
+            
+            avoidancePoints.forEach(point => {
+                const distanceFromCurrent = Math.sqrt(
+                    Math.pow(point.x - currentPos.x, 2) + Math.pow(point.z - currentPos.z, 2)
+                );
+                const distanceToTarget = Math.sqrt(
+                    Math.pow(point.x - targetPos.x, 2) + Math.pow(point.z - targetPos.z, 2)
+                );
+                
+                // 현재 위치에서 너무 멀지 않고, 목표와의 각도도 고려
+                const score = distanceFromCurrent * 0.7 + distanceToTarget * 0.3;
+                
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestPoint = point;
+                }
+            });
+            
+            return bestPoint;
+        }
+        
+        function calculateSmartPath(startPos, targetPos) {
+            // A* 알고리즘을 단순화한 스마트 경로 찾기
+            const path = [startPos];
+            let currentPos = { x: startPos.x, z: startPos.z };
+            let attempts = 0;
+            const maxAttempts = 20; // 무한 루프 방지
+            
+            while (attempts < maxAttempts) {
+                attempts++;
+                
+                // 목표까지의 직선 거리
+                const directDistance = Math.sqrt(
+                    Math.pow(targetPos.x - currentPos.x, 2) + 
+                    Math.pow(targetPos.z - currentPos.z, 2)
+                );
+                
+                // 목표에 충분히 가까우면 종료
+                if (directDistance < 3) {
+                    path.push(targetPos);
+                    break;
+                }
+                
+                // 목표를 향한 직선 경로 확인
+                const stepSize = 2;
+                const direction = {
+                    x: (targetPos.x - currentPos.x) / directDistance,
+                    z: (targetPos.z - currentPos.z) / directDistance
+                };
+                
+                const nextPos = {
+                    x: currentPos.x + direction.x * stepSize,
+                    z: currentPos.z + direction.z * stepSize
+                };
+                
+                // 직선 경로가 막혔는지 확인
+                const blockedCover = checkEnemyCollision(nextPos.x, nextPos.z);
+                
+                if (!blockedCover) {
+                    // 직진 가능
+                    currentPos = nextPos;
+                    path.push({ x: currentPos.x, z: currentPos.z });
+                } else {
+                    // 엄폐물을 우회해야 함
+                    const waypoint = findOptimalWaypoint(currentPos, targetPos, blockedCover);
+                    path.push(waypoint);
+                    currentPos = waypoint;
+                }
+            }
+            
+            return path;
+        }
+        
+        function findOptimalWaypoint(currentPos, targetPos, blockedCover) {
+            // 목표 위치를 고려한 최적의 우회점 찾기
+            const coverPos = blockedCover.position;
+            const coverSize = Math.max(blockedCover.userData.width, blockedCover.userData.depth);
+            
+            // 목표 방향 벡터
+            const targetDirection = {
+                x: targetPos.x - currentPos.x,
+                z: targetPos.z - currentPos.z
+            };
+            const targetLength = Math.sqrt(targetDirection.x * targetDirection.x + targetDirection.z * targetDirection.z);
+            targetDirection.x /= targetLength;
+            targetDirection.z /= targetLength;
+            
+            // 엄폐물 중심에서 목표 방향으로의 벡터
+            const coverToTarget = {
+                x: targetPos.x - coverPos.x,
+                z: targetPos.z - coverPos.z
+            };
+            const coverToTargetLength = Math.sqrt(coverToTarget.x * coverToTarget.x + coverToTarget.z * coverToTarget.z);
+            coverToTarget.x /= coverToTargetLength;
+            coverToTarget.z /= coverToTargetLength;
+            
+            // 여러 우회점 후보 생성
+            const candidates = [];
+            const safeDistance = coverSize / 2 + 2;
+            
+            for (let angle = -Math.PI; angle <= Math.PI; angle += Math.PI / 6) {
+                const rotatedX = Math.cos(angle) * coverToTarget.x - Math.sin(angle) * coverToTarget.z;
+                const rotatedZ = Math.sin(angle) * coverToTarget.x + Math.cos(angle) * coverToTarget.z;
+                
+                const candidate = {
+                    x: coverPos.x + rotatedX * safeDistance,
+                    z: coverPos.z + rotatedZ * safeDistance
+                };
+                
+                // 이 후보점이 다른 엄폐물과 충돌하지 않는지 확인
+                if (!checkEnemyCollision(candidate.x, candidate.z)) {
+                    candidates.push(candidate);
+                }
+            }
+            
+            if (candidates.length === 0) {
+                // 모든 후보가 막혔다면 기본 우회점 사용
+                return findBetterPathAroundCover(currentPos, targetPos, blockedCover);
+            }
+            
+            // 가장 효율적인 후보 선택 (목표에 가장 가까운)
+            let bestCandidate = candidates[0];
+            let bestScore = Infinity;
+            
+            candidates.forEach(candidate => {
+                const distanceToTarget = Math.sqrt(
+                    Math.pow(candidate.x - targetPos.x, 2) + 
+                    Math.pow(candidate.z - targetPos.z, 2)
+                );
+                const distanceFromCurrent = Math.sqrt(
+                    Math.pow(candidate.x - currentPos.x, 2) + 
+                    Math.pow(candidate.z - currentPos.z, 2)
+                );
+                
+                // 목표에 가깝고, 현재 위치에서 너무 멀지 않은 점 선택
+                const score = distanceToTarget * 0.8 + distanceFromCurrent * 0.2;
+                
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestCandidate = candidate;
+                }
+            });
+            
+            return bestCandidate;
+        }
+        
+        function updateEnemies() {
+            enemies.forEach((enemy, enemyIndex) => {
+                const distanceToPlayer = enemy.position.distanceTo(player.position);
+                
+                // 근접 공격 범위 체크
+                if (distanceToPlayer < 2.5) {
+                    enemy.attackTimer++;
+                    
+                    // 공격 가능한 상태면 공격
+                    if (enemy.attackTimer >= enemy.attackCooldown && !enemy.isAttacking) {
+                        enemy.isAttacking = true;
+                        enemy.attackTimer = 0;
+                        
+                        // 칼 휘두르기 애니메이션
+                        if (enemy.sword) {
+                            enemy.sword.rotation.z = -Math.PI / 4; // 칼을 올림
+                            
+                            setTimeout(() => {
+                                if (enemy.sword) {
+                                    enemy.sword.rotation.z = Math.PI / 4; // 칼을 내림
+                                    
+                                    // 공격 범위 내에 있으면 데미지
+                                    const attackDistance = enemy.position.distanceTo(player.position);
+                                    if (attackDistance < 2.5) {
+                                        gameStats.health -= 8;
+                                        console.log("적의 검에 맞았습니다! 체력 -8");
+                                        
+                                        if (gameStats.health <= 0) {
+                                            gameOver();
+                                        }
+                                    }
+                                }
+                            }, 200);
+                            
+                            setTimeout(() => {
+                                if (enemy.sword) {
+                                    enemy.sword.rotation.z = 0; // 원래 위치로
+                                    enemy.isAttacking = false;
+                                }
+                            }, 400);
+                        }
+                    }
+                    
+                    // 공격 중이면 이동하지 않음
+                    if (enemy.isAttacking) return;
+                }
+                
+                // 스마트 경로 찾기 시스템
+                enemy.pathUpdateTimer++;
+                
+                // 3초마다 또는 경로가 없을 때 새로운 경로 계산
+                if (enemy.pathUpdateTimer > 180 || enemy.pathPoints.length === 0) {
+                    enemy.pathUpdateTimer = 0;
+                    enemy.currentPathIndex = 0;
+                    
+                    // 플레이어 위치를 알고 있다고 가정하고 최적 경로 계산
+                    enemy.pathPoints = calculateSmartPath(
+                        { x: enemy.position.x, z: enemy.position.z },
+                        { x: player.position.x, z: player.position.z }
+                    );
+                }
+                
+                // 계산된 경로를 따라 이동
+                if (enemy.pathPoints.length > 0 && enemy.currentPathIndex < enemy.pathPoints.length) {
+                    const currentTarget = enemy.pathPoints[enemy.currentPathIndex];
+                    
+                    // 현재 목표점까지의 거리
+                    const distanceToTarget = Math.sqrt(
+                        Math.pow(enemy.position.x - currentTarget.x, 2) + 
+                        Math.pow(enemy.position.z - currentTarget.z, 2)
+                    );
+                    
+                    // 목표점에 도달했으면 다음 점으로
+                    if (distanceToTarget < 1) {
+                        enemy.currentPathIndex++;
+                    } else {
+                        // 목표점을 향해 이동
+                        const direction = new THREE.Vector3(
+                            currentTarget.x - enemy.position.x,
+                            0,
+                            currentTarget.z - enemy.position.z
+                        ).normalize();
+                        
+                        // 부드러운 이동 (충돌 재확인)
+                        const nextPos = {
+                            x: enemy.position.x + direction.x * enemy.speed,
+                            z: enemy.position.z + direction.z * enemy.speed
+                        };
+                        
+                        // 경로상의 예상치 못한 새로운 장애물 확인
+                        const blockedCover = checkEnemyCollision(nextPos.x, nextPos.z);
+                        
+                        if (!blockedCover) {
+                            // 안전하게 이동
+                            enemy.position.x = nextPos.x;
+                            enemy.position.z = nextPos.z;
+                            
+                            // 적이 플레이어를 향해 회전
+                            const angleToPlayer = Math.atan2(
+                                player.position.x - enemy.position.x,
+                                player.position.z - enemy.position.z
+                            );
+                            enemy.rotation.y = angleToPlayer;
+                        } else {
+                            // 새로운 장애물 발견 시 경로 재계산
+                            enemy.pathUpdateTimer = 181; // 다음 프레임에서 경로 재계산
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateGrenades() {
+            grenades.forEach((grenade, index) => {
+                grenade.position.add(grenade.velocity);
+                
+                // 직선 발사가 아닐 때만 중력 적용
+                if (!grenade.isDirectFire) {
+                    grenade.velocity.y -= 0.01; // 중력
+                }
+                
+                grenade.life--;
+                
+                // 폭발 조건 - 지면에 닿을 때만 폭발
+                let shouldExplode = false;
+                
+                if (grenade.isDirectFire) {
+                    // 직선 발사: 지면, 적, 엄폐물과 충돌하면 폭발 (시간 제한 없음)
+                    if (grenade.position.y <= 0.2) {
+                        shouldExplode = true;
+                    } else {
+                        // 적과의 충돌 확인
+                        enemies.forEach(enemy => {
+                            const distance = grenade.position.distanceTo(enemy.position);
+                            if (distance < 1.5) {
+                                shouldExplode = true;
+                            }
+                        });
+                        
+                        // 엄폐물과의 충돌 확인
+                        covers.forEach(cover => {
+                            const dx = Math.abs(grenade.position.x - cover.position.x);
+                            const dy = Math.abs(grenade.position.y - cover.position.y);
+                            const dz = Math.abs(grenade.position.z - cover.position.z);
+                            
+                            if (dx < cover.userData.width/2 && 
+                                dy < cover.userData.height/2 && 
+                                dz < cover.userData.depth/2) {
+                                shouldExplode = true;
+                            }
+                        });
+                        
+                        // 시간이 다하면 즉시 지면으로 떨어뜨려서 폭발
+                        if (grenade.life <= 0) {
+                            grenade.position.y = 0.2; // 지면으로 떨어뜨림
+                            shouldExplode = true; // 즉시 폭발
+                        }
+                    }
+                } else {
+                    // 포물선 발사: 지면에 닿으면 폭발 (시간 제한으로는 폭발 안함)
+                    if (grenade.position.y <= 0.2) {
+                        shouldExplode = true;
+                    } else if (grenade.life <= 0) {
+                        // 시간이 다하면 즉시 지면으로 떨어뜨려서 폭발
+                        grenade.position.y = 0.2; // 지면으로 떨어뜨림
+                        shouldExplode = true; // 즉시 폭발
+                    }
+                }
+                
+                if (shouldExplode) {
+                    createExplosion(grenade.position);
+                    scene.remove(grenade);
+                    grenades.splice(index, 1);
+                }
+            });
+        }
+        
+        function updateExplosions() {
+            explosions.forEach((explosion, index) => {
+                explosion.life--;
+                explosion.material.opacity = explosion.life / explosion.maxLife;
+                explosion.scale.setScalar(1 + (explosion.maxLife - explosion.life) * 0.1);
+                
+                if (explosion.life <= 0) {
+                    scene.remove(explosion);
+                    explosions.splice(index, 1);
+                }
+            });
+        }
+        
+        function updateDebris() {
+            debris.forEach((debrisPiece, index) => {
+                // 물리 시뮬레이션
+                debrisPiece.position.add(debrisPiece.velocity);
+                debrisPiece.velocity.y -= 0.01; // 중력
+                
+                // 회전
+                debrisPiece.rotation.x += debrisPiece.rotationSpeed.x;
+                debrisPiece.rotation.y += debrisPiece.rotationSpeed.y;
+                debrisPiece.rotation.z += debrisPiece.rotationSpeed.z;
+                
+                // 적과의 충돌 확인 (수류탄 파편만)
+                if (debrisPiece.isExplosionDebris) {
+                    enemies.forEach((enemy, enemyIndex) => {
+                        const distance = debrisPiece.position.distanceTo(enemy.position);
+                        if (distance < 0.8) {
+                            // 파편이 적에게 맞으면 작은 폭발 생성
+                            createSmallExplosion(debrisPiece.position);
+                            
+                            // 적에게 데미지
+                            enemy.health -= 1;
+                            if (enemy.health <= 0) {
+                                createEnemyDebris(enemy.position);
+                                scene.remove(enemy);
+                                enemies.splice(enemyIndex, 1);
+                                gameStats.score += 5; // 파편 킬은 절반 점수
+                                gameStats.enemiesKilled++;
+                            }
+                            
+                            // 파편 제거
+                            scene.remove(debrisPiece);
+                            debris.splice(index, 1);
+                            return; // 파편이 제거되었으므로 더 이상 처리하지 않음
+                        }
+                    });
+                }
+                
+                // 파편이 이미 제거되었으면 건너뛰기
+                if (!debris[index]) return;
+                
+                // 바운스 효과 (지면에 닿으면)
+                if (debrisPiece.position.y <= 0.1) {
+                    debrisPiece.position.y = 0.1;
+                    debrisPiece.velocity.y *= -0.3; // 반발
+                    debrisPiece.velocity.x *= 0.8; // 마찰
+                    debrisPiece.velocity.z *= 0.8; // 마찰
+                }
+                
+                // 생명력 감소 및 페이드 아웃
+                debrisPiece.life--;
+                const lifeRatio = debrisPiece.life / debrisPiece.maxLife;
+                debrisPiece.material.opacity = lifeRatio * 0.9;
+                
+                // 크기 감소 효과
+                const scale = 0.5 + lifeRatio * 0.5;
+                debrisPiece.scale.setScalar(scale);
+                
+                // 생명력이 다하면 제거
+                if (debrisPiece.life <= 0) {
+                    scene.remove(debrisPiece);
+                    debris.splice(index, 1);
+                }
+            });
+        }
+        
+        function createSmallExplosion(position) {
+            // 작은 폭발 효과 (파편 충돌 시)
+            const explosionGeometry = new THREE.SphereGeometry(1);
+            const explosionMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+            explosion.position.copy(position);
+            explosion.life = 10;
+            explosion.maxLife = 10;
+            
+            scene.add(explosion);
+            explosions.push(explosion);
+        }
+        
+        function createKingDeathEffect(position) {
+            // 왕이 죽을 때 특별한 폭발 효과
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const explosionGeometry = new THREE.SphereGeometry(4 + i);
+                    const explosionMaterial = new THREE.MeshLambertMaterial({ 
+                        color: i % 2 === 0 ? 0xFFD700 : 0xFF6600, // 금색과 주황색 교대
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+                    const offset = new THREE.Vector3(
+                        (Math.random() - 0.5) * 3,
+                        Math.random() * 2,
+                        (Math.random() - 0.5) * 3
+                    );
+                    explosion.position.copy(position).add(offset);
+                    explosion.life = 30;
+                    explosion.maxLife = 30;
+                    
+                    scene.add(explosion);
+                    explosions.push(explosion);
+                }, i * 200);
+            }
+            
+            // 화려한 파편 효과 (50개)
+            for (let i = 0; i < 50; i++) {
+                const size = 0.2 + Math.random() * 0.3;
+                const debrisGeometry = new THREE.BoxGeometry(size, size, size);
+                const colors = [0xFFD700, 0xFF6600, 0xFFFFFF, 0xFF0000, 0x800080];
+                const debrisMaterial = new THREE.MeshLambertMaterial({ 
+                    color: colors[Math.floor(Math.random() * colors.length)], 
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const debrisPiece = new THREE.Mesh(debrisGeometry, debrisMaterial);
+                debrisPiece.position.copy(position);
+                debrisPiece.position.y += 1;
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.3 + Math.random() * 0.4;
+                const verticalSpeed = 0.2 + Math.random() * 0.5;
+                
+                debrisPiece.velocity = new THREE.Vector3(
+                    Math.cos(angle) * speed,
+                    verticalSpeed,
+                    Math.sin(angle) * speed
+                );
+                
+                debrisPiece.rotationSpeed = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.4,
+                    (Math.random() - 0.5) * 0.4,
+                    (Math.random() - 0.5) * 0.4
+                );
+                
+                debrisPiece.life = 80 + Math.floor(Math.random() * 40);
+                debrisPiece.maxLife = debrisPiece.life;
+                
+                debrisPiece.castShadow = true;
+                scene.add(debrisPiece);
+                debris.push(debrisPiece);
+            }
+        }
+        
+        function updateKingHealthBar() {
+            const healthFill = document.getElementById('kingHealthFill');
+            if (healthFill && king) {
+                const healthPercent = (king.health / king.maxHealth) * 100;
+                healthFill.style.width = healthPercent + '%';
+                
+                // 체력에 따른 색상 변경
+                if (healthPercent > 60) {
+                    healthFill.style.background = 'linear-gradient(to right, #00ff00, #ffaa00)';
+                } else if (healthPercent > 30) {
+                    healthFill.style.background = 'linear-gradient(to right, #ffaa00, #ff6600)';
+                } else {
+                    healthFill.style.background = 'linear-gradient(to right, #ff6600, #ff0000)';
+                }
+                         }
+         }
+         
+         function createKingStone(startPos, targetPos) {
+             const stoneGeometry = new THREE.SphereGeometry(0.3);
+             const stoneMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+             
+             const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+             stone.position.copy(startPos);
+             stone.castShadow = true;
+             
+             // 목표 방향 계산
+             const direction = new THREE.Vector3(
+                 targetPos.x - startPos.x,
+                 0,
+                 targetPos.z - startPos.z
+             ).normalize();
+             
+             // 포물선 궤도
+             stone.velocity = direction.multiplyScalar(0.4);
+             stone.velocity.y = 0.2; // 포물선 높이
+             stone.life = 120; // 2초 수명
+             
+             scene.add(stone);
+             kingStones.push(stone);
+         }
+         
+         function updateKing() {
+             if (!king || king.health <= 0) return;
+             
+             // 왕의 이동 (성 밖으로 나올 수 있음)
+             king.movementTimer++;
+             
+             // 랜덤하게 방향 변경 (5초마다)
+             if (king.movementTimer > 300) {
+                 king.movementTimer = 0;
+                 king.movementDirection = new THREE.Vector3(
+                     (Math.random() - 0.5) * 2,
+                     0,
+                     (Math.random() - 0.5) * 2
+                 ).normalize();
+             }
+             
+             // 이동 (성벽 범위를 벗어날 수 있음)
+             const nextPos = {
+                 x: king.position.x + king.movementDirection.x * king.speed,
+                 z: king.position.z + king.movementDirection.z * king.speed
+             };
+             
+             // 맵 경계 체크 (너무 멀리 가지 않게)
+             if (Math.abs(nextPos.x) < 40 && Math.abs(nextPos.z) < 60) {
+                 king.position.x = nextPos.x;
+                 king.position.z = nextPos.z;
+             } else {
+                 // 경계에 닿으면 방향 반전
+                 king.movementDirection.multiplyScalar(-1);
+             }
+             
+             // 돌 던지기
+             king.throwTimer++;
+             if (king.throwTimer >= king.throwCooldown) {
+                 king.throwTimer = 0;
+                 
+                 // 플레이어를 향해 돌 던지기
+                 const startPos = king.position.clone();
+                 startPos.y += 2; // 왕의 높이에서 던지기
+                 
+                 createKingStone(startPos, player.position);
+                 console.log("왕이 돌을 던졌습니다!");
+             }
+         }
+         
+         function updateKingStones() {
+             kingStones.forEach((stone, index) => {
+                 stone.position.add(stone.velocity);
+                 stone.velocity.y -= 0.015; // 중력
+                 
+                 stone.life--;
+                 
+                 // 지면에 닿거나 시간이 다하면 제거
+                 if (stone.position.y <= 0.2 || stone.life <= 0) {
+                     // 플레이어와의 거리 체크 (데미지)
+                     const distanceToPlayer = stone.position.distanceTo(player.position);
+                     if (distanceToPlayer < 2) {
+                         gameStats.health -= 15;
+                         console.log("왕의 돌에 맞았습니다! 체력 -15");
+                         
+                         if (gameStats.health <= 0) {
+                             gameOver();
+                         }
+                     }
+                     
+                     scene.remove(stone);
+                     kingStones.splice(index, 1);
+                 }
+             });
+         }
+         
+         function spawnEnemies() {
+            enemySpawnTimer++;
+            
+            if (enemySpawnTimer > 60 && waveEnemiesRemaining > 0) { // 1초마다
+                createEnemy();
+                enemySpawnTimer = 0;
+                waveEnemiesRemaining--;
+            }
+            
+            // 웨이브 완료 체크 - 왕을 죽여야 다음 단계로
+            if (waveEnemiesRemaining <= 0 && enemies.length === 0 && king && king.health <= 0) {
+                // 다음 웨이브 준비
+                setTimeout(() => {
+                    gameStats.wave++;
+                    waveEnemiesRemaining = gameStats.wave * 10;
+                    gameStats.health = Math.min(100, gameStats.health + 30); // 체력 회복
+                    
+                    // 기존 왕 제거
+                    if (king) {
+                        scene.remove(king);
+                        king = null;
+                    }
+                    
+                    // 왕 체력바 제거
+                    const kingHealthContainer = document.getElementById('kingHealthContainer');
+                    if (kingHealthContainer) {
+                        kingHealthContainer.remove();
+                    }
+                    
+                    // 새로운 왕 생성 (더 강하게)
+                    createKing(0, -50);
+                    
+                    console.log(`웨이브 ${gameStats.wave} 시작! 적 ${waveEnemiesRemaining}마리, 왕 체력: ${king.health}`);
+                }, 2000); // 2초 후 다음 웨이브
+            }
+        }
+        
+        function updatePowerGauge() {
+            if (isCharging) {
+                chargePower += chargeSpeed;
+                if (chargePower > maxChargePower) {
+                    chargePower = maxChargePower;
+                }
+                
+                // 파워 게이지 바 업데이트
+                const powerPercentage = (chargePower / maxChargePower) * 100;
+                document.getElementById('powerBar').style.width = powerPercentage + '%';
+                
+                // 파워에 따른 텍스트 색상 변경
+                const powerText = document.getElementById('powerText');
+                if (chargePower < 30) {
+                    powerText.style.color = '#00ff00';
+                    powerText.textContent = '파워: 약함';
+                } else if (chargePower < 70) {
+                    powerText.style.color = '#ffff00';
+                    powerText.textContent = '파워: 보통';
+                } else {
+                    powerText.style.color = '#ff0000';
+                    powerText.textContent = '파워: 강함!';
+                }
+                
+                // 궤적 미리보기 업데이트
+                updateTrajectoryPreview();
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = gameStats.score;
+            document.getElementById('health').textContent = gameStats.health;
+            document.getElementById('wave').textContent = gameStats.wave;
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = gameStats.score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            // 게임 상태 초기화
+            gameRunning = true;
+            gameStats = { score: 0, health: 100, wave: 1, enemiesKilled: 0 };
+            enemySpawnTimer = 0;
+            waveEnemiesRemaining = 10; // 1단계: 10마리
+            
+            // 모든 객체 제거
+            enemies.forEach(enemy => scene.remove(enemy));
+            grenades.forEach(grenade => scene.remove(grenade));
+            explosions.forEach(explosion => scene.remove(explosion));
+            debris.forEach(debrisPiece => scene.remove(debrisPiece));
+            covers.forEach(cover => scene.remove(cover));
+            flowers.forEach(flower => scene.remove(flower));
+            trees.forEach(tree => scene.remove(tree));
+            castleWalls.forEach(wall => scene.remove(wall));
+            kingStones.forEach(stone => scene.remove(stone));
+            if (king) {
+                scene.remove(king);
+                king = null;
+            }
+            hideTrajectoryLine();
+            
+            enemies = [];
+            grenades = [];
+            explosions = [];
+            debris = [];
+            covers = [];
+            flowers = [];
+            trees = [];
+            castleWalls = [];
+            obstacles = [];
+            kingStones = [];
+            
+            // 왕 체력바 제거
+            const kingHealthContainer = document.getElementById('kingHealthContainer');
+            if (kingHealthContainer) {
+                kingHealthContainer.remove();
+            }
+            
+            // 플레이어 위치 및 상태 초기화
+            player.position.set(0, 1, 0);
+            playerRotation = 0;
+            player.rotation.y = 0;
+            playerVelocityY = 0;
+            isJumping = false;
+            
+            // 엄폐물, 환경 요소 및 적의 성 재생성
+            createCovers();
+            createFlowers();
+            createTrees();
+            createEnemyCastle();
+            
+            // UI 숨기기
+            document.getElementById('gameOver').style.display = 'none';
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameRunning) {
+                updatePlayer();
+                updateEnemies();
+                updateKing();
+                updateKingStones();
+                updateGrenades();
+                updateExplosions();
+                updateDebris();
+                spawnEnemies();
+                updatePowerGauge();
+                updateUI();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Three.js가 로드된 후 게임 시작
+        function startGame() {
+            if (typeof THREE !== 'undefined') {
+                init();
+            } else {
+                // 백업 Three.js 로드 시도
+                console.log('Three.js 백업 로드를 시도합니다...');
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/three@0.158.0/build/three.min.js';
+                script.onload = () => {
+                    console.log('Three.js 백업 로드 성공');
+                    init();
+                };
+                script.onerror = () => {
+                    alert('Three.js 라이브러리를 로드할 수 없습니다. 인터넷 연결을 확인해주세요.');
+                };
+                document.head.appendChild(script);
+            }
+        }
+        
+        // 페이지 로드 완료 후 게임 시작
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startGame);
+        } else {
+            startGame();
+        }
+    </script>
+</body>
+</html>

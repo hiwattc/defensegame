@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>볼링 게임</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #222; color: #fff; text-align: center; }
+    h1 { margin-top: 30px; }
+    .scoreboard { margin: 30px auto; display: flex; justify-content: center; }
+    .frame {
+      border: 2px solid #fff;
+      border-radius: 8px;
+      margin: 0 2px;
+      padding: 8px 4px;
+      width: 60px;
+      background: #333;
+    }
+    .frame.current { background: #444; border-color: #ff0; }
+    .rolls { font-size: 18px; margin-bottom: 4px; }
+    .total { font-size: 16px; color: #ff0; }
+    .pins { margin: 20px 0; }
+    .pin-btn {
+      background: #555;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      margin: 2px;
+      padding: 10px 14px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .pin-btn:hover { background: #ff9800; }
+    #resetBtn {
+      margin-top: 20px;
+      background: #e53935;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #resetBtn:hover { background: #b71c1c; }
+  </style>
+</head>
+<body>
+  <h1>🎳 볼링 게임</h1>
+  <div id="gameArea" style="display:flex; flex-direction:column; align-items:center;">
+    <canvas id="bowlingCanvas" width="500" height="350" style="background:#222; border:2px solid #fff; margin-bottom:20px;"></canvas>
+  </div>
+  <div class="scoreboard" id="scoreboard"></div>
+  <div class="pins" id="pins"></div>
+  <button id="resetBtn">게임 리셋</button>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+  <script>
+    // Matter.js 물리엔진 초기화
+    const { Engine, Render, Runner, World, Bodies, Body, Events, Mouse, MouseConstraint, Composite } = Matter;
+    const engine = Engine.create();
+    const world = engine.world;
+    const canvas = document.getElementById('bowlingCanvas');
+    const render = Render.create({
+      canvas: canvas,
+      engine: engine,
+      options: {
+        width: 500,
+        height: 350,
+        wireframes: false,
+        background: '#222',
+      }
+    });
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // 볼링핀과 공, 바닥 등 생성
+    let ball, pins = [], ground, leftWall, rightWall, launchReady = true;
+    const pinWidth = 18, pinHeight = 40, ballRadius = 18;
+    function setupPhysics() {
+      // 월드 초기화
+      World.clear(world);
+      Engine.clear(engine);
+      pins = [];
+      // 바닥, 벽
+      ground = Bodies.rectangle(250, 340, 500, 20, { isStatic: true, render: { fillStyle: '#888' } });
+      leftWall = Bodies.rectangle(5, 175, 10, 350, { isStatic: true, render: { visible: false } });
+      rightWall = Bodies.rectangle(495, 175, 10, 350, { isStatic: true, render: { visible: false } });
+      World.add(world, [ground, leftWall, rightWall]);
+      // 볼링공
+      ball = Bodies.circle(250, 300, ballRadius, {
+        restitution: 0.5,
+        friction: 0.01,
+        density: 0.04,
+        render: { fillStyle: '#00bcd4' }
+      });
+      World.add(world, ball);
+      // 핀 배치 (삼각형 형태)
+      const startX = 250, startY = 80, gap = 26;
+      let pinId = 0;
+      for (let row = 0; row < 4; row++) {
+        for (let i = 0; i <= row; i++) {
+          let x = startX - gap * row / 2 + i * gap;
+          let y = startY + row * (pinHeight * 0.7);
+          let pin = Bodies.rectangle(x, y, pinWidth, pinHeight, {
+            isStatic: false,
+            restitution: 0.3,
+            friction: 0.2,
+            density: 0.01,
+            label: 'pin',
+            render: { fillStyle: '#fff', strokeStyle: '#f00', lineWidth: 2 }
+          });
+          pin.customId = pinId++;
+          pins.push(pin);
+        }
+      }
+      World.add(world, pins);
+      launchReady = true;
+    }
+
+    // 마우스 드래그로 볼링공 던지기
+    let mouse = Mouse.create(render.canvas);
+    let mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      },
+      collisionFilter: { mask: 0x0001 }
+    });
+    World.add(world, mouseConstraint);
+    // 마우스 드래그 시작 위치, 끝 위치
+    let dragStart = null;
+    render.canvas.addEventListener('mousedown', function(e) {
+      if (!launchReady) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      // 공 위에서만 드래그 시작
+      const dx = mx - ball.position.x;
+      const dy = my - ball.position.y;
+      if (dx*dx + dy*dy <= ballRadius*ballRadius) {
+        dragStart = { x: mx, y: my };
+      }
+    });
+    render.canvas.addEventListener('mouseup', function(e) {
+      if (!launchReady || !dragStart) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      // 던지는 방향: 드래그 반대 방향
+      const dx = dragStart.x - mx;
+      const dy = dragStart.y - my;
+      // 속도 제한
+      const forceScale = 0.04;
+      Body.setVelocity(ball, { x: dx * forceScale, y: dy * forceScale });
+      launchReady = false;
+      dragStart = null;
+    });
+
+    // 핀 쓰러짐 감지 및 점수 처리
+    let fallenPins = [];
+    function checkPins() {
+      let count = 0;
+      fallenPins = [];
+      for (let pin of pins) {
+        // 핀이 일정 각도 이상 기울어지면 쓰러진 것으로 간주
+        if (Math.abs(pin.angle) > 0.5 || pin.position.y > 340) {
+          count++;
+          fallenPins.push(pin.customId);
+        }
+      }
+      return count;
+    }
+
+    // 한 번 던진 후 핀 쓰러짐 체크 및 점수판 연동
+    function afterThrow() {
+      setTimeout(() => {
+        let fallen = checkPins();
+        // 점수판에 반영 (핀 개수만큼 roll)
+        if (fallen > 0 && !isGameOver) {
+          roll(fallen);
+        } else if (!isGameOver) {
+          roll(0);
+        }
+        // 다음 투구를 위해 리셋
+        setTimeout(() => {
+          setupPhysics();
+        }, 1200);
+      }, 1200);
+    }
+
+    // 볼링공이 던져진 후 멈추면 afterThrow 실행
+    Events.on(engine, 'afterUpdate', function() {
+      if (!launchReady && Math.abs(ball.velocity.x) < 0.5 && Math.abs(ball.velocity.y) < 0.5) {
+        launchReady = true; // 중복 실행 방지
+        afterThrow();
+      }
+    });
+
+    // 볼링 게임 상태
+    let rolls = [];
+    let currentFrame = 0;
+    let isGameOver = false;
+
+    function renderScoreboard() {
+      const scoreboard = document.getElementById('scoreboard');
+      scoreboard.innerHTML = '';
+      let rollIndex = 0;
+      let total = 0;
+      for (let frame = 0; frame < 10; frame++) {
+        let frameHtml = '<div class="frame' + (frame === currentFrame ? ' current' : '') + '">';
+        let roll1 = rolls[rollIndex] !== undefined ? rolls[rollIndex] : '';
+        let roll2 = rolls[rollIndex + 1] !== undefined ? rolls[rollIndex + 1] : '';
+        let roll3 = '';
+        // 10프레임 보너스 처리
+        if (frame === 9 && (roll1 === 10 || roll1 + roll2 === 10)) {
+          roll3 = rolls[rollIndex + 2] !== undefined ? rolls[rollIndex + 2] : '';
+        }
+        // 점수 계산
+        let frameScore = getFrameScore(frame, rollIndex);
+        if (frame < 9) {
+          frameHtml += `<div class="rolls">${formatRoll(roll1)} | ${formatRoll(roll2)}</div>`;
+          frameHtml += `<div class="total">${frameScore !== null ? (total += frameScore) : ''}</div>`;
+        } else {
+          frameHtml += `<div class="rolls">${formatRoll(roll1)} | ${formatRoll(roll2)}${roll3 !== '' ? ' | ' + formatRoll(roll3) : ''}</div>`;
+          frameHtml += `<div class="total">${frameScore !== null ? (total += frameScore) : ''}</div>`;
+        }
+        frameHtml += '</div>';
+        scoreboard.innerHTML += frameHtml;
+        // 다음 프레임으로 이동
+        if (frame < 9) {
+          if (roll1 === 10) {
+            rollIndex += 1;
+          } else {
+            rollIndex += 2;
+          }
+        } else {
+          rollIndex += 2;
+          if (roll1 === 10 || roll1 + roll2 === 10) rollIndex++;
+        }
+      }
+    }
+
+    function formatRoll(roll) {
+      if (roll === 10) return 'X';
+      if (roll === '') return '';
+      return roll;
+    }
+
+    function getFrameScore(frame, rollIndex) {
+      if (rolls[rollIndex] === undefined) return null;
+      // 스트라이크
+      if (rolls[rollIndex] === 10) {
+        if (rolls[rollIndex + 1] !== undefined && rolls[rollIndex + 2] !== undefined) {
+          return 10 + rolls[rollIndex + 1] + rolls[rollIndex + 2];
+        } else {
+          return null;
+        }
+      }
+      // 스페어
+      if (rolls[rollIndex + 1] !== undefined && rolls[rollIndex] + rolls[rollIndex + 1] === 10) {
+        if (rolls[rollIndex + 2] !== undefined) {
+          return 10 + rolls[rollIndex + 2];
+        } else {
+          return null;
+        }
+      }
+      // 일반
+      if (rolls[rollIndex + 1] !== undefined) {
+        return rolls[rollIndex] + rolls[rollIndex + 1];
+      }
+      return null;
+    }
+
+    function renderPins() {
+      const pinsDiv = document.getElementById('pins');
+      if (isGameOver) {
+        pinsDiv.innerHTML = '<h2>게임 종료! 🎉</h2>';
+        return;
+      }
+      let maxPins = getMaxPins();
+      let html = '';
+      for (let i = 0; i <= maxPins; i++) {
+        html += `<button class="pin-btn" onclick="roll(${i})">${i}</button>`;
+      }
+      pinsDiv.innerHTML = html;
+    }
+
+    function getMaxPins() {
+      let rollIndex = 0;
+      let frame = 0;
+      while (frame < currentFrame) {
+        if (rolls[rollIndex] === 10 && frame < 9) {
+          rollIndex += 1;
+        } else {
+          rollIndex += 2;
+        }
+        frame++;
+      }
+      // 10프레임 보너스 처리
+      if (currentFrame === 9) {
+        let first = rolls[rollIndex] || 0;
+        let second = rolls[rollIndex + 1] || 0;
+        if (first === 10 || first + second === 10) {
+          // 3번째 투구
+          if (rolls.length - rollIndex >= 2) {
+            return 10;
+          } else if (rolls.length - rollIndex === 1) {
+            return first === 10 ? 10 : 10 - first;
+          } else {
+            return 10;
+          }
+        } else if (rolls.length - rollIndex === 1) {
+          return 10 - first;
+        } else {
+          return 10;
+        }
+      }
+      // 일반 프레임
+      if (rolls.length - rollIndex === 1) {
+        return 10 - rolls[rollIndex];
+      }
+      return 10;
+    }
+
+    function roll(pins) {
+      if (isGameOver) return;
+      let rollIndex = 0;
+      let frame = 0;
+      while (frame < currentFrame) {
+        if (rolls[rollIndex] === 10 && frame < 9) {
+          rollIndex += 1;
+        } else {
+          rollIndex += 2;
+        }
+        frame++;
+      }
+      rolls.push(pins);
+      // 프레임 이동
+      if (currentFrame < 9) {
+        if (pins === 10 || rolls.length - rollIndex === 2) {
+          currentFrame++;
+        }
+      } else {
+        // 10프레임 처리
+        let first = rolls[rollIndex] || 0;
+        let second = rolls[rollIndex + 1] || 0;
+        if (first === 10 || first + second === 10) {
+          if (rolls.length - rollIndex === 3) {
+            isGameOver = true;
+          }
+        } else if (rolls.length - rollIndex === 2) {
+          isGameOver = true;
+        }
+      }
+      renderScoreboard();
+      renderPins();
+    }
+
+    document.getElementById('resetBtn').onclick = function() {
+      rolls = [];
+      currentFrame = 0;
+      isGameOver = false;
+      renderScoreboard();
+      renderPins();
+      setupPhysics();
+    };
+
+    // 초기 렌더링 및 물리엔진 세팅
+    renderScoreboard();
+    renderPins();
+    setupPhysics();
+    window.roll = roll;
+  </script>
+</body>
+</html>

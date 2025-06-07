@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>4축 바퀴 대형 트랙 레이싱 게임</title>
+  <style>
+    body { margin: 0; background: #222; color: #fff; }
+    #ui { position: absolute; top: 10px; left: 10px; z-index: 10; font-family: sans-serif; }
+    canvas { display: block; margin: 0 auto; background: #333; }
+  </style>
+</head>
+<body>
+  <div id="ui"></div>
+  <canvas id="game" width="1000" height="750"></canvas>
+  <script>
+// --- 상수 및 설정 ---
+const WORLD_WIDTH = 4000;
+const WORLD_HEIGHT = 3000;
+const TRACK_CENTER = { x: 2000, y: 1500 };
+const TRACK_RADIUS_X = 1600;
+const TRACK_RADIUS_Y = 1000;
+const TRACK_WIDTH = 180;
+const NUM_CHECKPOINTS = 12;
+const NUM_AI = 5;
+const CAR_RADIUS = 16;
+const CAR_LENGTH = CAR_RADIUS * 4; // 기존보다 2배 길이
+const CAR_WIDTH = CAR_RADIUS * 2 * 0.8;
+const COLORS = ["#ff4444", "#44ff44", "#4444ff", "#ffff44", "#44ffff", "#ff44ff"];
+
+// --- 유틸리티 함수 ---
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+function dist(x1, y1, x2, y2) { return Math.hypot(x1 - x2, y1 - y2); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// --- 트랙 위 여부 판정 ---
+function isOnTrack(x, y) {
+  const dx = x - TRACK_CENTER.x;
+  const dy = y - TRACK_CENTER.y;
+  const d = (dx * dx) / ((TRACK_RADIUS_X) * (TRACK_RADIUS_X)) + (dy * dy) / ((TRACK_RADIUS_Y) * (TRACK_RADIUS_Y));
+  const dInner = (dx * dx) / ((TRACK_RADIUS_X - TRACK_WIDTH) * (TRACK_RADIUS_X - TRACK_WIDTH)) + (dy * dy) / ((TRACK_RADIUS_Y - TRACK_WIDTH) * (TRACK_RADIUS_Y - TRACK_WIDTH));
+  // 트랙 경계에 가까운지 여부도 반환
+  return { on: d <= 1 && dInner >= 1, outer: d > 1, inner: dInner < 1 };
+}
+
+// --- 체크포인트 클래스 ---
+class Checkpoint {
+  constructor(index) {
+    this.index = index;
+    const angle = (index / NUM_CHECKPOINTS) * 2 * Math.PI;
+    this.x = TRACK_CENTER.x + Math.cos(angle) * (TRACK_RADIUS_X - TRACK_WIDTH / 2);
+    this.y = TRACK_CENTER.y + Math.sin(angle) * (TRACK_RADIUS_Y - TRACK_WIDTH / 2);
+    this.passedCars = new Set();
+  }
+  draw(ctx, camera) {
+    ctx.save();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(this.x - camera.x, this.y - camera.y, 40, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// --- 자동차 클래스 ---
+class Car {
+  constructor(x, y, angle, color, isPlayer = false) {
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+    this.speed = 0;
+    this.color = color;
+    this.isPlayer = isPlayer;
+    this.lap = 0;
+    this.checkpoint = 0;
+    this.distance = 0;
+    this.gear = 1;
+    this.name = isPlayer ? "플레이어" : "AI";
+    this.vx = 0;
+    this.vy = 0;
+    this._lastSteer = 0;
+  }
+  update(input, checkpoints) {
+    // 입력 처리
+    let accel = 0, steer = 0;
+    let drifting = false;
+    if (this.isPlayer) {
+      if (input["ArrowUp"]) accel = 0.4;
+      if (input["ArrowDown"]) accel = -0.3;
+      if (input["ArrowLeft"]) steer = -0.01125;
+      if (input["ArrowRight"]) steer = 0.01125;
+      // 스페이스바: 브레이크 및 드리프트
+      if (input[" "] || input["Spacebar"] || input[" "] === true) {
+        // 강한 브레이크
+        if (Math.abs(this.speed) > 1.5) {
+          drifting = true;
+          this.speed *= 0.93; // 속도 급감
+          // 드리프트: 뒷바퀴가 미끄러지는 효과(차량 각도와 진행방향 차이)
+          // 진행방향과 차체 각도 차이를 만들어줌
+          let driftAngle = steer * 2.5 * (this.speed > 0 ? 1 : -1);
+          this.angle += driftAngle;
+          // 드리프트시 살짝 옆으로 미끄러짐
+          this.x += Math.cos(this.angle + Math.PI/2) * Math.abs(this.speed) * 0.12;
+          this.y += Math.sin(this.angle + Math.PI/2) * Math.abs(this.speed) * 0.12;
+        } else {
+          this.speed *= 0.85; // 저속에서는 그냥 강한 브레이크
+        }
+      }
+    } else {
+      // AI 개선: 다음 체크포인트와의 각도 차이가 크면 감속, 가까우면 다음 체크포인트로 미리 목표 변경
+      const cp = checkpoints[this.checkpoint % checkpoints.length];
+      const dx = cp.x - this.x;
+      const dy = cp.y - this.y;
+      const distToCP = Math.hypot(dx, dy);
+      const targetAngle = Math.atan2(dy, dx);
+      let da = ((targetAngle - this.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      // 조향 각도 증가(더 민첩하게)
+      steer = clamp(da, -0.0175, 0.0175);
+      // 각도 차이가 크면 감속, 작으면 가속
+      if (Math.abs(da) > 0.5) {
+        accel = 0.1;
+      } else {
+        accel = 0.28;
+      }
+      // 체크포인트에 가까우면 미리 다음 체크포인트로 목표 변경
+      if (distToCP < 80) {
+        this.checkpoint++;
+      }
+    }
+    this._lastSteer = steer; // draw에서 앞바퀴 꺾임에 사용
+    this.angle += steer * (this.speed > 0 ? 1 : -1);
+    this.speed += accel;
+    this.speed *= 0.99; // 관성 2배(마찰 감소)
+    this.speed = clamp(this.speed, -3, 8); // 최고속도 절반으로 감소
+    // 이동
+    this.vx = Math.cos(this.angle) * this.speed;
+    this.vy = Math.sin(this.angle) * this.speed;
+    this.x += this.vx;
+    this.y += this.vy;
+    // 트랙 경계 충돌 처리
+    const trackStatus = isOnTrack(this.x, this.y);
+    if (!trackStatus.on) {
+      // 트랙 바깥쪽 경계 충돌
+      const dx = this.x - TRACK_CENTER.x;
+      const dy = this.y - TRACK_CENTER.y;
+      let normX, normY;
+      if (trackStatus.outer) {
+        // 바깥 경계에 닿음: 타원 바깥쪽 노멀
+        const len = Math.hypot(dx / TRACK_RADIUS_X, dy / TRACK_RADIUS_Y);
+        normX = (dx / TRACK_RADIUS_X) / len;
+        normY = (dy / TRACK_RADIUS_Y) / len;
+        // 위치를 경계선 위로 보정
+        this.x = TRACK_CENTER.x + normX * TRACK_RADIUS_X;
+        this.y = TRACK_CENTER.y + normY * TRACK_RADIUS_Y;
+      } else if (trackStatus.inner) {
+        // 안쪽 경계에 닿음: 타원 안쪽 노멀
+        const len = Math.hypot(dx / (TRACK_RADIUS_X - TRACK_WIDTH), dy / (TRACK_RADIUS_Y - TRACK_WIDTH));
+        normX = (dx / (TRACK_RADIUS_X - TRACK_WIDTH)) / len;
+        normY = (dy / (TRACK_RADIUS_Y - TRACK_WIDTH)) / len;
+        // 위치를 경계선 위로 보정
+        this.x = TRACK_CENTER.x + normX * (TRACK_RADIUS_X - TRACK_WIDTH);
+        this.y = TRACK_CENTER.y + normY * (TRACK_RADIUS_Y - TRACK_WIDTH);
+      }
+      // 속도 반발(튕김)
+      const dot = this.vx * normX + this.vy * normY;
+      const bounce = 1.5; // 더 강한 반발력
+      this.vx -= 2 * dot * normX * bounce;
+      this.vy -= 2 * dot * normY * bounce;
+      this.speed = Math.hypot(this.vx, this.vy) * 0.9;
+    }
+    // 체크포인트 통과
+    const cp = checkpoints[this.checkpoint % checkpoints.length];
+    if (dist(this.x, this.y, cp.x, cp.y) < 60 && !cp.passedCars.has(this)) {
+      cp.passedCars.add(this);
+      this.checkpoint++;
+      if (this.checkpoint % checkpoints.length === 0) {
+        this.lap++;
+      }
+    }
+    // 총 이동거리
+    this.distance += Math.abs(this.speed);
+  }
+  draw(ctx, camera) {
+    ctx.save();
+    ctx.translate(this.x - camera.x, this.y - camera.y);
+    ctx.rotate(this.angle);
+    // 4개 타이어만 보이게, 앞바퀴는 조향각에 따라 꺾임
+    const w = CAR_WIDTH;
+    const l = CAR_LENGTH;
+    const tireW = 8, tireH = 16;
+    const tireOffsetX = l/2 - 8;
+    const tireOffsetY = w/2 - 6;
+    // 앞바퀴 조향각 계산
+    let steerDraw = 0;
+    if (this.isPlayer) {
+      if (input["ArrowLeft"]) steerDraw = -0.01125;
+      if (input["ArrowRight"]) steerDraw = 0.01125;
+    } else {
+      steerDraw = this._lastSteer || 0;
+    }
+    // 앞 왼쪽 타이어
+    ctx.save();
+    ctx.translate(-tireOffsetX, -tireOffsetY);
+    ctx.rotate(steerDraw * 2.5); // 시각적으로 더 꺾이게
+    ctx.fillStyle = "#222";
+    ctx.fillRect(-tireW/2, -tireH/2, tireW, tireH);
+    ctx.restore();
+    // 앞 오른쪽 타이어
+    ctx.save();
+    ctx.translate(-tireOffsetX, tireOffsetY);
+    ctx.rotate(steerDraw * 2.5);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(-tireW/2, -tireH/2, tireW, tireH);
+    ctx.restore();
+    // 뒤 왼쪽 타이어
+    ctx.save();
+    ctx.translate(tireOffsetX, -tireOffsetY);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(-tireW/2, -tireH/2, tireW, tireH);
+    ctx.restore();
+    // 뒤 오른쪽 타이어
+    ctx.save();
+    ctx.translate(tireOffsetX, tireOffsetY);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(-tireW/2, -tireH/2, tireW, tireH);
+    ctx.restore();
+    // 차체
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-l/2, -w/2, l, w);
+    ctx.fillStyle = "#222";
+    ctx.fillRect(0, -w/2, l/2, w);
+    ctx.restore();
+  }
+  reset(x, y, angle) {
+    this.x = x;
+    this.y = y;
+    this.angle = angle;
+    this.speed = 0;
+    this.lap = 0;
+    this.checkpoint = 0;
+    this.distance = 0;
+  }
+}
+
+// --- 트랙 그리기 ---
+function drawRoad(ctx, camera) {
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+  // 트랙 바닥(갈색)
+  ctx.beginPath();
+  ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_RADIUS_X - TRACK_WIDTH / 2, TRACK_RADIUS_Y - TRACK_WIDTH / 2, 0, 0, 2 * Math.PI);
+  ctx.fillStyle = "#a67c52";
+  ctx.fill();
+  // 트랙 외곽(회색 두꺼운 선)
+  ctx.beginPath();
+  ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_RADIUS_X, TRACK_RADIUS_Y, 0, 0, 2 * Math.PI);
+  ctx.lineWidth = TRACK_WIDTH;
+  ctx.strokeStyle = "#888";
+  ctx.stroke();
+  // 트랙 경계선(적색 점선) - 바깥쪽
+  ctx.beginPath();
+  ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_RADIUS_X, TRACK_RADIUS_Y, 0, 0, 2 * Math.PI);
+  ctx.setLineDash([16, 16]);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#ff4444";
+  ctx.stroke();
+  // 트랙 경계선(적색 점선) - 안쪽
+  ctx.beginPath();
+  ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_RADIUS_X - TRACK_WIDTH, TRACK_RADIUS_Y - TRACK_WIDTH, 0, 0, 2 * Math.PI);
+  ctx.setLineDash([16, 16]);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#ff4444";
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // 중앙선
+  ctx.beginPath();
+  ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_RADIUS_X - TRACK_WIDTH/2, TRACK_RADIUS_Y - TRACK_WIDTH/2, 0, 0, 2 * Math.PI);
+  ctx.setLineDash([40, 40]);
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#fff";
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// --- 카메라 ---
+function updateCamera(camera, player) {
+  camera.x = clamp(player.x - canvas.width/2, 0, WORLD_WIDTH - canvas.width);
+  camera.y = clamp(player.y - canvas.height/2, 0, WORLD_HEIGHT - canvas.height);
+}
+
+// --- 자동차 충돌 처리 ---
+function handleCollisions(cars) {
+  for (let i = 0; i < cars.length; i++) {
+    for (let j = i + 1; j < cars.length; j++) {
+      const a = cars[i], b = cars[j];
+      const d = dist(a.x, a.y, b.x, b.y);
+      if (d < CAR_RADIUS * 1.5) {
+        // 반발력
+        const nx = (b.x - a.x) / d;
+        const ny = (b.y - a.y) / d;
+        const overlap = CAR_RADIUS * 1.5 - d;
+        a.x -= nx * overlap/2;
+        a.y -= ny * overlap/2;
+        b.x += nx * overlap/2;
+        b.y += ny * overlap/2;
+        // 속도 반발
+        const va = a.vx * nx + a.vy * ny;
+        const vb = b.vx * nx + b.vy * ny;
+        const bounce = 0.7;
+        a.vx -= (va - vb) * nx * bounce;
+        a.vy -= (va - vb) * ny * bounce;
+        b.vx += (va - vb) * nx * bounce;
+        b.vy += (va - vb) * ny * bounce;
+      }
+    }
+  }
+}
+
+// --- UI ---
+function drawUI(player, cars, checkpoints) {
+  const ui = document.getElementById("ui");
+  // 순위 계산
+  const sorted = [...cars].sort((a, b) => b.lap * 10000 + b.checkpoint - (a.lap * 10000 + a.checkpoint));
+  const rank = sorted.indexOf(player) + 1;
+  ui.innerHTML = `
+    <b>속도:</b> ${player.speed.toFixed(1)}<br>
+    <b>기어:</b> ${player.gear}<br>
+    <b>랩:</b> ${player.lap}<br>
+    <b>순위:</b> ${rank} / ${cars.length}<br>
+    <b>체크포인트:</b> ${player.checkpoint % checkpoints.length + 1} / ${checkpoints.length}
+  `;
+}
+
+// --- 게임 초기화 ---
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+let camera = { x: 0, y: 0 };
+let input = {};
+let checkpoints = [];
+let cars = [];
+
+function init() {
+  checkpoints = [];
+  for (let i = 0; i < NUM_CHECKPOINTS; i++) {
+    checkpoints.push(new Checkpoint(i));
+  }
+  cars = [];
+  // 플레이어 자동차
+  let angle0 = 0;
+  let px = TRACK_CENTER.x + Math.cos(angle0) * (TRACK_RADIUS_X - TRACK_WIDTH / 2);
+  let py = TRACK_CENTER.y + Math.sin(angle0) * (TRACK_RADIUS_Y - TRACK_WIDTH / 2);
+  cars.push(new Car(px, py, Math.PI / 2, COLORS[0], true));
+  // AI 자동차
+  for (let i = 1; i <= NUM_AI; i++) {
+    let angle = i * 2 * Math.PI / (NUM_AI + 1);
+    let x = TRACK_CENTER.x + Math.cos(angle) * (TRACK_RADIUS_X - TRACK_WIDTH / 2);
+    let y = TRACK_CENTER.y + Math.sin(angle) * (TRACK_RADIUS_Y - TRACK_WIDTH / 2);
+    cars.push(new Car(x, y, Math.PI / 2, COLORS[i % COLORS.length], false));
+  }
+}
+
+// --- 입력 처리 ---
+window.addEventListener("keydown", e => input[e.key] = true);
+window.addEventListener("keyup", e => input[e.key] = false);
+
+// --- 게임 루프 ---
+function gameLoop() {
+  // 업데이트
+  for (const car of cars) {
+    car.update(input, checkpoints);
+  }
+  handleCollisions(cars);
+  updateCamera(camera, cars[0]);
+  // 그리기
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawRoad(ctx, camera);
+  for (const cp of checkpoints) cp.draw(ctx, camera);
+  for (const car of cars) car.draw(ctx, camera);
+  drawUI(cars[0], cars, checkpoints);
+  requestAnimationFrame(gameLoop);
+}
+
+init();
+gameLoop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>앵그리버드 스타일 게임</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { background: #aeeaff; display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const VIEW_WIDTH = 800;
+const VIEW_HEIGHT = 600;
+const WORLD_WIDTH = 3000;
+const GROUND_HEIGHT = 100;
+
+const canvas = document.getElementById('game');
+canvas.width = VIEW_WIDTH;
+canvas.height = VIEW_HEIGHT;
+const ctx = canvas.getContext('2d');
+
+let bird = {
+  x: 200, y: VIEW_HEIGHT - GROUND_HEIGHT - 30,
+  vx: 0, vy: 0,
+  radius: 20,
+  flying: false
+};
+
+let cameraX = 0;
+
+function drawWorld() {
+  // 땅
+  ctx.fillStyle = "#6c3";
+  ctx.fillRect(0, VIEW_HEIGHT - GROUND_HEIGHT, WORLD_WIDTH, GROUND_HEIGHT);
+  // 목표물(예시)
+  ctx.fillStyle = "#b44";
+  ctx.fillRect(2200, VIEW_HEIGHT - GROUND_HEIGHT - 60, 40, 60);
+}
+
+function drawBird() {
+  ctx.beginPath();
+  ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#f22";
+  ctx.fill();
+  ctx.stroke();
+}
+
+function update() {
+  if (bird.flying) {
+    bird.vy += 0.5; // 중력
+    bird.x += bird.vx;
+    bird.y += bird.vy;
+    // 바닥 충돌
+    if (bird.y > VIEW_HEIGHT - GROUND_HEIGHT - bird.radius) {
+      bird.y = VIEW_HEIGHT - GROUND_HEIGHT - bird.radius;
+      bird.vy = 0;
+      bird.vx = 0;
+      bird.flying = false;
+    }
+  }
+  // 카메라 패닝: 포탄을 따라가되, 화면 중앙에 오도록 부드럽게 이동
+  let targetCameraX = Math.max(0, Math.min(bird.x - VIEW_WIDTH / 2, WORLD_WIDTH - VIEW_WIDTH));
+  cameraX += (targetCameraX - cameraX) * 0.1; // 부드러운 이동
+}
+
+function render() {
+  ctx.clearRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+  ctx.save();
+  ctx.translate(-cameraX, 0); // 카메라 이동
+  drawWorld();
+  drawBird();
+  ctx.restore();
+}
+
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// 마우스 드래그로 발사 각도/세기 조절
+let isDragging = false, dragStart = null;
+canvas.addEventListener('mousedown', e => {
+  if (!bird.flying) {
+    isDragging = true;
+    dragStart = {x: e.offsetX, y: e.offsetY};
+  }
+});
+canvas.addEventListener('mouseup', e => {
+  if (isDragging && !bird.flying) {
+    let dx = dragStart.x - e.offsetX;
+    let dy = dragStart.y - e.offsetY;
+    bird.vx = dx * 0.2;
+    bird.vy = dy * 0.2;
+    bird.flying = true;
+  }
+  isDragging = false;
+});
+
+gameLoop();
+</script>
+</body>
+</html>

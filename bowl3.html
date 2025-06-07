@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Matter.js 테트리스</title>
+  <style>
+    body { background: #222; }
+    canvas { background: #111; display: block; margin: 0 auto; }
+    #score { color: #fff; text-align: center; font-size: 24px; }
+  </style>
+</head>
+<body>
+  <div id="score">점수: 0</div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    // Matter.js 모듈
+    const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
+
+    // 기본 설정
+    const width = 320, height = 640, grid = 32, cols = 10, rows = 20;
+    let score = 0;
+
+    // 엔진, 월드, 렌더러 생성
+    const engine = Engine.create();
+    const world = engine.world;
+    const render = Render.create({
+      element: document.body,
+      engine: engine,
+      options: {
+        width, height, wireframes: false, background: "#111"
+      }
+    });
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // 벽과 바닥 생성
+    World.add(world, [
+      Bodies.rectangle(width/2, height+10, width, 20, { isStatic: true }), // 바닥
+      Bodies.rectangle(-10, height/2, 20, height, { isStatic: true }), // 왼쪽 벽
+      Bodies.rectangle(width+10, height/2, 20, height, { isStatic: true }) // 오른쪽 벽
+    ]);
+
+    // 테트리스 블록 모양 정의
+    const SHAPES = [
+      // I
+      [[0,0],[1,0],[2,0],[3,0]],
+      // O
+      [[0,0],[1,0],[0,1],[1,1]],
+      // T
+      [[1,0],[0,1],[1,1],[2,1]],
+      // S
+      [[1,0],[2,0],[0,1],[1,1]],
+      // Z
+      [[0,0],[1,0],[1,1],[2,1]],
+      // J
+      [[0,0],[0,1],[1,1],[2,1]],
+      // L
+      [[2,0],[0,1],[1,1],[2,1]]
+    ];
+    const COLORS = ["#00f0f0","#f0f000","#a000f0","#00f000","#f00000","#0000f0","#f0a000"];
+
+    // 현재 블록
+    let current = null;
+
+    // 블록 생성 함수
+    function spawnBlock() {
+      const idx = Math.floor(Math.random() * SHAPES.length);
+      const shape = SHAPES[idx];
+      const color = COLORS[idx];
+      const blocks = shape.map(([x, y]) =>
+        Bodies.rectangle(
+          (3 + x) * grid + grid/2,
+          (y) * grid + grid/2,
+          grid, grid,
+          { render: { fillStyle: color }, collisionFilter: { group: -1 } }
+        )
+      );
+      blocks.forEach(b => Body.setStatic(b, true));
+      current = { blocks, idx, x: 3, y: 0, rot: 0 };
+      blocks.forEach(b => World.add(world, b));
+      if (isCollide(current, 0, 0, 0)) {
+        alert("게임 오버! 점수: " + score);
+        location.reload();
+      }
+    }
+
+    // 충돌 체크
+    function isCollide(piece, dx, dy, drot) {
+      const shape = rotateShape(SHAPES[piece.idx], piece.rot + drot);
+      for (let i = 0; i < 4; i++) {
+        let nx = piece.x + shape[i][0] + dx;
+        let ny = piece.y + shape[i][1] + dy;
+        if (nx < 0 || nx >= cols || ny >= rows) return true;
+        if (ny >= 0 && gridMap[ny][nx]) return true;
+      }
+      return false;
+    }
+
+    // 블록 회전
+    function rotateShape(shape, rot) {
+      rot = ((rot % 4) + 4) % 4;
+      return shape.map(([x, y]) => {
+        for (let i = 0; i < rot; i++) [x, y] = [y, -x];
+        return [x, y];
+      });
+    }
+
+    // 그리드 맵 (고정된 블록)
+    let gridMap = Array.from({length: rows}, () => Array(cols).fill(0));
+
+    // 블록을 그리드에 고정
+    function fixBlock() {
+      const shape = rotateShape(SHAPES[current.idx], current.rot);
+      for (let i = 0; i < 4; i++) {
+        let nx = current.x + shape[i][0];
+        let ny = current.y + shape[i][1];
+        if (ny >= 0) gridMap[ny][nx] = COLORS[current.idx];
+      }
+      current.blocks.forEach(b => Body.setStatic(b, false));
+      current = null;
+      clearLines();
+    }
+
+    // 한 줄 완성시 삭제
+    function clearLines() {
+      let cleared = 0;
+      for (let y = rows-1; y >= 0; y--) {
+        if (gridMap[y].every(cell => cell)) {
+          cleared++;
+          // 해당 줄 삭제
+          gridMap.splice(y, 1);
+          gridMap.unshift(Array(cols).fill(0));
+          // Matter.js 블록도 이동
+          Composite.allBodies(world).forEach(b => {
+            if (b.position.y < y*grid + grid/2 && b.position.x > 0 && b.position.x < width) {
+              Body.translate(b, {x:0, y:grid});
+            }
+          });
+          y++;
+        }
+      }
+      if (cleared) {
+        score += cleared * 100;
+        document.getElementById('score').innerText = "점수: " + score;
+      }
+    }
+
+    // 블록 이동/회전
+    function move(dx, dy, drot) {
+      if (!current) return;
+      if (!isCollide(current, dx, dy, drot)) {
+        current.x += dx;
+        current.y += dy;
+        current.rot = (current.rot + drot + 4) % 4;
+        const shape = rotateShape(SHAPES[current.idx], current.rot);
+        for (let i = 0; i < 4; i++) {
+          Body.setPosition(
+            current.blocks[i],
+            { x: (current.x + shape[i][0]) * grid + grid/2, y: (current.y + shape[i][1]) * grid + grid/2 }
+          );
+        }
+      }
+    }
+
+    // 키보드 이벤트
+    document.addEventListener('keydown', e => {
+      if (!current) return;
+      if (e.code === 'ArrowLeft') move(-1, 0, 0);
+      if (e.code === 'ArrowRight') move(1, 0, 0);
+      if (e.code === 'ArrowDown') move(0, 1, 0);
+      if (e.code === 'ArrowUp') move(0, 0, 1);
+      if (e.code === 'Space') {
+        while (!isCollide(current, 0, 1, 0)) move(0, 1, 0);
+        fixBlock();
+        spawnBlock();
+      }
+    });
+
+    // 게임 루프
+    setInterval(() => {
+      if (!current) {
+        spawnBlock();
+      } else {
+        if (!isCollide(current, 0, 1, 0)) {
+          move(0, 1, 0);
+        } else {
+          fixBlock();
+          spawnBlock();
+        }
+      }
+    }, 500);
+
+    // Matter.js 렌더링 최적화 (고정된 블록 색상 유지)
+    Events.on(render, 'afterRender', () => {
+      const ctx = render.context;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (gridMap[y][x]) {
+            ctx.fillStyle = gridMap[y][x];
+            ctx.fillRect(x*grid, y*grid, grid, grid);
+            ctx.strokeStyle = "#222";
+            ctx.strokeRect(x*grid, y*grid, grid, grid);
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

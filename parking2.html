@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4축 바퀴 자동차 운전 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #2a4a2a;
+            border: 2px solid #333;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .parking-spot {
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
+    
+    <div id="controls">
+        <strong>🚗 운전 조작법</strong><br>
+        ↓/↑: 전진/후진<br>
+        →/←: 좌/우 조향<br>
+        Space: 브레이크<br>
+        R: 리셋
+    </div>
+    
+    <div id="info">
+        <div>속도: <span id="speed">0</span> km/h</div>
+        <div>기어: <span id="gear">P</span></div>
+        <div>순위: <span id="rank">1</span> / 6</div>
+        <div>랩: <span id="lap">0</span></div>
+        <div class="parking-spot">🏁 체크포인트를 통과하여 레이싱하세요!</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 상태
+        const keys = {};
+        let gameTime = 0;
+        
+        // === 트랙 관련 전역 변수 추가 ===
+        const TRACK_CENTER = { x: 2000, y: 1500 };
+        const TRACK_A = 1600; // 타원 가로 반지름
+        const TRACK_B = 1000; // 타원 세로 반지름
+        const TRACK_WIDTH = 180; // 트랙 폭
+        const WORLD_WIDTH = 4000;
+        const WORLD_HEIGHT = 3000;
+
+        // 카메라 위치
+        let cameraX = 0;
+        let cameraY = 0;
+
+        // 트랙 위에 있는지 판정 함수
+        function isOnTrack(x, y) {
+            const dx = x - TRACK_CENTER.x;
+            const dy = y - TRACK_CENTER.y;
+            const dist = Math.sqrt((dx * dx) / (TRACK_A * TRACK_A) + (dy * dy) / (TRACK_B * TRACK_B));
+            return dist > 1 - TRACK_WIDTH / (2 * TRACK_A) && dist < 1 + TRACK_WIDTH / (2 * TRACK_A);
+        }
+        
+        // 자동차 클래스
+        class Car {
+            constructor(x, y, color = '#ff4444', isPlayer = false) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.speed = 0;
+                this.maxSpeed = isPlayer ? 8 : 6 + Math.random() * 3;
+                this.acceleration = 0.2;
+                this.deceleration = 0.1;
+                this.turnSpeed = 0;
+                this.maxTurnSpeed = 0.04;
+                this.friction = 0.95;
+                this.width = 60;
+                this.height = 30;
+                this.color = color;
+                this.isPlayer = isPlayer;
+                this.lap = 0;
+                this.checkpointsPassed = 0;
+                this.totalDistance = 0;
+                
+                // AI 관련 속성
+                this.aiTarget = { x: 400, y: 400 };
+                this.aiTimer = 0;
+                this.aiTurnDirection = Math.random() > 0.5 ? 1 : -1;
+                
+                // 4축 바퀴 위치 (상대적)
+                this.wheels = [
+                    {x: -25, y: -12, angle: 0}, // 앞 왼쪽
+                    {x: -25, y: 12, angle: 0},  // 앞 오른쪽
+                    {x: 25, y: -12, angle: 0},  // 뒤 왼쪽
+                    {x: 25, y: 12, angle: 0}    // 뒤 오른쪽
+                ];
+            }
+            
+            update(checkpoints = []) {
+                let steering = 0;
+                let throttle = 0;
+                let brake = false;
+                
+                if (this.isPlayer) {
+                    // 플레이어 입력
+                    if (keys['ArrowRight']) steering = -1;
+                    if (keys['ArrowLeft']) steering = 1;
+                    if (keys['ArrowDown']) throttle = 1;
+                    if (keys['ArrowUp']) throttle = -1;
+                    brake = keys[' '];
+                } else {
+                    // AI 로직
+                    this.updateAI(checkpoints);
+                    steering = this.aiSteering;
+                    throttle = this.aiThrottle;
+                }
+                
+                // 속도 계산
+                if (throttle !== 0) {
+                    this.speed += throttle * this.acceleration;
+                } else if (!brake) {
+                    this.speed *= this.friction;
+                }
+                
+                // 브레이크 적용
+                if (brake) {
+                    this.speed *= 0.9;
+                }
+                
+                // 최대 속도 제한
+                this.speed = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.speed));
+                
+                // 조향 (속도에 따라 조향력 조절)
+                if (Math.abs(this.speed) > 0.1) {
+                    this.turnSpeed = steering * this.maxTurnSpeed * (Math.abs(this.speed) / this.maxSpeed);
+                    this.angle += this.turnSpeed * (this.speed > 0 ? 1 : -1);
+                }
+                
+                // 앞바퀴 각도 (조향) - 반대로 변경
+                this.wheels[0].angle = -steering * 0.3;
+                this.wheels[1].angle = -steering * 0.3;
+                
+                // 위치 업데이트
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                
+                // 총 이동 거리 계산
+                this.totalDistance += Math.abs(this.speed);
+                
+                // 트랙 밖이면 속도 급감
+                if (!isOnTrack(this.x, this.y)) {
+                    this.speed *= 0.85;
+                    // 트랙 밖이면 살짝 안쪽으로 밀어줌
+                    const dx = this.x - TRACK_CENTER.x;
+                    const dy = this.y - TRACK_CENTER.y;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    if (len > 0) {
+                        const t = Math.atan2(dy, dx);
+                        this.x = TRACK_CENTER.x + Math.cos(t) * (TRACK_A + (Math.abs(TRACK_B * Math.sin(t) / Math.cos(t)) - TRACK_A) * (dy < 0 ? -1 : 1));
+                    }
+                }
+                
+                // 체크포인트 통과 확인
+                this.checkCheckpoints(checkpoints);
+            }
+            
+            updateAI(checkpoints) {
+                this.aiTimer++;
+                
+                // 가장 가까운 체크포인트 찾기
+                let targetCheckpoint = null;
+                let minDist = Infinity;
+                
+                checkpoints.forEach(checkpoint => {
+                    const dist = Math.sqrt(
+                        Math.pow(this.x - checkpoint.x, 2) + 
+                        Math.pow(this.y - checkpoint.y, 2)
+                    );
+                    if (dist < minDist) {
+                        minDist = dist;
+                        targetCheckpoint = checkpoint;
+                    }
+                });
+                
+                if (targetCheckpoint) {
+                    // 목표 방향 계산
+                    const targetAngle = Math.atan2(
+                        targetCheckpoint.y - this.y,
+                        targetCheckpoint.x - this.x
+                    );
+                    
+                    let angleDiff = targetAngle - this.angle;
+                    
+                    // 각도 정규화
+                    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    
+                    // AI 조향
+                    this.aiSteering = Math.sign(angleDiff) * Math.min(1, Math.abs(angleDiff) * 2);
+                    
+                    // AI 가속 (거리에 따라 조절)
+                    if (minDist > 100) {
+                        this.aiThrottle = 1;
+                    } else if (minDist > 50) {
+                        this.aiThrottle = 0.7;
+                    } else {
+                        this.aiThrottle = 0.4;
+                    }
+                } else {
+                    // 랜덤 움직임
+                    if (this.aiTimer % 60 === 0) {
+                        this.aiTurnDirection = Math.random() > 0.5 ? 1 : -1;
+                    }
+                    this.aiSteering = this.aiTurnDirection * (0.3 + Math.random() * 0.4);
+                    this.aiThrottle = 0.8 + Math.random() * 0.2;
+                }
+            }
+            
+            checkCheckpoints(checkpoints) {
+                checkpoints.forEach((checkpoint, index) => {
+                    const dist = Math.sqrt(
+                        Math.pow(this.x - checkpoint.x, 2) + 
+                        Math.pow(this.y - checkpoint.y, 2)
+                    );
+                    
+                    if (dist < 50 && !checkpoint.passedBy.includes(this)) {
+                        checkpoint.passedBy.push(this);
+                        this.checkpointsPassed++;
+                        
+                        // 한 바퀴 완주 체크
+                        if (this.checkpointsPassed % checkpoints.length === 0) {
+                            this.lap++;
+                        }
+                    }
+                });
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - cameraX, this.y - cameraY);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.fillStyle = '#87ceeb';
+                ctx.fillRect(-this.width/2 + 5, -this.height/2 + 5, this.width - 10, this.height - 10);
+                ctx.fillStyle = '#ffff99';
+                ctx.fillRect(-this.width/2 - 3, -8, 6, 4);
+                ctx.fillRect(-this.width/2 - 3, 4, 6, 4);
+                if (this.isPlayer) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('YOU', 0, -20);
+                }
+                this.wheels.forEach((wheel, index) => {
+                    ctx.save();
+                    ctx.translate(wheel.x, wheel.y);
+                    ctx.rotate(wheel.angle);
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(-6, -3, 12, 6);
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-6, -3, 12, 6);
+                    ctx.restore();
+                });
+                ctx.restore();
+            }
+            
+            reset() {
+                this.x = 100;
+                this.y = 100;
+                this.angle = 0;
+                this.speed = 0;
+                this.turnSpeed = 0;
+            }
+        }
+        
+        // 체크포인트 클래스
+        class Checkpoint {
+            constructor(x, y, index) {
+                this.x = x;
+                this.y = y;
+                this.index = index;
+                this.passedBy = [];
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x - cameraX, this.y - cameraY);
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.index + 1, 0, 5);
+                ctx.restore();
+            }
+        }
+        
+        // 순위 계산 함수
+        function calculateRankings(cars) {
+            return cars.sort((a, b) => {
+                // 먼저 랩 수로 정렬
+                if (b.lap !== a.lap) return b.lap - a.lap;
+                // 랩이 같으면 체크포인트 수로 정렬
+                if (b.checkpointsPassed !== a.checkpointsPassed) return b.checkpointsPassed - a.checkpointsPassed;
+                // 모두 같으면 총 이동거리로 정렬
+                return b.totalDistance - a.totalDistance;
+            });
+        }
+        
+        // 도로 그리기 함수
+        function drawRoad() {
+            // 카메라 기준으로 월드 좌표를 화면에 그림
+            ctx.save();
+            ctx.translate(-cameraX, -cameraY);
+            // 트랙 바깥 잔디
+            ctx.fillStyle = '#2a4a2a';
+            ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+            // 트랙 본체
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_A + TRACK_WIDTH / 2, TRACK_B + TRACK_WIDTH / 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(TRACK_CENTER.x, TRACK_CENTER.y, TRACK_A - TRACK_WIDTH / 2, TRACK_B - TRACK_WIDTH / 2, 0, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.fillStyle = '#444';
+            ctx.fill();
+            ctx.restore();
+            // 트랙 중앙선
+            ctx.save();
+            ctx.setLineDash([40, 40]);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            for (let t = 0; t < Math.PI * 2; t += 0.01) {
+                const r = 0.0;
+                const x = TRACK_CENTER.x + Math.cos(t) * (TRACK_A);
+                const y = TRACK_CENTER.y + Math.sin(t) * (TRACK_B);
+                if (t === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+            ctx.restore();
+        }
+        
+        // 게임 객체 생성
+        const playerCar = new Car(TRACK_CENTER.x + TRACK_A, TRACK_CENTER.y, '#ff4444', true);
+        const aiCars = [
+            new Car(TRACK_CENTER.x + TRACK_A - 80, TRACK_CENTER.y + 60, '#44ff44'),
+            new Car(TRACK_CENTER.x + TRACK_A - 160, TRACK_CENTER.y - 60, '#4444ff'),
+            new Car(TRACK_CENTER.x + TRACK_A - 240, TRACK_CENTER.y + 120, '#ffff44'),
+            new Car(TRACK_CENTER.x + TRACK_A - 320, TRACK_CENTER.y - 120, '#ff44ff'),
+            new Car(TRACK_CENTER.x + TRACK_A - 400, TRACK_CENTER.y, '#44ffff')
+        ];
+        const allCars = [playerCar, ...aiCars];
+        
+        // 체크포인트 생성 (레이싱 트랙)
+        const checkpoints = Array.from({length: 10}, (_, i) => {
+            const t = (i / 10) * Math.PI * 2;
+            return new Checkpoint(
+                TRACK_CENTER.x + Math.cos(t) * TRACK_A,
+                TRACK_CENTER.y + Math.sin(t) * TRACK_B,
+                i
+            );
+        });
+        
+        // UI 업데이트
+        function updateUI() {
+            document.getElementById('speed').textContent = Math.round(Math.abs(playerCar.speed * 15));
+            
+            let gear = 'P';
+            if (playerCar.speed > 0.1) gear = 'D';
+            else if (playerCar.speed < -0.1) gear = 'R';
+            document.getElementById('gear').textContent = gear;
+            
+            // 순위 업데이트
+            const rankings = calculateRankings([...allCars]);
+            const playerRank = rankings.findIndex(car => car.isPlayer) + 1;
+            document.getElementById('rank').textContent = playerRank;
+            document.getElementById('lap').textContent = playerCar.lap;
+        }
+        
+        // 게임 루프
+        function gameLoop() {
+            // 카메라 위치 갱신
+            cameraX = playerCar.x - canvas.width / 2;
+            cameraY = playerCar.y - canvas.height / 2;
+            // 카메라가 월드 영역을 벗어나지 않도록 제한
+            cameraX = Math.max(0, Math.min(cameraX, WORLD_WIDTH - canvas.width));
+            cameraY = Math.max(0, Math.min(cameraY, WORLD_HEIGHT - canvas.height));
+            // 배경 지우기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 도로 그리기
+            drawRoad();
+            
+            // 체크포인트 그리기
+            checkpoints.forEach(checkpoint => {
+                checkpoint.draw();
+            });
+            
+            // === 자동차 충돌 체크 및 반발 효과 ===
+            for (let i = 0; i < allCars.length; i++) {
+                for (let j = i + 1; j < allCars.length; j++) {
+                    const carA = allCars[i];
+                    const carB = allCars[j];
+                    const dx = carA.x - carB.x;
+                    const dy = carA.y - carB.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = (carA.width + carB.width) / 2 * 0.8; // 약간 겹치기 전
+                    if (dist < minDist) {
+                        // 튕기는 효과: 각 자동차를 반대 방향으로 이동시키고 속도도 반대로
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDist - dist;
+                        // 위치 보정
+                        carA.x += Math.cos(angle) * (overlap / 2);
+                        carA.y += Math.sin(angle) * (overlap / 2);
+                        carB.x -= Math.cos(angle) * (overlap / 2);
+                        carB.y -= Math.sin(angle) * (overlap / 2);
+                        // 속도 반발
+                        const bounce = 0.7;
+                        const va = carA.speed;
+                        const vb = carB.speed;
+                        carA.speed = -vb * bounce;
+                        carB.speed = -va * bounce;
+                    }
+                }
+            }
+            // === 자동차 충돌 체크 끝 ===
+            
+            // 모든 자동차 업데이트 및 그리기
+            allCars.forEach(car => {
+                car.update(checkpoints);
+                car.draw();
+            });
+            
+            // UI 업데이트
+            updateUI();
+            
+            gameTime++;
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 키보드 이벤트
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            // 리셋
+            if (e.key === 'r' || e.key === 'R') {
+                allCars.forEach(car => {
+                    car.reset();
+                    car.lap = 0;
+                    car.checkpointsPassed = 0;
+                    car.totalDistance = 0;
+                });
+                checkpoints.forEach(checkpoint => {
+                    checkpoint.passedBy = [];
+                });
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

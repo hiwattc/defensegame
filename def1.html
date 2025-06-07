@@ -1806,7 +1806,7 @@
                     );
                 }
                 
-                // 계산된 경로를 따라 이동
+                // 계산된 경로를 따라이동
                 if (enemy.pathPoints.length > 0 && enemy.currentPathIndex < enemy.pathPoints.length) {
                     const currentTarget = enemy.pathPoints[enemy.currentPathIndex];
                     
@@ -1821,7 +1821,7 @@
                         enemy.currentPathIndex++;
                     } else {
                         // 목표점을 향해 이동
-                        const direction = new THREE.Vector3(
+                        const direction = new  THREE.Vector3(
                             currentTarget.x - enemy.position.x,
                             0,
                             currentTarget.z - enemy.position.z

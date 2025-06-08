@@ -1,3 +1,6 @@
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.module.js';
+import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/controls/PointerLockControls.js';
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -22,6 +25,131 @@ let isGameOver = false;
 let playerCastle;
 let enemyCastle;
 let enemyPowerMultiplier = 1;  // 적 공격력 배율
+
+class Game {
+    constructor() {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(this.renderer.domElement);
+
+        // 조명 설정
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        this.scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(0, 1, 0);
+        this.scene.add(directionalLight);
+
+        // 바닥 생성
+        const floorGeometry = new THREE.PlaneGeometry(100, 100);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        this.scene.add(floor);
+
+        // 플레이어 컨트롤 설정
+        this.controls = new PointerLockControls(this.camera, document.body);
+        this.scene.add(this.controls.getObject());
+
+        // 이벤트 리스너 설정
+        document.addEventListener('click', () => {
+            this.controls.lock();
+        });
+
+        // 이동 키 설정
+        this.moveForward = false;
+        this.moveBackward = false;
+        this.moveLeft = false;
+        this.moveRight = false;
+        this.canJump = false;
+
+        document.addEventListener('keydown', (event) => {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    this.moveForward = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    this.moveBackward = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    this.moveLeft = true;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    this.moveRight = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    this.moveForward = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    this.moveBackward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    this.moveLeft = false;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    this.moveRight = false;
+                    break;
+            }
+        });
+
+        // 초기 카메라 위치 설정
+        this.camera.position.y = 2;
+
+        // 애니메이션 루프 시작
+        this.animate();
+    }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+
+        if (this.controls.isLocked) {
+            const time = performance.now();
+            const delta = (time - this.prevTime) / 1000;
+
+            // 이동 속도 설정
+            const velocity = this.controls.getObject().velocity;
+            const direction = new THREE.Vector3();
+
+            // 이동 방향 계산
+            if (this.moveForward) direction.z -= 1;
+            if (this.moveBackward) direction.z += 1;
+            if (this.moveLeft) direction.x -= 1;
+            if (this.moveRight) direction.x += 1;
+
+            direction.normalize();
+
+            // 이동 적용
+            if (this.moveForward || this.moveBackward) velocity.z -= direction.z * 400.0 * delta;
+            if (this.moveLeft || this.moveRight) velocity.x -= direction.x * 400.0 * delta;
+
+            // 이동 제한
+            this.controls.getObject().position.x += velocity.x * delta;
+            this.controls.getObject().position.z += velocity.z * delta;
+
+            // 마찰 적용
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+
+            this.prevTime = time;
+        }
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
 
 // 성 클래스
 class Castle {
@@ -885,4 +1013,4 @@ function update(playerCastle, enemyCastle) {
 }
 
 // 게임 시작
-init(); 
+const game = new Game(); 

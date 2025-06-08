@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>오픈월드 RPG</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+            background-color: #90EE90;
+        }
+        #world {
+            position: absolute;
+            width: 10000px;
+            height: 10000px;
+            transform-origin: 0 0;
+        }
+        #player {
+            width: 60px;
+            height: 60px;
+            position: absolute;
+            transition: all 0.1s;
+            font-size: 50px;
+            text-align: center;
+            line-height: 60px;
+            z-index: 1000;
+            transform: scaleX(1);
+        }
+        #player.facing-left {
+            transform: scaleX(-1);
+        }
+        .monster {
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            font-size: 30px;
+            text-align: center;
+            line-height: 40px;
+        }
+        .terrain {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            font-size: 30px;
+            text-align: center;
+            line-height: 50px;
+        }
+        #stats {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1001;
+        }
+        #battleScreen {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 2px solid black;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1002;
+        }
+        .battle-animation {
+            font-size: 50px;
+            margin: 20px 0;
+        }
+        #attackButton {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        #runButton {
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        #minimap {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 2px solid black;
+            border-radius: 5px;
+            z-index: 1001;
+        }
+        #minimapPlayer {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: red;
+            border-radius: 50%;
+        }
+        .explosion {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 999;
+        }
+        .explosion-particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ff4444;
+            border-radius: 50%;
+            animation: explode 0.5s ease-out forwards;
+        }
+        @keyframes explode {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+        .cannonball {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #333;
+            border-radius: 50%;
+            z-index: 998;
+            animation: shoot 0.3s linear forwards;
+        }
+        @keyframes shoot {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(0.5);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        레벨: <span id="level">1</span><br>
+        경험치: <span id="exp">0</span><br>
+        HP: <span id="hp">100</span><br>
+        공격력: <span id="attack">10</span>
+    </div>
+    <div id="gameContainer">
+        <div id="world">
+            <div id="player">🚛</div>
+        </div>
+    </div>
+    <div id="minimap">
+        <div id="minimapPlayer"></div>
+    </div>
+    <div id="battleScreen">
+        <h2>전투!</h2>
+        <div class="battle-animation">
+            <span id="playerEmoji">🚛</span> VS <span id="monsterEmoji"></span>
+        </div>
+        <p>몬스터 HP: <span id="monsterHp">0</span></p>
+        <button id="attackButton" onclick="attack()">💥 공격</button>
+        <button id="runButton" onclick="run()">🏃 도망가기</button>
+    </div>
+
+    <script>
+        const WORLD_SIZE = 10000;
+        const player = {
+            x: WORLD_SIZE / 2,
+            y: WORLD_SIZE / 2,
+            level: 1,
+            exp: 0,
+            hp: 100,
+            maxHp: 100,
+            attack: 10,
+            weapon: '💥',
+            facing: 'right'
+        };
+
+        const monsters = [];
+        const terrains = [];
+        let currentMonster = null;
+        let keys = {};
+        let isAttacking = false;
+        let camera = {
+            x: 0,
+            y: 0,
+            scale: 1
+        };
+
+        // 폭발 효과 생성
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (x - 50) + 'px';
+            explosion.style.top = (y - 50) + 'px';
+
+            // 폭발 파티클 생성
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'explosion-particle';
+                particle.style.left = '50%';
+                particle.style.top = '50%';
+                particle.style.transform = `rotate(${Math.random() * 360}deg) translate(0, -20px)`;
+                explosion.appendChild(particle);
+            }
+
+            document.getElementById('world').appendChild(explosion);
+            setTimeout(() => explosion.remove(), 500);
+        }
+
+        // 대포알 생성
+        function createCannonball(startX, startY, targetX, targetY) {
+            const cannonball = document.createElement('div');
+            cannonball.className = 'cannonball';
+            cannonball.style.left = startX + 'px';
+            cannonball.style.top = startY + 'px';
+
+            const angle = Math.atan2(targetY - startY, targetX - startX);
+            const distance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetY - startY, 2));
+            const duration = distance / 1000; // 속도 조절
+
+            cannonball.style.animation = `shoot ${duration}s linear forwards`;
+            cannonball.style.transform = `rotate(${angle}rad)`;
+
+            document.getElementById('world').appendChild(cannonball);
+
+            // 대포알 이동
+            const startTime = Date.now();
+            function moveCannonball() {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const currentX = startX + (targetX - startX) * progress;
+                const currentY = startY + (targetY - startY) * progress;
+
+                cannonball.style.left = currentX + 'px';
+                cannonball.style.top = currentY + 'px';
+
+                if (progress < 1) {
+                    requestAnimationFrame(moveCannonball);
+                } else {
+                    cannonball.remove();
+                    createExplosion(targetX, targetY);
+                }
+            }
+
+            requestAnimationFrame(moveCannonball);
+        }
+
+        // 카메라 업데이트
+        function updateCamera() {
+            const world = document.getElementById('world');
+            const container = document.getElementById('gameContainer');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            camera.x = player.x - containerWidth / 2;
+            camera.y = player.y - containerHeight / 2;
+
+            camera.x = Math.max(0, Math.min(camera.x, WORLD_SIZE - containerWidth));
+            camera.y = Math.max(0, Math.min(camera.y, WORLD_SIZE - containerHeight));
+
+            world.style.transform = `translate(${-camera.x}px, ${-camera.y}px)`;
+
+            updateMinimap();
+        }
+
+        // 미니맵 업데이트
+        function updateMinimap() {
+            const minimapPlayer = document.getElementById('minimapPlayer');
+            const minimap = document.getElementById('minimap');
+            const scale = minimap.clientWidth / WORLD_SIZE;
+
+            minimapPlayer.style.left = (player.x * scale) + 'px';
+            minimapPlayer.style.top = (player.y * scale) + 'px';
+        }
+
+        // 지형 생성
+        function createTerrain() {
+            const terrainTypes = [
+                { emoji: '🌲', type: 'tree' },
+                { emoji: '🌳', type: 'tree' },
+                { emoji: '🌴', type: 'tree' },
+                { emoji: '🌵', type: 'cactus' },
+                { emoji: '⛰️', type: 'mountain' },
+                { emoji: '🗻', type: 'mountain' },
+                { emoji: '🌊', type: 'water' },
+                { emoji: '🏔️', type: 'mountain' },
+                { emoji: '🪨', type: 'rock' }
+            ];
+
+            for (let i = 0; i < 200; i++) {
+                const terrain = {
+                    x: Math.random() * WORLD_SIZE,
+                    y: Math.random() * WORLD_SIZE,
+                    type: terrainTypes[Math.floor(Math.random() * terrainTypes.length)],
+                    element: document.createElement('div')
+                };
+                terrain.element.className = 'terrain';
+                terrain.element.textContent = terrain.type.emoji;
+                terrain.element.style.left = terrain.x + 'px';
+                terrain.element.style.top = terrain.y + 'px';
+                document.getElementById('world').appendChild(terrain.element);
+                terrains.push(terrain);
+            }
+        }
+
+        // 플레이어 이동
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            movePlayer();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function movePlayer() {
+            const speed = 5;
+            let newX = player.x;
+            let newY = player.y;
+            let moved = false;
+
+            if (keys['ArrowUp']) {
+                newY -= speed;
+                moved = true;
+            }
+            if (keys['ArrowDown']) {
+                newY += speed;
+                moved = true;
+            }
+            if (keys['ArrowLeft']) {
+                newX -= speed;
+                player.facing = 'left';
+                document.getElementById('player').classList.add('facing-left');
+                moved = true;
+            }
+            if (keys['ArrowRight']) {
+                newX += speed;
+                player.facing = 'right';
+                document.getElementById('player').classList.remove('facing-left');
+                moved = true;
+            }
+
+            // 월드 경계 체크
+            newX = Math.max(0, Math.min(newX, WORLD_SIZE - 60));
+            newY = Math.max(0, Math.min(newY, WORLD_SIZE - 60));
+
+            // 지형 충돌 체크
+            let canMove = true;
+            for (const terrain of terrains) {
+                if (Math.abs(newX - terrain.x) < 40 && Math.abs(newY - terrain.y) < 40) {
+                    if (terrain.type.type === 'mountain' || terrain.type.type === 'water') {
+                        canMove = false;
+                        break;
+                    }
+                }
+            }
+
+            if (canMove) {
+                player.x = newX;
+                player.y = newY;
+                document.getElementById('player').style.left = player.x + 'px';
+                document.getElementById('player').style.top = player.y + 'px';
+                updateCamera();
+            }
+
+            checkMonsterCollision();
+        }
+
+        // 몬스터 생성
+        function spawnMonster() {
+            if (monsters.length < 30) { // 몬스터 수 증가
+                const monsterTypes = ['👾', '👹', '👻', '🤖', '🐉', '👽', '🤡', '👺', '💀', '🤖'];
+                const monster = {
+                    x: Math.random() * WORLD_SIZE,
+                    y: Math.random() * WORLD_SIZE,
+                    hp: 30,
+                    element: document.createElement('div'),
+                    emoji: monsterTypes[Math.floor(Math.random() * monsterTypes.length)]
+                };
+                monster.element.className = 'monster';
+                monster.element.textContent = monster.emoji;
+                monster.element.style.left = monster.x + 'px';
+                monster.element.style.top = monster.y + 'px';
+                document.getElementById('world').appendChild(monster.element);
+                monsters.push(monster);
+            }
+        }
+
+        // 몬스터와 충돌 체크
+        function checkMonsterCollision() {
+            monsters.forEach((monster, index) => {
+                if (Math.abs(player.x - monster.x) < 40 && Math.abs(player.y - monster.y) < 40) {
+                    startBattle(monster, index);
+                }
+            });
+        }
+
+        // 전투 시작
+        function startBattle(monster, index) {
+            currentMonster = monster;
+            document.getElementById('battleScreen').style.display = 'block';
+            document.getElementById('monsterHp').textContent = monster.hp;
+            document.getElementById('monsterEmoji').textContent = monster.emoji;
+        }
+
+        // 공격
+        function attack() {
+            if (!currentMonster || isAttacking) return;
+            
+            isAttacking = true;
+            const attackButton = document.getElementById('attackButton');
+            attackButton.disabled = true;
+            
+            const playerEmoji = document.getElementById('playerEmoji');
+            playerEmoji.textContent = '🚛';
+            playerEmoji.style.transform = 'scale(1.5)';
+
+            // 대포 발사
+            createCannonball(player.x, player.y, currentMonster.x, currentMonster.y);
+            
+            setTimeout(() => {
+                currentMonster.hp -= player.attack;
+                document.getElementById('monsterHp').textContent = currentMonster.hp;
+                
+                const monsterEmoji = document.getElementById('monsterEmoji');
+                monsterEmoji.style.transform = 'scale(0.8)';
+                
+                setTimeout(() => {
+                    monsterEmoji.style.transform = 'scale(1)';
+                    playerEmoji.style.transform = 'scale(1)';
+                    
+                    if (currentMonster.hp <= 0) {
+                        player.exp += 10;
+                        document.getElementById('exp').textContent = player.exp;
+                        
+                        if (player.exp >= player.level * 20) {
+                            levelUp();
+                        }
+
+                        const index = monsters.indexOf(currentMonster);
+                        if (index > -1) {
+                            monsters[index].element.remove();
+                            monsters.splice(index, 1);
+                        }
+                        
+                        document.getElementById('battleScreen').style.display = 'none';
+                        currentMonster = null;
+                    }
+                    
+                    isAttacking = false;
+                    attackButton.disabled = false;
+                }, 300);
+            }, 300);
+        }
+
+        // 도망가기
+        function run() {
+            document.getElementById('battleScreen').style.display = 'none';
+            currentMonster = null;
+        }
+
+        // 레벨업
+        function levelUp() {
+            player.level++;
+            player.maxHp += 20;
+            player.hp = player.maxHp;
+            player.attack += 5;
+            player.exp = 0;
+            
+            document.getElementById('level').textContent = player.level;
+            document.getElementById('exp').textContent = player.exp;
+            document.getElementById('hp').textContent = player.hp;
+            document.getElementById('attack').textContent = player.attack;
+        }
+
+        // 게임 초기화
+        createTerrain();
+        updateCamera();
+        setInterval(spawnMonster, 2000); // 몬스터 생성 주기 단축
+
+        // 창 크기 변경 시 카메라 업데이트
+        window.addEventListener('resize', updateCamera);
+    </script>
+</body>
+</html>

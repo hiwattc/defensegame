@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D 탱크 전투 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #2a3c2a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #gameContainer {
+            position: relative;
+            background: #1a2a1a;
+            border: 4px solid #444;
+            border-radius: 8px;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #2d4a2d;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #aaa;
+            font-size: 12px;
+        }
+        
+        .energy-bar {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            border: 1px solid #666;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 2px 0;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .player-energy { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+        .enemy-energy { background: linear-gradient(90deg, #f44336, #FF5722); }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui">
+            <div>플레이어 에너지: <div class="energy-bar"><div id="playerEnergy" class="energy-fill player-energy" style="width: 100%"></div></div></div>
+            <div>적 탱크 에너지: <div class="energy-bar"><div id="enemyEnergy" class="energy-fill enemy-energy" style="width: 100%"></div></div></div>
+            <div id="gameStatus"></div>
+        </div>
+        <div id="controls">
+            화살표: 이동 | A/D: 포탑 회전 | 스페이스: 발사
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 상태
+        const game = {
+            running: true,
+            lastTime: 0,
+            keys: {},
+            level: 1,
+            gameOverTime: 0,
+            restartDelay: 3000 // 3초 후 재시작
+        };
+        
+        // 벽 맵 (🧱 이모지로 표현)
+        const wallMap = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,0,1,0,1,1,1,1,1,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,0,1,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,0,1,0,1,1,0,0,0,0,1,1,0,1,0,1,1,1],
+            [1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,0,0,0,0,0,0,1,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,1,0,1,1,0,0,1,0,0,1,0,0,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,1,0,0,0,0,1,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        
+        const CELL_SIZE = 40;
+        
+        // 탱크 클래스
+        class Tank {
+            constructor(x, y, color, isPlayer = false) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.turretAngle = 0;
+                this.speed = 2;
+                this.size = 20;
+                this.width = 30;  // 앞뒤 길이
+                this.height = 20; // 좌우 폭
+                this.color = color;
+                this.isPlayer = isPlayer;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.lastShot = 0;
+                this.shootCooldown = 500;
+            }
+            
+            update(deltaTime) {
+                if (this.isPlayer) {
+                    this.handlePlayerInput();
+                } else {
+                    this.handleAI(deltaTime);
+                }
+            }
+            
+            handlePlayerInput() {
+                let newX = this.x;
+                let newY = this.y;
+                
+                if (game.keys['ArrowUp']) {
+                    newX += Math.cos(this.angle) * this.speed;
+                    newY += Math.sin(this.angle) * this.speed;
+                }
+                if (game.keys['ArrowDown']) {
+                    newX -= Math.cos(this.angle) * this.speed;
+                    newY -= Math.sin(this.angle) * this.speed;
+                }
+                if (game.keys['ArrowLeft']) {
+                    this.angle -= 0.05;
+                }
+                if (game.keys['ArrowRight']) {
+                    this.angle += 0.05;
+                }
+                if (game.keys['KeyA']) {
+                    this.turretAngle -= 0.05;
+                }
+                if (game.keys['KeyD']) {
+                    this.turretAngle += 0.05;
+                }
+                if (game.keys['Space']) {
+                    this.shoot();
+                }
+                
+                if (this.canMoveTo(newX, newY)) {
+                    this.x = newX;
+                    this.y = newY;
+                }
+            }
+            
+            handleAI(deltaTime) {
+                // AI 로직: 플레이어를 향해 이동하고 공격
+                const player = tanks.find(t => t.isPlayer);
+                if (!player) return;
+                
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const targetAngle = Math.atan2(dy, dx);
+                
+                // 포탑을 플레이어 방향으로 회전
+                let angleDiff = targetAngle - this.turretAngle;
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                
+                if (Math.abs(angleDiff) > 0.1) {
+                    this.turretAngle += Math.sign(angleDiff) * 0.03;
+                }
+                
+                // 플레이어가 근처에 있으면 공격
+                if (distance < 200 && Math.abs(angleDiff) < 0.2) {
+                    this.shoot();
+                }
+                
+                // 플레이어를 향해 이동 (때때로)
+                if (Math.random() < 0.7) {
+                    let newX = this.x + Math.cos(targetAngle) * this.speed * 0.5;
+                    let newY = this.y + Math.sin(targetAngle) * this.speed * 0.5;
+                    
+                    if (this.canMoveTo(newX, newY)) {
+                        this.x = newX;
+                        this.y = newY;
+                        this.angle = targetAngle;
+                    }
+                }
+            }
+            
+            canMoveTo(x, y) {
+                const gridX = Math.floor(x / CELL_SIZE);
+                const gridY = Math.floor(y / CELL_SIZE);
+                
+                if (gridX < 0 || gridX >= wallMap[0].length || gridY < 0 || gridY >= wallMap.length) {
+                    return false;
+                }
+                
+                // 탱크 크기를 고려한 충돌 검사 (직사각형)
+                const corners = [
+                    [x - this.width/2, y - this.height/2],
+                    [x + this.width/2, y - this.height/2],
+                    [x - this.width/2, y + this.height/2],
+                    [x + this.width/2, y + this.height/2]
+                ];
+                
+                for (let [cx, cy] of corners) {
+                    const gx = Math.floor(cx / CELL_SIZE);
+                    const gy = Math.floor(cy / CELL_SIZE);
+                    
+                    if (gx < 0 || gx >= wallMap[0].length || gy < 0 || gy >= wallMap.length) {
+                        return false;
+                    }
+                    if (wallMap[gy][gx] === 1) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+            
+            shoot() {
+                const now = Date.now();
+                if (now - this.lastShot < this.shootCooldown) return;
+                
+                this.lastShot = now;
+                const barrelLength = 25;
+                const startX = this.x + Math.cos(this.turretAngle) * barrelLength;
+                const startY = this.y + Math.sin(this.turretAngle) * barrelLength;
+                
+                bullets.push(new Bullet(startX, startY, this.turretAngle, this));
+            }
+            
+            takeDamage(damage) {
+                this.health -= damage;
+                if (this.health <= 0) {
+                    this.health = 0;
+                    // 탱크 파괴 시 폭발 효과
+                    explosions.push(new Explosion(this.x, this.y, true)); // 큰 폭발
+                    
+                    if (this.isPlayer) {
+                        document.getElementById('gameStatus').textContent = '게임 오버! 3초 후 재시작...';
+                        game.running = false;
+                        game.gameOverTime = Date.now();
+                    } else {
+                        // 적군이 모두 파괴되었는지 확인
+                        const remainingEnemies = tanks.filter(t => !t.isPlayer && t.health > 0).length;
+                        if (remainingEnemies <= 1) { // 현재 파괴된 탱크 포함
+                            document.getElementById('gameStatus').textContent = `레벨 ${game.level} 클리어! 다음 레벨로...`;
+                            game.running = false;
+                            game.gameOverTime = Date.now();
+                        }
+                    }
+                }
+            }
+            
+            draw() {
+                ctx.save();
+                
+                // 탱크 몸체 (직사각형)
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // 탱크 앞부분 표시 (더 밝은 색)
+                ctx.fillStyle = this.isPlayer ? '#66BB6A' : '#EF5350';
+                ctx.fillRect(this.width/2 - 6, -this.height/2, 6, this.height);
+                ctx.strokeRect(this.width/2 - 6, -this.height/2, 6, this.height);
+                
+                // 탱크 뒷부분 표시 (더 어두운 색)
+                ctx.fillStyle = this.isPlayer ? '#2E7D32' : '#C62828';
+                ctx.fillRect(-this.width/2, -this.height/2, 6, this.height);
+                ctx.strokeRect(-this.width/2, -this.height/2, 6, this.height);
+                
+                // 헤드라이트 (앞쪽 양쪽)
+                ctx.fillStyle = '#FFFF99';
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 1;
+                
+                // 왼쪽 헤드라이트
+                ctx.beginPath();
+                ctx.arc(this.width/2 - 2, -this.height/3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 오른쪽 헤드라이트
+                ctx.beginPath();
+                ctx.arc(this.width/2 - 2, this.height/3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 방향 화살표 (앞쪽 중앙)
+                ctx.fillStyle = '#FFF';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.width/2 - 4, -2);
+                ctx.lineTo(this.width/2 - 1, 0);
+                ctx.lineTo(this.width/2 - 4, 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.restore();
+                ctx.save();
+                
+                // 포탑
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.turretAngle);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-8, -8, 16, 16);
+                ctx.fillRect(0, -3, 25, 6);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-8, -8, 16, 16);
+                ctx.strokeRect(0, -3, 25, 6);
+                
+                ctx.restore();
+                
+                // 체력 바
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(this.x - 20, this.y - 25, 40, 6);
+                ctx.fillStyle = this.isPlayer ? '#4CAF50' : '#f44336';
+                ctx.fillRect(this.x - 20, this.y - 25, 40 * (this.health / this.maxHealth), 6);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x - 20, this.y - 25, 40, 6);
+            }
+        }
+        
+        // 총알 클래스
+        class Bullet {
+            constructor(x, y, angle, owner) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = 8;
+                this.size = 4;
+                this.owner = owner;
+                this.life = 100;
+            }
+            
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.life--;
+                
+                // 벽 충돌 검사
+                const gridX = Math.floor(this.x / CELL_SIZE);
+                const gridY = Math.floor(this.y / CELL_SIZE);
+                
+                if (gridX < 0 || gridX >= wallMap[0].length || gridY < 0 || gridY >= wallMap.length ||
+                    wallMap[gridY][gridX] === 1) {
+                    this.explode();
+                    return false;
+                }
+                
+                // 탱크 충돌 검사
+                for (let tank of tanks) {
+                    if (tank !== this.owner && tank.health > 0) {
+                        const dx = this.x - tank.x;
+                        const dy = this.y - tank.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance < Math.max(tank.width, tank.height) / 2 + this.size) {
+                            tank.takeDamage(20);
+                            this.explode();
+                            return false;
+                        }
+                    }
+                }
+                
+                return this.life > 0;
+            }
+            
+            explode() {
+                explosions.push(new Explosion(this.x, this.y));
+            }
+            
+            draw() {
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#FF8C00';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
+        // 폭발 효과 클래스
+        class Explosion {
+            constructor(x, y, isBig = false) {
+                this.x = x;
+                this.y = y;
+                this.size = 0;
+                this.maxSize = isBig ? 60 : 30;
+                this.life = isBig ? 40 : 20;
+                this.particles = [];
+                
+                // 파티클 생성
+                const particleCount = isBig ? 16 : 8;
+                for (let i = 0; i < particleCount; i++) {
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * (isBig ? 15 : 10),
+                        vy: (Math.random() - 0.5) * (isBig ? 15 : 10),
+                        life: isBig ? 30 : 15,
+                        size: isBig ? 5 : 3
+                    });
+                }
+            }
+            
+            update() {
+                this.size = Math.min(this.size + 2, this.maxSize);
+                this.life--;
+                
+                this.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.95;
+                    p.vy *= 0.95;
+                    p.life--;
+                });
+                
+                this.particles = this.particles.filter(p => p.life > 0);
+                
+                return this.life > 0;
+            }
+            
+            draw() {
+                // 메인 폭발
+                ctx.save();
+                ctx.globalAlpha = this.life / (this.maxSize > 30 ? 40 : 20);
+                ctx.fillStyle = '#FF4500';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 파티클
+                this.particles.forEach(p => {
+                    ctx.fillStyle = '#FF6B35';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size || 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                ctx.restore();
+            }
+        }
+        
+        // 게임 초기화 함수
+        function initGame() {
+            // 기존 객체들 초기화
+            bullets.length = 0;
+            explosions.length = 0;
+            tanks.length = 0;
+            
+            // 플레이어 탱크 생성
+            tanks.push(new Tank(60, 160, '#4CAF50', true));
+            
+            // 적군 탱크 생성 (레벨에 따라 증가)
+            const enemyPositions = [
+                [740, 440], [340, 80], [660, 240], [140, 380], [580, 320],
+                [200, 520], [520, 160], [440, 480], [760, 320], [380, 280]
+            ];
+            
+            for (let i = 0; i < game.level; i++) {
+                if (i < enemyPositions.length) {
+                    tanks.push(new Tank(enemyPositions[i][0], enemyPositions[i][1], '#f44336', false));
+                }
+            }
+            
+            game.running = true;
+            document.getElementById('gameStatus').textContent = `레벨 ${game.level} - 적군 ${game.level}대`;
+        }
+        
+        // 게임 재시작 처리
+        function handleGameRestart(currentTime) {
+            if (!game.running && game.gameOverTime > 0) {
+                const elapsed = currentTime - game.gameOverTime;
+                
+                if (elapsed >= game.restartDelay) {
+                    const player = tanks.find(t => t.isPlayer);
+                    
+                    if (!player || player.health <= 0) {
+                        // 플레이어 패배 - 레벨 1부터 재시작
+                        game.level = 1;
+                    } else {
+                        // 플레이어 승리 - 다음 레벨
+                        game.level++;
+                    }
+                    
+                    game.gameOverTime = 0;
+                    initGame();
+                }
+            }
+        }
+        
+        const bullets = [];
+        const explosions = [];
+        const tanks = [];
+        
+        // 게임 초기화
+        initGame();
+        
+        // 벽 그리기
+        function drawWalls() {
+            ctx.fillStyle = '#8B4513';
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 1;
+            
+            for (let y = 0; y < wallMap.length; y++) {
+                for (let x = 0; x < wallMap[y].length; x++) {
+                    if (wallMap[y][x] === 1) {
+                        const pixelX = x * CELL_SIZE;
+                        const pixelY = y * CELL_SIZE;
+                        
+                        ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+                        ctx.strokeRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+                        
+                        // 벽돌 텍스처
+                        ctx.fillStyle = '#A0522D';
+                        ctx.fillRect(pixelX + 2, pixelY + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                        ctx.fillStyle = '#8B4513';
+                    }
+                }
+            }
+        }
+        
+        // UI 업데이트
+        function updateUI() {
+            const player = tanks.find(t => t.isPlayer);
+            const enemies = tanks.filter(t => !t.isPlayer && t.health > 0);
+            
+            if (player) {
+                document.getElementById('playerEnergy').style.width = (player.health / player.maxHealth * 100) + '%';
+            }
+            if (enemies.length > 0) {
+                const avgEnemyHealth = enemies.reduce((sum, tank) => sum + tank.health, 0) / enemies.length;
+                document.getElementById('enemyEnergy').style.width = (avgEnemyHealth / 100 * 100) + '%';
+            } else {
+                document.getElementById('enemyEnergy').style.width = '0%';
+            }
+        }
+        
+        // 게임 루프
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - game.lastTime;
+            game.lastTime = currentTime;
+            
+            // 게임 재시작 처리
+            handleGameRestart(currentTime);
+            
+            if (game.running) {
+                // 업데이트
+                tanks.forEach(tank => {
+                    if (tank.health > 0) {
+                        tank.update(deltaTime);
+                    }
+                });
+                
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    if (!bullets[i].update()) {
+                        bullets.splice(i, 1);
+                    }
+                }
+                
+                for (let i = explosions.length - 1; i >= 0; i--) {
+                    if (!explosions[i].update()) {
+                        explosions.splice(i, 1);
+                    }
+                }
+            }
+            
+            // 렌더링
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawWalls();
+            tanks.forEach(tank => {
+                if (tank.health > 0) {
+                    tank.draw();
+                }
+            });
+            bullets.forEach(bullet => bullet.draw());
+            explosions.forEach(explosion => explosion.draw());
+            
+            updateUI();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 이벤트 리스너
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.code] = true;
+            e.preventDefault();
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.code] = false;
+            e.preventDefault();
+        });
+        
+        // 게임 시작
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D Tank Battle Game</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #222;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background-color: #333;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const brickSize = 40;
+const keys = {};
+
+const bricks = [
+  { x: 5, y: 5 }, { x: 6, y: 5 }, { x: 7, y: 5 },
+  { x: 5, y: 6 }, { x: 5, y: 7 }, { x: 7, y: 6 },
+  { x: 7, y: 7 }, { x: 10, y: 10 }, { x: 11, y: 10 },
+];
+
+function drawBricks() {
+  ctx.fillStyle = "brown";
+  bricks.forEach(brick => {
+    ctx.fillText("\u{1F9F1}", brick.x * brickSize, brick.y * brickSize);
+  });
+}
+
+class Tank {
+  constructor(x, y, color, controls) {
+    this.x = x;
+    this.y = y;
+    this.angle = 0;
+    this.barrelAngle = 0;
+    this.color = color;
+    this.energy = 100;
+    this.controls = controls;
+    this.bullets = [];
+  }
+
+  update() {
+    if (keys[this.controls.left]) this.x -= 2;
+    if (keys[this.controls.right]) this.x += 2;
+    if (keys[this.controls.up]) this.y -= 2;
+    if (keys[this.controls.down]) this.y += 2;
+    if (keys[this.controls.barrelLeft]) this.barrelAngle -= 0.05;
+    if (keys[this.controls.barrelRight]) this.barrelAngle += 0.05;
+  }
+
+  draw() {
+    // body
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-15, -15, 30, 30);
+
+    // barrel
+    ctx.rotate(this.barrelAngle);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, -3, 25, 6);
+    ctx.restore();
+
+    // energy
+    ctx.fillStyle = "white";
+    ctx.fillText("Energy: " + this.energy, this.x - 20, this.y - 20);
+  }
+
+  fire() {
+    const angle = this.barrelAngle;
+    const bullet = {
+      x: this.x + Math.cos(angle) * 25,
+      y: this.y + Math.sin(angle) * 25,
+      angle,
+      owner: this
+    };
+    this.bullets.push(bullet);
+  }
+
+  drawBullets() {
+    this.bullets.forEach((bullet, i) => {
+      bullet.x += Math.cos(bullet.angle) * 5;
+      bullet.y += Math.sin(bullet.angle) * 5;
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+
+      // Collision with bricks
+      for (const brick of bricks) {
+        const bx = brick.x * brickSize;
+        const by = brick.y * brickSize;
+        if (
+          bullet.x > bx && bullet.x < bx + brickSize &&
+          bullet.y > by && bullet.y < by + brickSize
+        ) {
+          bricks.splice(bricks.indexOf(brick), 1);
+          this.bullets.splice(i, 1);
+          explode(bullet.x, bullet.y);
+          return;
+        }
+      }
+
+      // Collision with other tank
+      const target = this === tank1 ? tank2 : tank1;
+      if (
+        bullet.x > target.x - 15 && bullet.x < target.x + 15 &&
+        bullet.y > target.y - 15 && bullet.y < target.y + 15
+      ) {
+        target.energy -= 10;
+        this.bullets.splice(i, 1);
+        explode(bullet.x, bullet.y);
+        return;
+      }
+    });
+  }
+}
+
+function explode(x, y) {
+  ctx.beginPath();
+  ctx.arc(x, y, 15, 0, 2 * Math.PI);
+  ctx.fillStyle = "orange";
+  ctx.fill();
+}
+
+const tank1 = new Tank(100, 100, "green", {
+  up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight",
+  barrelLeft: "a", barrelRight: "d", fire: " "
+});
+const tank2 = new Tank(600, 400, "red", {
+  up: "w", down: "s", left: "a", right: "d",
+  barrelLeft: "j", barrelRight: "l", fire: "Enter"
+});
+
+window.addEventListener("keydown", e => {
+  keys[e.key] = true;
+  if (e.key === tank1.controls.fire) tank1.fire();
+  if (e.key === tank2.controls.fire) tank2.fire();
+});
+window.addEventListener("keyup", e => keys[e.key] = false);
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBricks();
+  tank1.update();
+  tank2.update();
+  tank1.draw();
+  tank2.draw();
+  tank1.drawBullets();
+  tank2.drawBullets();
+  requestAnimationFrame(gameLoop);
+}
+
+ctx.font = "30px Arial";
+gameLoop();
+</script>
+</body>
+</html>

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스페이스X 로켓 시뮬레이터</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #000;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            border: 2px solid #444;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(0, 0, 255, 0.3);
+        }
+        #gameContainer {
+            position: relative;
+        }
+        #fuelGauge {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #altitude {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #velocity {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #gameMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 36px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px 40px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in;
+        }
+        #restartButton {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 20px;
+            color: #fff;
+            background: linear-gradient(45deg, #ff4500, #ff8800);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #restartButton:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 69, 0, 0.5);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="1200"></canvas>
+        <div id="fuelGauge">연료: 100%</div>
+        <div id="altitude">고도: 10000m</div>
+        <div id="velocity">하강 속도: 0 m/s</div>
+        <div id="gameMessage"></div>
+        <button id="restartButton">재시작</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const fuelGauge = document.getElementById('fuelGauge');
+        const altitudeDisplay = document.getElementById('altitude');
+        const velocityDisplay = document.getElementById('velocity');
+
+        // 파티클 시스템
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 6 - 3;
+                this.speedY = Math.random() * 6 - 3;
+                this.life = 1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= 0.02;
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        const particles = [];
+
+        // 착륙장 클래스
+        class LandingPad {
+            constructor() {
+                this.width = 200;  // 착륙장 크기 증가
+                this.x = Math.random() * (canvas.width - this.width);
+                this.y = canvas.height - 20;  // 화면 맨 아래에서 약간 위로
+            }
+
+            draw() {
+                // 착륙장 본체
+                ctx.fillStyle = '#666';
+                ctx.fillRect(this.x, this.y, this.width, 20);
+                
+                // 착륙장 표시등
+                ctx.fillStyle = '#00ff00';
+                for (let i = 0; i < 5; i++) {  // 표시등 개수 증가
+                    ctx.beginPath();
+                    ctx.arc(this.x + (this.width * (i + 1) / 6), this.y + 10, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 착륙장 표시 화살표
+                if (rocket.y < canvas.height - 200) {
+                    const arrowY = rocket.y + 150;  // 화살표 위치 조정
+                    const arrowX = this.x + this.width / 2;
+                    
+                    // 화살표 그리기
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.moveTo(arrowX, arrowY);
+                    ctx.lineTo(arrowX - 40, arrowY + 40);  // 화살표 크기 증가
+                    ctx.lineTo(arrowX + 40, arrowY + 40);
+                    ctx.fill();
+
+                    // 거리 표시
+                    const distance = Math.floor(Math.abs(rocket.x - (this.x + this.width/2)));
+                    ctx.fillStyle = '#00ff00';
+                    ctx.font = '24px Arial';  // 글자 크기 증가
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${distance}m`, arrowX, arrowY + 60);
+                }
+            }
+
+            isRocketOnPad(rocket) {
+                return rocket.x >= this.x && 
+                       rocket.x <= this.x + this.width && 
+                       rocket.y >= this.y - 10;
+            }
+        }
+
+        class Rocket {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height * 0.2;  // 화면 상단 20% 지점에서 시작
+                this.width = 40;  // 로켓 크기 증가
+                this.height = 100;  // 로켓 크기 증가
+                this.velocityY = 0;
+                this.velocityX = 0;
+                this.fuel = 100;
+                this.altitude = 10000;
+                this.isLanded = false;
+                this.isThrusting = false;
+                this.isSteeringLeft = false;
+                this.isSteeringRight = false;
+                this.gameMessage = document.getElementById('gameMessage');
+                this.restartButton = document.getElementById('restartButton');
+            }
+
+            draw() {
+                // 로켓 본체
+                const gradient = ctx.createLinearGradient(
+                    this.x - this.width/2, this.y - this.height,
+                    this.x + this.width/2, this.y
+                );
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(1, '#cccccc');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.width/2, this.y);
+                ctx.lineTo(this.x - this.width/2, this.y - this.height);
+                ctx.lineTo(this.x + this.width/2, this.y - this.height);
+                ctx.lineTo(this.x + this.width/2, this.y);
+                ctx.fill();
+
+                // 로켓 날개
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.width/2, this.y - this.height/3);
+                ctx.lineTo(this.x - this.width, this.y - this.height/4);
+                ctx.lineTo(this.x - this.width/2, this.y - this.height/6);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width/2, this.y - this.height/3);
+                ctx.lineTo(this.x + this.width, this.y - this.height/4);
+                ctx.lineTo(this.x + this.width/2, this.y - this.height/6);
+                ctx.fill();
+
+                // 로켓 엔진 불꽃
+                if (this.isThrusting && this.fuel > 0) {
+                    const flameGradient = ctx.createLinearGradient(
+                        this.x, this.y,
+                        this.x, this.y + 80
+                    );
+                    flameGradient.addColorStop(0, '#ff4500');
+                    flameGradient.addColorStop(0.5, '#ff0000');
+                    flameGradient.addColorStop(1, '#ff8800');
+                    
+                    ctx.fillStyle = flameGradient;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - 20, this.y);
+                    ctx.lineTo(this.x, this.y + 80);
+                    ctx.lineTo(this.x + 20, this.y);
+                    ctx.fill();
+                }
+
+                // 좌우 추진 불꽃
+                if (this.isSteeringLeft && this.fuel > 0) {
+                    ctx.fillStyle = '#ff4500';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + this.width/2, this.y - this.height/2);
+                    ctx.lineTo(this.x + this.width, this.y - this.height/2);
+                    ctx.lineTo(this.x + this.width/2, this.y - this.height/3);
+                    ctx.fill();
+                }
+
+                if (this.isSteeringRight && this.fuel > 0) {
+                    ctx.fillStyle = '#ff4500';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - this.width/2, this.y - this.height/2);
+                    ctx.lineTo(this.x - this.width, this.y - this.height/2);
+                    ctx.lineTo(this.x - this.width/2, this.y - this.height/3);
+                    ctx.fill();
+                }
+            }
+
+            update() {
+                if (!this.isLanded) {
+                    // 중력 효과 감소
+                    this.velocityY += 0.05;
+                    this.y += this.velocityY;
+                    this.x += this.velocityX;
+                    
+                    // 속도 제한 추가
+                    this.velocityY = Math.min(this.velocityY, 5);
+                    this.velocityX = Math.min(Math.max(this.velocityX, -3), 3);
+                    
+                    // 화면 경계 체크
+                    if (this.x < this.width) this.x = this.width;
+                    if (this.x > canvas.width - this.width) this.x = canvas.width - this.width;
+                    
+                    // 고도 계산 수정 (화면 상단에서부터의 거리로 계산)
+                    this.altitude = Math.max(0, 10000 - (this.y * 20));
+                    
+                    altitudeDisplay.textContent = `고도: ${Math.floor(this.altitude)}m`;
+                    velocityDisplay.textContent = `하강 속도: ${Math.floor(this.velocityY * 10)} m/s`;
+                }
+
+                if (this.y >= canvas.height - 10) {
+                    if (landingPad.isRocketOnPad(this)) {
+                        if (Math.abs(this.velocityY) > 2) {
+                            this.showGameMessage('착륙 실패!\n너무 빠른 속도로 착륙했습니다.', false);
+                            this.isLanded = true;
+                        } else {
+                            this.showGameMessage('성공적인 착륙!\n축하합니다!', true);
+                            this.isLanded = true;
+                        }
+                    } else {
+                        this.showGameMessage('착륙 실패!\n착륙장에 착륙하지 못했습니다.', false);
+                        this.isLanded = true;
+                    }
+                }
+            }
+
+            thrust() {
+                if (this.fuel > 0) {
+                    this.velocityY -= 0.8;  // 0.5에서 0.8로 증가
+                    this.fuel -= 0.5;
+                    this.isThrusting = true;
+                    fuelGauge.textContent = `연료: ${Math.floor(this.fuel)}%`;
+                }
+            }
+
+            steerLeft() {
+                if (this.fuel > 0) {
+                    this.velocityX -= 0.3;
+                    this.fuel -= 0.2;
+                    this.isSteeringLeft = true;
+                    fuelGauge.textContent = `연료: ${Math.floor(this.fuel)}%`;
+                }
+            }
+
+            steerRight() {
+                if (this.fuel > 0) {
+                    this.velocityX += 0.3;
+                    this.fuel -= 0.2;
+                    this.isSteeringRight = true;
+                    fuelGauge.textContent = `연료: ${Math.floor(this.fuel)}%`;
+                }
+            }
+
+            stopThrust() {
+                this.isThrusting = false;
+            }
+
+            stopSteering() {
+                this.isSteeringLeft = false;
+                this.isSteeringRight = false;
+            }
+
+            showGameMessage(message, isSuccess) {
+                this.gameMessage.textContent = message;
+                this.gameMessage.style.display = 'block';
+                this.gameMessage.style.color = isSuccess ? '#00ff00' : '#ff0000';
+                this.restartButton.style.display = 'block';
+            }
+
+            reset() {
+                this.y = canvas.height * 0.2;
+                this.x = canvas.width / 2;
+                this.velocityY = 0;
+                this.velocityX = 0;
+                this.fuel = 100;
+                this.altitude = 10000;
+                this.isLanded = false;
+                this.isThrusting = false;
+                this.isSteeringLeft = false;
+                this.isSteeringRight = false;
+                this.gameMessage.style.display = 'none';
+                this.restartButton.style.display = 'none';
+                fuelGauge.textContent = `연료: ${this.fuel}%`;
+                landingPad = new LandingPad();
+            }
+        }
+
+        const rocket = new Rocket();
+        let landingPad = new LandingPad();
+
+        function drawBackground() {
+            // 단순한 검은 배경으로 변경
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawGround() {
+            // 지면 제거
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawBackground();
+            landingPad.draw();
+            rocket.update();
+            rocket.draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!rocket.isLanded) {
+                switch(e.code) {
+                    case 'Space':
+                        rocket.thrust();
+                        break;
+                    case 'ArrowLeft':
+                        rocket.steerLeft();
+                        break;
+                    case 'ArrowRight':
+                        rocket.steerRight();
+                        break;
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    rocket.stopThrust();
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    rocket.stopSteering();
+                    break;
+            }
+        });
+
+        document.getElementById('restartButton').addEventListener('click', () => {
+            rocket.reset();
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Tank Battle Game</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; }
+        canvas { border: 1px solid #fff; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game constants
+        const GRID_SIZE = 40;
+        const TANK_SIZE = 30;
+        const TURRET_LENGTH = 20;
+        const BULLET_SPEED = 5;
+        const BULLET_SIZE = 5;
+        const EXPLOSION_DURATION = 500; // ms
+        const MAX_ENERGY = 100;
+        const MAZE_WIDTH = 20;
+        const MAZE_HEIGHT = 15;
+
+        // Generate random maze using recursive backtracking
+        function generateMaze() {
+            // Initialize maze with walls (1)
+            const maze = Array(MAZE_HEIGHT).fill().map(() => Array(MAZE_WIDTH).fill(1));
+
+            // Directions for neighboring cells (right, down, left, up)
+            const directions = [
+                [0, 1],  // right
+                [1, 0],  // down
+                [0, -1], // left
+                [-1, 0]  // up
+            ];
+
+            function shuffle(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function carvePath(x, y) {
+                maze[y][x] = 0; // Mark as path
+                const dirs = shuffle([...directions]);
+                for (const [dy, dx] of dirs) {
+                    const ny = y + dy * 2;
+                    const nx = x + dx * 2;
+                    if (nx > 0 && nx < MAZE_WIDTH - 1 && ny > 0 && ny < MAZE_HEIGHT - 1 && maze[ny][nx] === 1) {
+                        maze[y + dy][x + dx] = 0; // Carve passage
+                        carvePath(nx, ny);
+                    }
+                }
+            }
+
+            // Start carving from (1,1) to ensure border walls
+            carvePath(1, 1);
+
+            // Ensure player and enemy starting positions are clear
+            maze[1][1] = 0; // Player start
+            maze[MAZE_HEIGHT - 2][MAZE_WIDTH - 2] = 0; // Enemy start
+
+            return maze;
+        }
+
+        // Initialize maze
+        let maze = generateMaze();
+
+        // Tank class
+        class Tank {
+            constructor(x, y, color, isPlayer) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.isPlayer = isPlayer;
+                this.turretAngle = 0;
+                this.energy = MAX_ENERGY;
+                this.speed = 2;
+                this.bullets = [];
+                this.lastShot = 0;
+                this.shootDelay = 500; // ms
+            }
+
+            draw() {
+                // Draw tank body
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, TANK_SIZE / 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw turret
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                const turretEndX = this.x + Math.cos(this.turretAngle) * TURRET_LENGTH;
+                const turretEndY = this.y + Math.sin(this.turretAngle) * TURRET_LENGTH;
+                ctx.lineTo(turretEndX, turretEndY);
+                ctx.stroke();
+
+                // Draw energy bar
+                ctx.fillStyle = 'green';
+                ctx.fillRect(this.x - 20, this.y - 40, this.energy / 2, 5);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(this.x - 20, this.y - 40, MAX_ENERGY / 2, 5);
+            }
+
+            move(dx, dy) {
+                const newX = this.x + dx * this.speed;
+                const newY = this.y + dy * this.speed;
+                if (!this.collides(newX, newY)) {
+                    this.x = newX;
+                    this.y = newY;
+                }
+            }
+
+            collides(x, y) {
+                const gridX = Math.floor(x / GRID_SIZE);
+                const gridY = Math.floor(y / GRID_SIZE);
+                if (gridX < 0 || gridX >= maze[0].length || gridY < 0 || gridY >= maze.length) return true;
+                if (maze[gridY][gridX] === 1) return true;
+                return false;
+            }
+
+            shoot() {
+                const now = Date.now();
+                if (now - this.lastShot < this.shootDelay) return;
+                this.lastShot = now;
+                const bulletX = this.x + Math.cos(this.turretAngle) * TURRET_LENGTH;
+                const bulletY = this.y + Math.sin(this.turretAngle) * TURRET_LENGTH;
+                this.bullets.push({
+                    x: bulletX,
+                    y: bulletY,
+                    vx: Math.cos(this.turretAngle) * BULLET_SPEED,
+                    vy: Math.sin(this.turretAngle) * BULLET_SPEED
+                });
+            }
+
+            updateBullets(otherTank, explosions) {
+                this.bullets = this.bullets.filter(bullet => {
+                    bullet.x += bullet.vx;
+                    bullet.y += bullet.vy;
+
+                    // Check wall collision
+                    const gridX = Math.floor(bullet.x / GRID_SIZE);
+                    const gridY = Math.floor(bullet.y / GRID_SIZE);
+                    if (gridX < 0 || gridX >= maze[0].length || gridY < 0 || gridY >= maze.length || maze[gridY][gridX] === 1) {
+                        explosions.push({ x: bullet.x, y: bullet.y, time: Date.now() });
+                        return false;
+                    }
+
+                    // Check tank collision
+                    const dx = bullet.x - otherTank.x;
+                    const dy = bullet.y - otherTank.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < TANK_SIZE / 2) {
+                        otherTank.energy -= 20;
+                        explosions.push({ x: bullet.x, y: bullet.y, time: Date.now() });
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+        }
+
+        // Initialize tanks
+        const player = new Tank(GRID_SIZE * 1.5, GRID_SIZE * 1.5, 'blue', true);
+        const enemy = new Tank(GRID_SIZE * (MAZE_WIDTH - 1.5), GRID_SIZE * (MAZE_HEIGHT - 1.5), 'red', false);
+
+        // Explosions array
+        let explosions = [];
+
+        // Keyboard controls
+        const keys = {};
+        document.addEventListener('keydown', e => keys[e.code] = true);
+        document.addEventListener('keyup', e => keys[e.code] = false);
+
+        // AI logic
+        function enemyAI() {
+            // Move towards player
+            const dx = player.x - enemy.x;
+            const dy = player.y - enemy.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > 50) {
+                const angle = Math.atan2(dy, dx);
+                enemy.move(Math.cos(angle), Math.sin(angle));
+            }
+
+            // Aim at player
+            enemy.turretAngle = Math.atan2(dy, dx);
+
+            // Shoot randomly
+            if (Math.random() < 0.02) {
+                enemy.shoot();
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            // Clear canvas
+            ctx.fillStyle = '#555';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw maze
+            ctx.font = '30px Arial';
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[0].length; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillText('🌲', x * GRID_SIZE, (y + 1) * GRID_SIZE);
+                    }
+                }
+            }
+
+            // Handle player input
+            if (keys['ArrowUp']) player.move(0, -1);
+            if (keys['ArrowDown']) player.move(0, 1);
+            if (keys['ArrowLeft']) player.move(-1, 0);
+            if (keys['ArrowRight']) player.move(1, 0);
+            if (keys['KeyA']) player.turretAngle -= 0.05;
+            if (keys['KeyD']) player.turretAngle += 0.05;
+            if (keys['Space']) player.shoot();
+
+            // Update enemy AI
+            enemyAI();
+
+            // Update bullets
+            player.updateBullets(enemy, explosions);
+            enemy.updateBullets(player, explosions);
+
+            // Draw bullets
+            ctx.fillStyle = 'white';
+            [...player.bullets, ...enemy.bullets].forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, BULLET_SIZE, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw explosions
+            const now = Date.now();
+            explosions = explosions.filter(exp => now - exp.time < EXPLOSION_DURATION);
+            explosions.forEach(exp => {
+                const alpha = 1 - (now - exp.time) / EXPLOSION_DURATION;
+                ctx.fillStyle = `rgba(255, 165, 0, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(exp.x, exp.y, 20 * alpha, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw tanks
+            player.draw();
+            enemy.draw();
+
+            // Check game over
+            if (player.energy <= 0 || enemy.energy <= 0) {
+                ctx.fillStyle = 'white';
+                ctx.font = '40px Arial';
+                ctx.fillText(player.energy <= 0 ? 'Enemy Wins!' : 'Player Wins!', canvas.width / 2 - 100, canvas.height / 2);
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

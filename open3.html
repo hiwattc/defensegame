@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>2D 탱크 전투 게임</title>
+    <style>
+        canvas {
+            border: 2px solid black;
+            background-color: #87CEEB;
+            display: block;
+            margin: 0 auto;
+        }
+        .game-container {
+            text-align: center;
+            margin: 20px;
+        }
+        .health-bar {
+            display: inline-block;
+            margin: 10px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="health-bar">
+            플레이어 체력: <span id="playerHealth">100</span>
+        </div>
+        <div class="health-bar">
+            적 체력: <span id="enemyHealth">100</span>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        // 캔버스 초기화
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 객체들
+        const player = {
+            x: 100,
+            y: 300,
+            width: 40,
+            height: 40,
+            angle: 0,
+            health: 100,
+            speed: 5,
+            turretAngle: 0
+        };
+
+        const enemy = {
+            x: 700,
+            y: 300,
+            width: 40,
+            height: 40,
+            angle: Math.PI,
+            health: 100,
+            speed: 3,
+            turretAngle: Math.PI
+        };
+
+        // 벽돌 배열
+        const walls = [
+            {x: 200, y: 100, width: 40, height: 200},
+            {x: 400, y: 300, width: 200, height: 40},
+            {x: 600, y: 100, width: 40, height: 200},
+            {x: 300, y: 500, width: 200, height: 40}
+        ];
+
+        // 포탄 배열
+        const bullets = [];
+        const explosions = [];
+
+        // 키보드 상태
+        const keys = {};
+
+        // 이벤트 리스너
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            e.preventDefault();
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            e.preventDefault();
+        });
+
+        // 충돌 감지
+        function checkCollision(rect1, rect2) {
+            return rect1.x - rect1.width/2 < rect2.x + rect2.width &&
+                   rect1.x + rect1.width/2 > rect2.x &&
+                   rect1.y - rect1.height/2 < rect2.y + rect2.height &&
+                   rect1.y + rect1.height/2 > rect2.y;
+        }
+
+        // 탱크 그리기
+        function drawTank(tank) {
+            ctx.save();
+            ctx.translate(tank.x, tank.y);
+            ctx.rotate(tank.angle);
+            
+            // 탱크 본체
+            ctx.fillStyle = tank === player ? '#4CAF50' : '#F44336';
+            ctx.fillRect(-tank.width/2, -tank.height/2, tank.width, tank.height);
+            
+            // 포신
+            ctx.rotate(tank.turretAngle);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, -5, 30, 10);
+            
+            ctx.restore();
+        }
+
+        // 벽돌 그리기
+        function drawWalls() {
+            ctx.fillStyle = '#8B4513';
+            walls.forEach(wall => {
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+            });
+        }
+
+        // 포탄 그리기
+        function drawBullets() {
+            ctx.fillStyle = '#FFD700';
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // 폭발 효과 그리기
+        function drawExplosions() {
+            explosions.forEach(explosion => {
+                ctx.beginPath();
+                ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 165, 0, ${explosion.alpha})`;
+                ctx.fill();
+            });
+        }
+
+        // 게임 업데이트
+        function update() {
+            // 플레이어 이동
+            let newX = player.x;
+            let newY = player.y;
+            
+            if (keys['ArrowUp']) newY -= player.speed;
+            if (keys['ArrowDown']) newY += player.speed;
+            if (keys['ArrowLeft']) newX -= player.speed;
+            if (keys['ArrowRight']) newX += player.speed;
+
+            // 벽 충돌 체크
+            let canMove = true;
+            walls.forEach(wall => {
+                const tempPlayer = {
+                    x: newX,
+                    y: newY,
+                    width: player.width,
+                    height: player.height
+                };
+                if (checkCollision(tempPlayer, wall)) {
+                    canMove = false;
+                }
+            });
+
+            // 화면 경계 체크
+            if (newX - player.width/2 < 0 || newX + player.width/2 > canvas.width ||
+                newY - player.height/2 < 0 || newY + player.height/2 > canvas.height) {
+                canMove = false;
+            }
+
+            if (canMove) {
+                player.x = newX;
+                player.y = newY;
+            }
+            
+            // 포신 회전
+            if (keys['a']) player.turretAngle -= 0.1;
+            if (keys['d']) player.turretAngle += 0.1;
+            
+            // 포탄 발사
+            if (keys[' '] && !keys[' '].fired) {
+                const bulletX = player.x + Math.cos(player.angle + player.turretAngle) * 30;
+                const bulletY = player.y + Math.sin(player.angle + player.turretAngle) * 30;
+                
+                bullets.push({
+                    x: bulletX,
+                    y: bulletY,
+                    angle: player.angle + player.turretAngle,
+                    speed: 10,
+                    width: 10,
+                    height: 10
+                });
+                keys[' '].fired = true;
+            }
+            if (!keys[' ']) keys[' '].fired = false;
+
+            // 포탄 이동
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                bullet.x += Math.cos(bullet.angle) * bullet.speed;
+                bullet.y += Math.sin(bullet.angle) * bullet.speed;
+
+                // 화면 밖으로 나간 포탄 제거
+                if (bullet.x < 0 || bullet.x > canvas.width || 
+                    bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // 벽돌 충돌 체크
+                let hitWall = false;
+                walls.forEach(wall => {
+                    if (checkCollision(bullet, wall)) {
+                        explosions.push({
+                            x: bullet.x,
+                            y: bullet.y,
+                            radius: 20,
+                            alpha: 1
+                        });
+                        hitWall = true;
+                    }
+                });
+
+                if (hitWall) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // 적 탱크 충돌 체크
+                if (checkCollision(bullet, enemy)) {
+                    enemy.health -= 20;
+                    document.getElementById('enemyHealth').textContent = enemy.health;
+                    explosions.push({
+                        x: bullet.x,
+                        y: bullet.y,
+                        radius: 20,
+                        alpha: 1
+                    });
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // 폭발 효과 업데이트
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const explosion = explosions[i];
+                explosion.radius += 1;
+                explosion.alpha -= 0.02;
+                if (explosion.alpha <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            // 화면 지우기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 게임 요소 업데이트
+            update();
+            
+            // 게임 요소 그리기
+            drawWalls();
+            drawTank(player);
+            drawTank(enemy);
+            drawBullets();
+            drawExplosions();
+            
+            // 다음 프레임 요청
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 게임 시작
+        window.onload = function() {
+            gameLoop();
+        };
+    </script>
+</body>
+</html>

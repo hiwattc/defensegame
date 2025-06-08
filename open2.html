@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>탱크 디펜스 게임</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #8B4513;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 캔버스 크기 설정
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // 게임 상태
+        const gameState = {
+            player: {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                speed: 5,
+                power: 1,
+                size: 40,
+                angle: 0,
+                turretAngle: 0,
+                health: 100
+            },
+            enemies: [],
+            projectiles: [],
+            powerups: [],
+            obstacles: [],
+            trees: [],
+            flowers: [],
+            camera: {
+                x: 0,
+                y: 0
+            },
+            effects: [],
+            stage: 1, // 현재 스테이지
+            enemySpawnTimer: 0, // 적 생성 타이머
+            enemySpawnDelay: 5000 // 5초마다 적 생성
+        };
+
+        // 적 생성 함수 수정
+        function createEnemy() {
+            // 현재 스테이지에 따라 적 생성
+            if(gameState.enemies.length < gameState.stage) {
+                const enemy = {
+                    x: Math.random() * 2000 - 1000,
+                    y: Math.random() * 2000 - 1000,
+                    type: 'tank',
+                    health: 100,
+                    size: 40,
+                    angle: 0,
+                    turretAngle: 0,
+                    lastShot: 0,
+                    shotCooldown: 2000
+                };
+                gameState.enemies.push(enemy);
+            }
+        }
+
+        // 장애물 생성
+        function createObstacles() {
+            for(let i = 0; i < 50; i++) {
+                gameState.obstacles.push({
+                    x: Math.random() * 2000 - 1000,
+                    y: Math.random() * 2000 - 1000,
+                    type: Math.random() < 0.5 ? '🌲' : '🏔️'
+                });
+            }
+        }
+
+        // 나무와 꽃 생성
+        function createEnvironment() {
+            for(let i = 0; i < 100; i++) {
+                gameState.trees.push({
+                    x: Math.random() * 2000 - 1000,
+                    y: Math.random() * 2000 - 1000
+                });
+                gameState.flowers.push({
+                    x: Math.random() * 2000 - 1000,
+                    y: Math.random() * 2000 - 1000
+                });
+            }
+        }
+
+        // 파워업 생성
+        function createPowerup() {
+            gameState.powerups.push({
+                x: Math.random() * 2000 - 1000,
+                y: Math.random() * 2000 - 1000,
+                type: '🎁'
+            });
+        }
+
+        // 발사체 생성 함수 수정
+        function createProjectile(angle) {
+            const turretLength = gameState.player.size/2 + 20; // 포신 길이 증가
+            const startX = gameState.player.x + Math.cos(angle) * turretLength;
+            const startY = gameState.player.y + Math.sin(angle) * turretLength;
+            
+            gameState.projectiles.push({
+                x: startX,
+                y: startY,
+                angle: angle,
+                speed: 10,
+                power: gameState.player.power,
+                isEnemy: false
+            });
+
+            // 발사 효과
+            createEffect(startX, startY, '💨');
+        }
+
+        // 충돌 감지 함수 수정
+        function checkCollision(obj1, obj2, size2) {
+            const obj2Size = size2 || obj2.size;
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < (obj1.size/2 + obj2Size/2);
+        }
+
+        // 폭발 효과 생성 함수 수정
+        function createExplosion(x, y, isEnemy = false) {
+            // 중앙 폭발
+            createEffect(x, y, '💥');
+            
+            // 주변 폭발 효과
+            for(let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const distance = 20;
+                const effectX = x + Math.cos(angle) * distance;
+                const effectY = y + Math.sin(angle) * distance;
+                createEffect(effectX, effectY, '💥');
+            }
+            
+            // 에너지 손실 효과
+            for(let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const distance = 15;
+                const effectX = x + Math.cos(angle) * distance;
+                const effectY = y + Math.sin(angle) * distance;
+                createEffect(effectX, effectY, '⚡');
+            }
+
+            // 적 탱크 폭발 시 추가 효과
+            if(isEnemy) {
+                for(let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const distance = 25;
+                    const effectX = x + Math.cos(angle) * distance;
+                    const effectY = y + Math.sin(angle) * distance;
+                    createEffect(effectX, effectY, '🔥');
+                }
+            }
+        }
+
+        // 효과 생성 함수 수정
+        function createEffect(x, y, type) {
+            const effect = {
+                x: x,
+                y: y,
+                type: type,
+                life: type === '💥' ? 20 : type === '🔥' ? 30 : 30,
+                size: type === '💥' ? 30 : type === '🔥' ? 25 : 20,
+                angle: Math.random() * Math.PI * 2,
+                speed: type === '💨' ? 2 : 0,
+                scale: 1
+            };
+            gameState.effects.push(effect);
+        }
+
+        // 효과 업데이트 수정
+        function updateEffects() {
+            gameState.effects.forEach((effect, index) => {
+                effect.life--;
+                if(effect.type === '💨') {
+                    effect.x += Math.cos(effect.angle) * effect.speed;
+                    effect.y += Math.sin(effect.angle) * effect.speed;
+                }
+                if(effect.type === '💥' || effect.type === '🔥') {
+                    effect.scale = 1 + (1 - effect.life/(effect.type === '💥' ? 20 : 30));
+                }
+                if(effect.life <= 0) {
+                    gameState.effects.splice(index, 1);
+                }
+            });
+        }
+
+        // 키보드 컨트롤
+        const keys = {};
+        
+        // 키 입력 처리
+        document.addEventListener('keydown', function(e) {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        document.addEventListener('keyup', function(e) {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // 게임 업데이트 함수 수정
+        function update() {
+            // 카메라 위치 업데이트
+            gameState.camera.x = gameState.player.x - canvas.width/2;
+            gameState.camera.y = gameState.player.y - canvas.height/2;
+
+            // 적 생성 타이머 업데이트
+            gameState.enemySpawnTimer += 16; // 약 60fps 기준
+            if(gameState.enemySpawnTimer >= gameState.enemySpawnDelay) {
+                createEnemy();
+                gameState.enemySpawnTimer = 0;
+            }
+
+            // 스테이지 업데이트
+            if(gameState.enemies.length === 0) {
+                gameState.stage++;
+                // 스테이지 클리어 효과
+                createEffect(gameState.player.x, gameState.player.y, '🎉');
+            }
+
+            // 포신 회전 처리
+            if(keys['a']) {
+                gameState.player.turretAngle -= 0.1;
+            }
+            if(keys['d']) {
+                gameState.player.turretAngle += 0.1;
+            }
+
+            // 탱크 이동 처리 및 충돌 체크
+            let newX = gameState.player.x;
+            let newY = gameState.player.y;
+
+            if(keys['arrowup']) {
+                newY -= gameState.player.speed;
+            }
+            if(keys['arrowdown']) {
+                newY += gameState.player.speed;
+            }
+            if(keys['arrowleft']) {
+                newX -= gameState.player.speed;
+            }
+            if(keys['arrowright']) {
+                newX += gameState.player.speed;
+            }
+
+            // 나무와 충돌 체크
+            let canMove = true;
+            gameState.trees.forEach((tree, index) => {
+                if(checkCollision({x: newX, y: newY, size: gameState.player.size}, tree, 30)) {
+                    canMove = false;
+                    createEffect(tree.x, tree.y, '🌲');
+                    gameState.trees.splice(index, 1);
+                }
+            });
+
+            // 꽃과 충돌 체크
+            gameState.flowers.forEach((flower, index) => {
+                if(checkCollision({x: newX, y: newY, size: gameState.player.size}, flower, 20)) {
+                    createEffect(flower.x, flower.y, '🌸');
+                    gameState.flowers.splice(index, 1);
+                }
+            });
+
+            if(canMove) {
+                gameState.player.x = newX;
+                gameState.player.y = newY;
+            }
+
+            // 효과 업데이트
+            updateEffects();
+
+            // 적 업데이트
+            gameState.enemies.forEach((enemy, index) => {
+                // 플레이어 방향으로 회전
+                const dx = gameState.player.x - enemy.x;
+                const dy = gameState.player.y - enemy.y;
+                enemy.angle = Math.atan2(dy, dx);
+                enemy.turretAngle = enemy.angle;
+
+                // 적 공격
+                const now = Date.now();
+                if(now - enemy.lastShot > enemy.shotCooldown) {
+                    const turretLength = enemy.size/2 + 20; // 포신 길이 증가
+                    const startX = enemy.x + Math.cos(enemy.turretAngle) * turretLength;
+                    const startY = enemy.y + Math.sin(enemy.turretAngle) * turretLength;
+                    
+                    gameState.projectiles.push({
+                        x: startX,
+                        y: startY,
+                        angle: enemy.turretAngle,
+                        speed: 8,
+                        power: 0.5,
+                        isEnemy: true
+                    });
+                    enemy.lastShot = now;
+                    // 발사 효과
+                    createEffect(startX, startY, '💨');
+                }
+            });
+
+            // 발사체 업데이트
+            gameState.projectiles.forEach((proj, index) => {
+                const oldX = proj.x;
+                const oldY = proj.y;
+                proj.x += Math.cos(proj.angle) * proj.speed;
+                proj.y += Math.sin(proj.angle) * proj.speed;
+
+                // 화면 밖으로 나간 발사체 제거
+                if(proj.x < -1000 || proj.x > 3000 || proj.y < -1000 || proj.y > 3000) {
+                    gameState.projectiles.splice(index, 1);
+                    return;
+                }
+
+                if(proj.isEnemy) {
+                    // 적의 포탄이 플레이어와 충돌
+                    if(checkCollision(proj, gameState.player)) {
+                        gameState.player.health -= 10;
+                        createExplosion(proj.x, proj.y);
+                        gameState.projectiles.splice(index, 1);
+                        
+                        if(gameState.player.health <= 0) {
+                            alert('게임 오버!');
+                            location.reload();
+                        }
+                    }
+                } else {
+                    // 플레이어의 포탄이 적과 충돌
+                    gameState.enemies.forEach((enemy, enemyIndex) => {
+                        if(checkCollision(proj, enemy)) {
+                            enemy.health -= 10;
+                            createExplosion(proj.x, proj.y, true);
+                            gameState.projectiles.splice(index, 1);
+                            
+                            if(enemy.health <= 0) {
+                                gameState.enemies.splice(enemyIndex, 1);
+                                // 적 탱크 파괴 시 추가 폭발 효과
+                                for(let i = 0; i < 3; i++) {
+                                    setTimeout(() => {
+                                        createExplosion(
+                                            enemy.x + (Math.random() - 0.5) * 30,
+                                            enemy.y + (Math.random() - 0.5) * 30,
+                                            true
+                                        );
+                                    }, i * 100);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            // 파워업 충돌 체크
+            gameState.powerups.forEach((powerup, index) => {
+                if(checkCollision(gameState.player, powerup)) {
+                    gameState.player.power += 0.5;
+                    gameState.player.speed += 1;
+                    gameState.powerups.splice(index, 1);
+                }
+            });
+        }
+
+        // 게임 렌더링 함수 수정
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 배경
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 효과 렌더링
+            gameState.effects.forEach(effect => {
+                ctx.save();
+                ctx.font = `${effect.size * effect.scale}px Arial`;
+                ctx.globalAlpha = effect.life / (effect.type === '💥' ? 20 : 30);
+                ctx.fillText(effect.type, effect.x - gameState.camera.x, effect.y - gameState.camera.y);
+                ctx.restore();
+            });
+
+            // 환경 요소 렌더링
+            gameState.trees.forEach(tree => {
+                ctx.font = '30px Arial';
+                ctx.fillText('🌲', tree.x - gameState.camera.x, tree.y - gameState.camera.y);
+            });
+
+            gameState.flowers.forEach(flower => {
+                ctx.font = '20px Arial';
+                ctx.fillText('🌸', flower.x - gameState.camera.x, flower.y - gameState.camera.y);
+            });
+
+            // 장애물 렌더링
+            gameState.obstacles.forEach(obstacle => {
+                ctx.font = '30px Arial';
+                ctx.fillText(obstacle.type, obstacle.x - gameState.camera.x, obstacle.y - gameState.camera.y);
+            });
+
+            // 파워업 렌더링
+            gameState.powerups.forEach(powerup => {
+                ctx.font = '30px Arial';
+                ctx.fillText(powerup.type, powerup.x - gameState.camera.x, powerup.y - gameState.camera.y);
+            });
+
+            // 적 렌더링
+            gameState.enemies.forEach(enemy => {
+                ctx.save();
+                ctx.translate(enemy.x - gameState.camera.x, enemy.y - gameState.camera.y);
+                
+                // 적 탱크 본체
+                ctx.rotate(enemy.angle);
+                ctx.fillStyle = '#c0392b';
+                ctx.fillRect(-enemy.size/2, -enemy.size/2, enemy.size, enemy.size);
+                
+                // 적 탱크 포신
+                ctx.rotate(enemy.turretAngle - enemy.angle);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(-5, -enemy.size/2 - 10, 10, enemy.size/2 + 10);
+                
+                ctx.restore();
+
+                // 적 에너지 바
+                const energyBarWidth = enemy.size;
+                const energyBarHeight = 5;
+                const energyBarX = enemy.x - gameState.camera.x - energyBarWidth/2;
+                const energyBarY = enemy.y - gameState.camera.y - enemy.size/2 - 10;
+
+                // 에너지 바 배경
+                ctx.fillStyle = '#7f8c8d';
+                ctx.fillRect(energyBarX, energyBarY, energyBarWidth, energyBarHeight);
+
+                // 에너지 바
+                ctx.fillStyle = enemy.health > 50 ? '#2ecc71' : enemy.health > 25 ? '#f1c40f' : '#e74c3c';
+                ctx.fillRect(energyBarX, energyBarY, energyBarWidth * (enemy.health/100), energyBarHeight);
+            });
+
+            // 발사체 렌더링
+            gameState.projectiles.forEach(proj => {
+                ctx.fillStyle = proj.isEnemy ? '#e74c3c' : 'yellow';
+                ctx.beginPath();
+                ctx.arc(proj.x - gameState.camera.x, proj.y - gameState.camera.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 플레이어 탱크 렌더링
+            ctx.save();
+            ctx.translate(gameState.player.x - gameState.camera.x, gameState.player.y - gameState.camera.y);
+            
+            // 탱크 본체
+            ctx.rotate(gameState.player.angle);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(-gameState.player.size/2, -gameState.player.size/2, gameState.player.size, gameState.player.size);
+            
+            // 탱크 포신
+            ctx.rotate(gameState.player.turretAngle - gameState.player.angle);
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(-5, -gameState.player.size/2 - 20, 10, gameState.player.size/2 + 20); // 포신 길이 증가
+            
+            ctx.restore();
+
+            // 플레이어 에너지 바
+            const energyBarWidth = gameState.player.size;
+            const energyBarHeight = 5;
+            const energyBarX = gameState.player.x - gameState.camera.x - energyBarWidth/2;
+            const energyBarY = gameState.player.y - gameState.camera.y - gameState.player.size/2 - 10;
+
+            // 에너지 바 배경
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(energyBarX, energyBarY, energyBarWidth, energyBarHeight);
+
+            // 에너지 바
+            ctx.fillStyle = gameState.player.health > 50 ? '#2ecc71' : gameState.player.health > 25 ? '#f1c40f' : '#e74c3c';
+            ctx.fillRect(energyBarX, energyBarY, energyBarWidth * (gameState.player.health/100), energyBarHeight);
+
+            // 스테이지 정보 표시
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`스테이지: ${gameState.stage}`, 20, 30);
+            ctx.fillText(`남은 적: ${gameState.enemies.length}`, 20, 60);
+        }
+
+        // 스페이스바로 발사
+        document.addEventListener('keydown', function(e) {
+            if(e.code === 'Space') {
+                createProjectile(gameState.player.turretAngle);
+            }
+        });
+
+        // 게임 루프
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 초기화
+        createObstacles();
+        createEnvironment();
+        setInterval(createPowerup, 5000);
+
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

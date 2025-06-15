@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>타이어 굴리기 방어 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #333;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 30%, #8B4513 100%);
+        }
+        .instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        스페이스바: 타이어 발사 | 마우스: 각도 조절
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 캔버스를 전체화면으로 설정
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 게임 상태
+        let score = 0;
+        let gameOver = false;
+        let mouseX = 0;
+        let mouseY = 0;
+        let lastFireTime = 0; // 마지막 발사 시간
+        const FIRE_COOLDOWN = 1000; // 1초 쿨타임 (밀리초)
+
+        // 타이어 배열 (여러 개 발사 가능)
+        let tires = [];
+
+        // 발사대 위치 (화면 좌측 끝 최고점)
+        const launcher = {
+            x: 50, // 화면 좌측 끝 (약간의 여백)
+            y: 0, // 초기값, update에서 계산됨
+            angle: 0
+        };
+
+        // 적 객체 배열
+        let enemies = [];
+
+        // 파티클 배열
+        let particles = [];
+
+        // 파티클 클래스
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 20;
+                this.vy = (Math.random() - 0.5) * 20 - 5;
+                this.life = 60; // 1초간 지속
+                this.maxLife = 60;
+                this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                this.size = 2 + Math.random() * 4;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.3; // 중력
+                this.vx *= 0.98; // 공기 저항
+                this.life--;
+                return this.life > 0;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 폭죽 효과 생성
+        function createExplosion(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        // 파티클 업데이트
+        function updateParticles() {
+            particles = particles.filter(particle => particle.update());
+        }
+
+        // 파티클 그리기
+        function drawParticles() {
+            particles.forEach(particle => particle.draw());
+        }
+
+        // 지형 높이 (더 복잡한 언덕 효과)
+        function getGroundHeight(x) {
+            // 기본 높이 (좌측을 발사대 높이에 맞춤)
+            const baseHeight = canvas.height - 100;
+            
+            // 화면 좌측 끝에 큰 산을 만들기 위한 계산
+            const mountainCenter = 0; // 화면의 좌측 끝을 산의 중심으로
+            const distanceFromCenter = Math.abs(x - mountainCenter);
+            const maxDistance = canvas.width * 0.4; // 산의 범위를 조정
+            
+            // 화면 좌측 끝에서 80% 높이까지 올라가는 완만한 산
+            const mountainHeight = Math.max(0, (1 - (distanceFromCenter / maxDistance))) * (canvas.height * 0.8 - 100);
+            const smoothMountain = Math.pow(mountainHeight / (canvas.height * 0.8 - 100), 0.7) * (canvas.height * 0.8 - 100);
+            
+            // 좌측에서 우측으로 갈수록 점진적으로 낮아지는 경사
+            const slope = (x / canvas.width) * 30; // 경사를 줄여서 산이 더 잘 보이게
+            
+            // 여러 개의 사인파를 조합하여 복잡한 지형 생성 (크기 축소)
+            const wave1 = Math.sin(x * 0.008) * 30;  // 큰 언덕 (축소)
+            const wave2 = Math.sin(x * 0.02) * 15;   // 중간 언덕 (축소)
+            const wave3 = Math.sin(x * 0.05) * 8;    // 작은 언덕 (축소)
+            const wave4 = Math.sin(x * 0.1) * 4;     // 세밀한 굴곡 (축소)
+            
+            // 좌측 끝 부분을 발사대 높이에 맞추기 위한 조정 제거 (이미 좌측 끝이 최고점)
+            const leftAdjustment = 0;
+            
+            return baseHeight - slope - smoothMountain + wave1 + wave2 + wave3 + wave4 - leftAdjustment;
+        }
+
+        // 타이어 클래스
+        class Tire {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * 10.5; // 2배 감소 (21 -> 10.5)
+                this.vy = Math.sin(angle) * 10.5; // 2배 감소 (21 -> 10.5)
+                this.radius = 3.125; // 절반으로 축소 (6.25 -> 3.125)
+                this.rotation = 0;
+                this.onGround = false;
+                this.bounces = 0;
+            }
+
+            update() {
+                // 중력 적용
+                this.vy += 0.5;
+                
+                // 위치 업데이트
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // 회전 효과
+                this.rotation += this.vx * 0.1;
+                
+                // 지면 충돌 체크
+                const groundHeight = getGroundHeight(this.x);
+                if (this.y + this.radius > groundHeight) {
+                    this.y = groundHeight - this.radius;
+                    this.vy *= -0.6; // 바운스 효과
+                    this.vx *= 0.8; // 마찰
+                    this.bounces++;
+                    this.onGround = true;
+                    
+                    if (Math.abs(this.vy) < 2) {
+                        this.vy = 0;
+                    }
+                }
+                
+                // 화면 밖으로 나가면 제거
+                return this.x < canvas.width + 50 && this.bounces < 5;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                // 타이어 본체
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#222';
+                ctx.fill();
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 3; // 선 두께도 절반으로
+                ctx.stroke();
+                
+                // 타이어 무늬
+                for(let i = 0; i < 6; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(this.radius - 2, 0); // 무늬 크기도 조정
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 1.5; // 선 두께도 절반으로
+                    ctx.stroke();
+                    ctx.rotate(Math.PI / 3);
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        // 적 생성 함수
+        function createEnemy() {
+            const emojis = ['😈', '👹', '💀', '👻', '🤖'];
+            // 화면 우측 3/4 지점에서 생성 (산이 너무 높지 않은 지역)
+            const x = canvas.width * 0.75 + Math.random() * (canvas.width * 0.25);
+            const groundY = getGroundHeight(x);
+            return {
+                x: x,
+                y: groundY - 30,
+                vx: -0.7 - Math.random() * 0.7, // 2배 감소 (-1.4 ~ -2.8 -> -0.7 ~ -1.4)
+                vy: 0,
+                emoji: emojis[Math.floor(Math.random() * emojis.length)],
+                hit: false,
+                onGround: true,
+                jumpCooldown: 0
+            };
+        }
+
+        // 발사대 그리기
+        function drawLauncher() {
+            ctx.save();
+            
+            // 원형 바퀴의 중심을 회전 중심으로 설정
+            const wheelCenterX = launcher.x - 15;
+            const wheelCenterY = launcher.y;
+            
+            ctx.translate(wheelCenterX, wheelCenterY);
+            ctx.rotate(launcher.angle);
+            
+            // 발사대 본체 (원형 중심에서 상대적 위치로 그리기)
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(5, -5, 60, 10); // x 위치를 조정하여 원형 중심에서 시작
+            
+            // 발사대 바퀴 (회전 중심)
+            ctx.beginPath();
+            ctx.arc(0, 0, 15, 0, Math.PI * 2); // 원점(0,0)이 회전 중심
+            ctx.fillStyle = '#654321';
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 지형 그리기
+        function drawTerrain() {
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for(let x = 0; x <= canvas.width; x += 5) {
+                ctx.lineTo(x, getGroundHeight(x));
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            ctx.fillStyle = '#228B22';
+            ctx.fill();
+        }
+
+        // 적 그리기
+        function drawEnemies() {
+            enemies.forEach(enemy => {
+                if (!enemy.hit) {
+                    ctx.font = '25px Arial';
+                    ctx.fillText(enemy.emoji, enemy.x, enemy.y);
+                }
+            });
+        }
+
+        // 적 업데이트
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (!enemy.hit) {
+                    // 점프 쿨다운 감소
+                    if (enemy.jumpCooldown > 0) {
+                        enemy.jumpCooldown--;
+                    }
+                    
+                    // 랜덤 점프 (확률적으로)
+                    if (enemy.onGround && enemy.jumpCooldown <= 0 && Math.random() < 0.005) {
+                        enemy.vy = -8 - Math.random() * 4; // 점프 속도
+                        enemy.onGround = false;
+                        enemy.jumpCooldown = 60; // 1초 쿨다운 (60프레임)
+                    }
+                    
+                    // 중력 적용
+                    if (!enemy.onGround) {
+                        enemy.vy += 0.5;
+                    }
+                    
+                    // 위치 업데이트
+                    enemy.x += enemy.vx;
+                    enemy.y += enemy.vy;
+                    
+                    // 지형 충돌 체크
+                    const groundHeight = getGroundHeight(enemy.x);
+                    if (enemy.y >= groundHeight - 30) {
+                        enemy.y = groundHeight - 30;
+                        enemy.vy = 0;
+                        enemy.onGround = true;
+                    } else {
+                        enemy.onGround = false;
+                    }
+                }
+            });
+            
+            // 화면 밖으로 나간 적 제거
+            enemies = enemies.filter(enemy => enemy.x > -50 && !enemy.hit);
+        }
+
+        // 충돌 감지
+        function checkCollisions() {
+            tires.forEach(tire => {
+                enemies.forEach(enemy => {
+                    if (!enemy.hit) {
+                        const dx = tire.x - enemy.x;
+                        const dy = tire.y - enemy.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < tire.radius + 15) {
+                            enemy.hit = true;
+                            score += 10;
+                            
+                            // 폭죽 효과 생성
+                            createExplosion(enemy.x, enemy.y);
+                        }
+                    }
+                });
+            });
+        }
+
+        // 쿨타임 확인 함수
+        function canFire() {
+            return Date.now() - lastFireTime >= FIRE_COOLDOWN;
+        }
+
+        // 쿨타임 시각적 표현
+        function drawCooldown() {
+            const currentTime = Date.now();
+            const timeSinceLastFire = currentTime - lastFireTime;
+            
+            if (timeSinceLastFire < FIRE_COOLDOWN) {
+                const progress = timeSinceLastFire / FIRE_COOLDOWN;
+                const wheelCenterX = launcher.x - 15;
+                const wheelCenterY = launcher.y;
+                
+                ctx.save();
+                
+                // 쿨타임 원형 게이지 (발사대 바퀴 위에)
+                ctx.beginPath();
+                ctx.arc(wheelCenterX, wheelCenterY, 20, -Math.PI/2, -Math.PI/2 + (progress * Math.PI * 2));
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                
+                // 쿨타임 배경 원
+                ctx.beginPath();
+                ctx.arc(wheelCenterX, wheelCenterY, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 쿨타임 텍스트
+                const remainingTime = Math.ceil((FIRE_COOLDOWN - timeSinceLastFire) / 1000);
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(remainingTime.toString(), wheelCenterX, wheelCenterY + 4);
+                
+                ctx.restore();
+            }
+        }
+
+        // 게임 업데이트
+        function update() {
+            if (gameOver) return;
+
+            // 발사대 위치를 화면 좌측 끝 최고점에 맞춰 업데이트
+            launcher.x = 50;
+            launcher.y = getGroundHeight(launcher.x) - 15;
+
+            // 마우스 위치에 따른 발사각 계산
+            const dx = mouseX - launcher.x;
+            const dy = mouseY - launcher.y;
+            launcher.angle = Math.atan2(dy, dx);
+            
+            // 각도 제한 제거 - 좌우 모든 방향으로 발사 가능
+            // (이전 각도 제한 코드 제거)
+
+            // 타이어 업데이트
+            tires = tires.filter(tire => tire.update());
+
+            // 적 생성
+            if (Math.random() < 0.015 && enemies.length < 10) {
+                enemies.push(createEnemy());
+            }
+
+            // 적 업데이트
+            updateEnemies();
+
+            // 파티클 업데이트
+            updateParticles();
+
+            // 충돌 체크
+            checkCollisions();
+        }
+
+        // 게임 렌더링
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawTerrain();
+            drawLauncher();
+            
+            // 발사 궤적 미리보기
+            if (!gameOver) {
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.beginPath();
+                ctx.moveTo(launcher.x, launcher.y);
+                
+                let previewX = launcher.x;
+                let previewY = launcher.y;
+                let previewVx = Math.cos(launcher.angle) * 10.5; // 타이어 속도에 맞춤 (21 -> 10.5)
+                let previewVy = Math.sin(launcher.angle) * 10.5; // 타이어 속도에 맞춤 (21 -> 10.5)
+                
+                for(let i = 0; i < 30; i++) {
+                    previewVy += 0.5;
+                    previewX += previewVx;
+                    previewY += previewVy;
+                    ctx.lineTo(previewX, previewY);
+                    
+                    if (previewY > getGroundHeight(previewX)) break;
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // 타이어들 그리기
+            tires.forEach(tire => tire.draw());
+            
+            drawEnemies();
+            
+            // 파티클 그리기
+            drawParticles();
+            
+            // 쿨타임 그리기
+            drawCooldown();
+            
+            // UI 그리기
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`점수: ${score}`, canvas.width - 120, 30);
+            ctx.fillText(`적: ${enemies.length}`, canvas.width - 120, 55);
+            
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '48px Arial';
+                ctx.fillText('게임 오버!', canvas.width/2 - 100, canvas.height/2);
+                ctx.font = '24px Arial';
+                ctx.fillText(`최종 점수: ${score}`, canvas.width/2 - 70, canvas.height/2 + 40);
+            }
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 마우스 이벤트
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        // 키보드 컨트롤
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) return;
+            
+            if (e.code === 'Space') {
+                e.preventDefault();
+                // 타이어 발사 (쿨타임 체크)
+                if (canFire()) {
+                    tires.push(new Tire(launcher.x, launcher.y, launcher.angle));
+                    lastFireTime = Date.now();
+                }
+            }
+        });
+
+        // 초기 적 생성
+        for(let i = 0; i < 5; i++) {
+            enemies.push(createEnemy());
+        }
+
+        // 게임 시작
+        gameLoop();
+    </script>
+</body>
+</html>

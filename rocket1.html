@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>32엔진 로켓 착륙 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            color: white;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        
+        .ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff41;
+            min-width: 200px;
+            pointer-events: auto;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #00ff41;
+            pointer-events: auto;
+        }
+        
+        .engine-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 20px);
+            gap: 2px;
+            margin-top: 10px;
+        }
+        
+        .engine {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #333;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        
+        .engine.active {
+            background: #ff4444;
+            box-shadow: 0 0 8px #ff4444;
+        }
+        
+        .engine.inactive {
+            background: #333;
+        }
+        
+        .status {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .fuel-bar {
+            width: 200px;
+            height: 15px;
+            border: 1px solid #00ff41;
+            margin-top: 5px;
+            position: relative;
+        }
+        
+        .fuel-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffff44, #44ff44);
+            transition: width 0.3s;
+        }
+        
+        button {
+            background: #1a1a2e;
+            color: #00ff41;
+            border: 1px solid #00ff41;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            background: #00ff41;
+            color: #1a1a2e;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui">
+        <h3>🚀 로켓 상태</h3>
+        <div class="status">고도: <span id="altitude">0</span>m</div>
+        <div class="status">속도: <span id="velocity">0</span>m/s</div>
+        <div class="status">연료: <span id="fuel">100</span>%</div>
+        <div class="fuel-bar">
+            <div class="fuel-fill" id="fuelBar" style="width: 100%"></div>
+        </div>
+        <div class="status">선택된 엔진: <span id="selectedEngines">8</span>/32</div>
+        <div class="status">활성 엔진: <span id="activeEngines">0</span>/32</div>
+        
+        <h4>엔진 제어 (클릭으로 개별 제어)</h4>
+        <div class="engine-grid" id="engineGrid"></div>
+    </div>
+    
+    <div class="controls">
+        <h3>🎮 조작법</h3>
+        <div>1/2/3/4: 엔진 선택 (8/16/24/32개)</div>
+        <div>W/S: 메인 엔진</div>
+        <div>A/D: 방향 제어</div>
+        <div>Space: 선택된 엔진 ON/OFF</div>
+        <div>마우스: 선택된 엔진 제어</div>
+        <button onclick="resetGame()">게임 리셋</button>
+        <button onclick="toggleSelectedEngines()">선택된 엔진 토글</button>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <h2 id="gameResult"></h2>
+        <p id="gameStats"></p>
+        <button onclick="resetGame()">다시 시작</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 캔버스 크기를 전체 화면으로 설정
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // 초기 크기 설정 및 리사이즈 이벤트 추가
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 게임 상태
+        let rockets = [
+            {
+                x: canvas.width / 2 - 40, // 왼쪽 로켓 (100 -> 40)
+                y: 100,
+                vx: 0,
+                vy: 0,
+                angle: 0,
+                fuel: 100,
+                width: 30,
+                height: 240,
+                engines: Array(32).fill(false),
+                crashed: false,
+                landed: false
+            },
+            {
+                x: canvas.width / 2, // 중앙 로켓
+                y: 100,
+                vx: 0,
+                vy: 0,
+                angle: 0,
+                fuel: 100,
+                width: 30,
+                height: 240,
+                engines: Array(32).fill(false),
+                crashed: false,
+                landed: false
+            },
+            {
+                x: canvas.width / 2 + 40, // 오른쪽 로켓 (100 -> 40)
+                y: 100,
+                vx: 0,
+                vy: 0,
+                angle: 0,
+                fuel: 100,
+                width: 30,
+                height: 240,
+                engines: Array(32).fill(false),
+                crashed: false,
+                landed: false
+            }
+        ];
+        
+        let selectedRocket = 1; // 중앙 로켓 선택 (0: 왼쪽, 1: 중앙, 2: 오른쪽)
+        let selectedEngineCount = 8;
+        
+        let stars = [];
+        let particles = [];
+        let keys = {};
+        
+        // 물리 상수
+        const GRAVITY = 0.15; // 2배 감소 (0.3 -> 0.15)
+        const ENGINE_THRUST = 0.05; // 16배 감소 (0.8 -> 0.05)
+        const FUEL_CONSUMPTION = 0.03125; // 16배 감소 (0.5 -> 0.03125)
+        const LANDING_VELOCITY_THRESHOLD = 3;
+        
+        // 초기화
+        function initializeGame() {
+            // 별 재생성 (화면 크기에 맞춰)
+            stars = [];
+            for (let i = 0; i < Math.floor(canvas.width * canvas.height / 5000); i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    brightness: Math.random()
+                });
+            }
+        }
+        
+        // 별 생성
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                brightness: Math.random()
+            });
+        }
+        
+        // 엔진 그리드 생성
+        function createEngineGrid() {
+            const grid = document.getElementById('engineGrid');
+            for (let i = 0; i < 32; i++) {
+                const engine = document.createElement('div');
+                engine.className = 'engine inactive';
+                engine.addEventListener('click', (e) => {
+                    e.stopPropagation(); // 이벤트 버블링 방지
+                    toggleEngine(i);
+                });
+                grid.appendChild(engine);
+            }
+        }
+        
+        function toggleEngine(index) {
+            // 모든 로켓의 동일한 엔진을 토글
+            rockets.forEach(rocket => {
+                rocket.engines[index] = !rocket.engines[index];
+            });
+            updateEngineDisplay();
+        }
+        
+        function setSelectedEngineCount(count) {
+            selectedEngineCount = count;
+            updateSelectedEngineDisplay();
+        }
+        
+        function toggleSelectedEngines() {
+            // 선택된 수만큼의 엔진이 활성화되어 있는지 확인
+            const selectedEngines = rockets[selectedRocket].engines.slice(0, selectedEngineCount);
+            const anyActive = selectedEngines.some(e => e);
+            
+            // 모든 로켓의 선택된 엔진들 토글
+            rockets.forEach(rocket => {
+                for (let i = 0; i < selectedEngineCount; i++) {
+                    rocket.engines[i] = !anyActive;
+                }
+            });
+            
+            updateEngineDisplay();
+        }
+        
+        function updateSelectedEngineDisplay() {
+            const engines = document.querySelectorAll('.engine');
+            const rocket = rockets[selectedRocket];
+            engines.forEach((engine, i) => {
+                if (i < selectedEngineCount) {
+                    engine.style.border = '2px solid #00ff41';
+                } else {
+                    engine.style.border = '1px solid #333';
+                }
+            });
+        }
+        
+        function updateEngineDisplay() {
+            const engines = document.querySelectorAll('.engine');
+            const rocket = rockets[selectedRocket];
+            engines.forEach((engine, i) => {
+                engine.className = rocket.engines[i] ? 'engine active' : 'engine inactive';
+            });
+        }
+        
+        // 파티클 생성
+        function createParticle(x, y, vx, vy, color, life) {
+            particles.push({
+                x, y, vx, vy, color, life, maxLife: life
+            });
+        }
+        
+        // 엔진 효과
+        function createEngineFlame(engineIndex, rocket) {
+            const enginesPerRow = 8;
+            const row = Math.floor(engineIndex / enginesPerRow);
+            const col = engineIndex % enginesPerRow;
+            
+            const engineX = rocket.x - rocket.width/2 + (col + 0.5) * (rocket.width / enginesPerRow);
+            const engineY = rocket.y + rocket.height/2 + row * 15;
+            
+            for (let i = 0; i < 3; i++) {
+                createParticle(
+                    engineX + (Math.random() - 0.5) * 5,
+                    engineY,
+                    (Math.random() - 0.5) * 2,
+                    Math.random() * 3 + 2,
+                    ['#ff4444', '#ff8844', '#ffff44'][Math.floor(Math.random() * 3)],
+                    30
+                );
+            }
+        }
+        
+        // 키보드 이벤트
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            
+            // 숫자키 처리
+            if (e.key >= '1' && e.key <= '4') {
+                const engineCount = parseInt(e.key) * 8;
+                setSelectedEngineCount(engineCount);
+            }
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                toggleSelectedEngines();
+            }
+            
+            // 로켓 선택 (Q: 왼쪽, E: 오른쪽)
+            if (e.key.toLowerCase() === 'q') {
+                selectedRocket = (selectedRocket - 1 + 3) % 3;
+                updateEngineDisplay();
+            }
+            if (e.key.toLowerCase() === 'e') {
+                selectedRocket = (selectedRocket + 1) % 3;
+                updateEngineDisplay();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+        
+        // 마우스 클릭 이벤트 (엔진 제어 외부 클릭 시 선택된 엔진들만 토글)
+        canvas.addEventListener('click', (e) => {
+            toggleSelectedEngines();
+        });
+        
+        // 게임 로직
+        function updateGame() {
+            if (rockets.every(r => r.crashed || r.landed)) return;
+            
+            // 키보드 입력에 따른 엔진 제어
+            if (keys['w']) {
+                for (let i = 24; i < 32; i++) {
+                    rockets[0].engines[i] = true; // 왼쪽 로켓
+                    rockets[1].engines[i] = true; // 중앙 로켓
+                    rockets[2].engines[i] = true; // 오른쪽 로켓
+                }
+            }
+            if (keys['s']) {
+                for (let i = 24; i < 32; i++) {
+                    rockets[0].engines[i] = false;
+                    rockets[1].engines[i] = false;
+                    rockets[2].engines[i] = false;
+                }
+            }
+            if (keys['a']) {
+                for (let i = 0; i < 8; i++) {
+                    rockets[0].engines[i] = true;
+                    rockets[1].engines[i] = true;
+                    rockets[2].engines[i] = true;
+                }
+                for (let i = 16; i < 24; i++) {
+                    rockets[0].engines[i] = false;
+                    rockets[1].engines[i] = false;
+                    rockets[2].engines[i] = false;
+                }
+            }
+            if (keys['d']) {
+                for (let i = 0; i < 8; i++) {
+                    rockets[0].engines[i] = false;
+                    rockets[1].engines[i] = false;
+                    rockets[2].engines[i] = false;
+                }
+                for (let i = 16; i < 24; i++) {
+                    rockets[0].engines[i] = true;
+                    rockets[1].engines[i] = true;
+                    rockets[2].engines[i] = true;
+                }
+            }
+            
+            // 각 로켓 업데이트
+            rockets.forEach((rocket, rocketIndex) => {
+                if (rocket.crashed || rocket.landed) return;
+                
+                // 엔진 추력 계산
+                let thrustX = 0, thrustY = 0;
+                let activeCount = 0;
+                
+                rocket.engines.forEach((active, i) => {
+                    if (active && rocket.fuel > 0) {
+                        activeCount++;
+                        const enginesPerRow = 8;
+                        const row = Math.floor(i / enginesPerRow);
+                        const col = i % enginesPerRow;
+                        
+                        const relativeX = (col - 3.5) / 3.5;
+                        const baseThrust = ENGINE_THRUST * 2;
+                        
+                        if (row === 0) {
+                            thrustX += relativeX * baseThrust * 0.4;
+                            thrustY -= baseThrust * 0.1;
+                        } else if (row === 1) {
+                            thrustX += relativeX * baseThrust * 0.6;
+                            thrustY -= baseThrust * 0.2;
+                        } else if (row === 2) {
+                            thrustX += relativeX * baseThrust * 0.6;
+                            thrustY -= baseThrust * 0.3;
+                        } else {
+                            thrustY -= baseThrust * 1.2;
+                            thrustX += relativeX * baseThrust * 0.2;
+                        }
+                        
+                        createEngineFlame(i, rocket);
+                        rocket.fuel -= FUEL_CONSUMPTION / 32;
+                    }
+                });
+                
+                if (activeCount > 0) {
+                    const thrustMultiplier = Math.min(1.2, 1 + (activeCount / 32) * 0.2);
+                    thrustX *= thrustMultiplier;
+                    thrustY *= thrustMultiplier;
+                }
+                
+                // 물리 업데이트
+                rocket.vx += thrustX;
+                rocket.vy += thrustY + GRAVITY;
+                
+                rocket.vx = Math.max(-10, Math.min(10, rocket.vx));
+                rocket.vy = Math.max(-15, Math.min(15, rocket.vy));
+                
+                rocket.x += rocket.vx;
+                rocket.y += rocket.vy;
+                
+                rocket.fuel = Math.max(0, rocket.fuel);
+                
+                // 벽 충돌
+                if (rocket.x < 0 || rocket.x > canvas.width) {
+                    rocket.crashed = true;
+                }
+                
+                // 땅 충돌/착륙 검사
+                if (rocket.y + rocket.height/2 >= canvas.height - 50) {
+                    const speed = Math.sqrt(rocket.vx * rocket.vx + rocket.vy * rocket.vy);
+                    if (speed < LANDING_VELOCITY_THRESHOLD && Math.abs(rocket.x - canvas.width/2) < 100) {
+                        rocket.landed = true;
+                        rocket.vy = 0;
+                        rocket.vx = 0;
+                    } else {
+                        rocket.crashed = true;
+                    }
+                }
+            });
+            
+            // 파티클 업데이트
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                return p.life > 0;
+            });
+            
+            updateEngineDisplay();
+            updateUI();
+            
+            if (rockets.every(r => r.crashed || r.landed)) {
+                showGameOver();
+            }
+        }
+        
+        function updateUI() {
+            const rocket = rockets[selectedRocket];
+            document.getElementById('altitude').textContent = Math.max(0, Math.floor(canvas.height - rocket.y - 50));
+            document.getElementById('velocity').textContent = Math.sqrt(rocket.vx * rocket.vx + rocket.vy * rocket.vy).toFixed(1);
+            document.getElementById('fuel').textContent = rocket.fuel.toFixed(1);
+            document.getElementById('fuelBar').style.width = rocket.fuel + '%';
+            document.getElementById('selectedEngines').textContent = selectedEngineCount;
+            document.getElementById('activeEngines').textContent = rocket.engines.filter(e => e).length;
+        }
+        
+        function showGameOver() {
+            const gameOverDiv = document.getElementById('gameOver');
+            const resultText = document.getElementById('gameResult');
+            const statsText = document.getElementById('gameStats');
+            
+            if (rockets[selectedRocket].landed) {
+                resultText.textContent = '🎉 성공적인 착륙!';
+                resultText.style.color = '#44ff44';
+                statsText.innerHTML = `
+                    남은 연료: ${rockets[selectedRocket].fuel.toFixed(1)}%<br>
+                    착륙 속도: ${Math.sqrt(rockets[selectedRocket].vx * rockets[selectedRocket].vx + rockets[selectedRocket].vy * rockets[selectedRocket].vy).toFixed(1)}m/s
+                `;
+            } else {
+                resultText.textContent = '💥 착륙 실패!';
+                resultText.style.color = '#ff4444';
+                statsText.innerHTML = `
+                    충돌 속도: ${Math.sqrt(rockets[selectedRocket].vx * rockets[selectedRocket].vx + rockets[selectedRocket].vy * rockets[selectedRocket].vy).toFixed(1)}m/s<br>
+                    남은 연료: ${rockets[selectedRocket].fuel.toFixed(1)}%
+                `;
+            }
+            
+            gameOverDiv.style.display = 'block';
+        }
+        
+        function resetGame() {
+            rockets = [
+                {
+                    x: canvas.width / 2 - 40, // 왼쪽 로켓 (100 -> 40)
+                    y: 100,
+                    vx: 0,
+                    vy: 0,
+                    angle: 0,
+                    fuel: 100,
+                    width: 30,
+                    height: 240,
+                    engines: Array(32).fill(false),
+                    crashed: false,
+                    landed: false
+                },
+                {
+                    x: canvas.width / 2,
+                    y: 100,
+                    vx: 0,
+                    vy: 0,
+                    angle: 0,
+                    fuel: 100,
+                    width: 30,
+                    height: 240,
+                    engines: Array(32).fill(false),
+                    crashed: false,
+                    landed: false
+                },
+                {
+                    x: canvas.width / 2 + 40, // 오른쪽 로켓 (100 -> 40)
+                    y: 100,
+                    vx: 0,
+                    vy: 0,
+                    angle: 0,
+                    fuel: 100,
+                    width: 30,
+                    height: 240,
+                    engines: Array(32).fill(false),
+                    crashed: false,
+                    landed: false
+                }
+            ];
+            selectedRocket = 1;
+            selectedEngineCount = 8;
+            particles = [];
+            document.getElementById('gameOver').style.display = 'none';
+            updateEngineDisplay();
+            updateSelectedEngineDisplay();
+            initializeGame();
+        }
+        
+        // 렌더링
+        function render() {
+            // 배경
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 별
+            stars.forEach(star => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+                ctx.fillRect(star.x, star.y, 1, 1);
+            });
+            
+            // 땅
+            ctx.fillStyle = '#4a4a4a';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            
+            // 착륙 패드
+            ctx.fillStyle = '#00ff41';
+            ctx.fillRect(canvas.width/2 - 100, canvas.height - 55, 200, 5);
+            
+            // 파티클
+            particles.forEach(p => {
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+            });
+            ctx.globalAlpha = 1;
+            
+            // 로켓들 렌더링
+            rockets.forEach((rocket, index) => {
+                ctx.save();
+                ctx.translate(rocket.x, rocket.y);
+                
+                // 선택된 로켓 표시
+                if (index === selectedRocket) {
+                    ctx.strokeStyle = '#00ff41';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-rocket.width/2 - 5, -rocket.height/2 - 5, rocket.width + 10, rocket.height + 10);
+                }
+                
+                // 로켓 본체
+                ctx.fillStyle = rocket.crashed ? '#ff4444' : (rocket.landed ? '#44ff44' : '#cccccc');
+                ctx.fillRect(-rocket.width/2, -rocket.height/2, rocket.width, rocket.height);
+                
+                // 로켓 윗부분
+                ctx.beginPath();
+                ctx.moveTo(0, -rocket.height/2);
+                ctx.lineTo(-rocket.width/4, -rocket.height/2 - 45);
+                ctx.lineTo(rocket.width/4, -rocket.height/2 - 45);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 엔진 표시
+                ctx.fillStyle = '#333';
+                for (let i = 0; i < 32; i++) {
+                    const enginesPerRow = 8;
+                    const row = Math.floor(i / enginesPerRow);
+                    const col = i % enginesPerRow;
+                    
+                    const engineX = -rocket.width/2 + (col + 0.5) * (rocket.width / enginesPerRow) - 1;
+                    const engineY = rocket.height/2 - 45 + row * 12;
+                    
+                    ctx.fillStyle = rocket.engines[i] ? '#ff4444' : '#333';
+                    ctx.fillRect(engineX, engineY, 2, 9);
+                }
+                
+                ctx.restore();
+            });
+        }
+        
+        // 게임 루프
+        function gameLoop() {
+            updateGame();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 초기화
+        createEngineGrid();
+        updateEngineDisplay();
+        updateSelectedEngineDisplay();
+        initializeGame();
+        gameLoop();
+    </script>
+</body>
+</html>

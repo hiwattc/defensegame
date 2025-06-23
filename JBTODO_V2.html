@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>물리엔진 TODO 관리자</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .input-section {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            text-align: center;
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #todoInput {
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 25px;
+            width: 400px;
+            margin-right: 10px;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        #addBtn, .control-btn {
+            padding: 15px 30px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            margin: 0 5px;
+        }
+        
+        #addBtn {
+            background: #ff6b6b;
+        }
+        
+        #addBtn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+        
+        .control-btn.complete-btn {
+            background: #51cf66;
+        }
+        
+        .control-btn.complete-btn:hover {
+            background: #40c057;
+            transform: translateY(-2px);
+        }
+        
+        .control-btn.delete-btn {
+            background: #ff6b6b;
+        }
+        
+        .control-btn.delete-btn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+        
+        .control-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .game-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: rgba(255,255,255,0.1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-info {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .falling-block {
+            position: absolute;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .falling-block:hover {
+            transform: scale(1.05);
+        }
+        
+        .falling-block.completed {
+            background: linear-gradient(45deg, #51cf66, #69db7c);
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .block-actions {
+            position: absolute;
+            display: none;
+            background: rgba(0,0,0,0.9);
+            border-radius: 10px;
+            padding: 8px;
+            gap: 8px;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+        
+        .block-actions.show {
+            display: flex;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+            min-width: 60px;
+            text-align: center;
+            z-index: 10000;
+            position: relative;
+        }
+        
+        .complete-btn {
+            background: #51cf66;
+        }
+        
+        .complete-btn:hover {
+            background: #40c057;
+            transform: scale(1.05);
+        }
+        
+        .delete-btn {
+            background: #ff6b6b;
+        }
+        
+        .delete-btn:hover {
+            background: #ff5252;
+            transform: scale(1.05);
+        }
+        
+        /* 리사이즈 핸들 스타일 추가 */
+        .resize-handle {
+            position: absolute;
+            background: #ff0000;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+            z-index: 10001;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .resize-handle:hover {
+            background: #ff3333;
+            transform: scale(1.2);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
+        }
+        
+        .resize-handle.nw-resize { cursor: nw-resize; }
+        .resize-handle.n-resize { cursor: n-resize; }
+        .resize-handle.ne-resize { cursor: ne-resize; }
+        .resize-handle.e-resize { cursor: e-resize; }
+        .resize-handle.se-resize { cursor: se-resize; }
+        .resize-handle.s-resize { cursor: s-resize; }
+        .resize-handle.sw-resize { cursor: sw-resize; }
+        .resize-handle.w-resize { cursor: w-resize; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-section">
+            <input type="text" id="todoInput" placeholder="할일을 입력하세요... (최대 100자)" maxlength="100">
+            <button id="addBtn">블럭 추가</button>
+            <button id="completeBtn" class="control-btn complete-btn">✅ 완료</button>
+            <button id="deleteBtn" class="control-btn delete-btn">🗑️ 삭제</button>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+
+    </div>
+
+    <script>
+        // Matter.js 모듈
+        const { Engine, Render, Bodies, World, Mouse, MouseConstraint, Body, Events } = Matter;
+        
+        // 게임 상태
+        let engine, render, world;
+        let currentBlock = null;
+        let isBlockFalling = false;
+        let todos = [];
+        let totalCount = 0;
+        let completedCount = 0;
+        let hoveredBlock = null;
+        let selectedBlock = null;
+        let particles = [];
+        let walls = []; // 벽들을 추적하기 위한 배열
+        let resizeHandles = []; // 리사이즈 핸들들
+        let isResizing = false; // 리사이즈 중인지 여부
+        let resizeData = null; // 리사이즈 데이터
+        
+                 // 게임 설정 (동적 크기)
+        let CANVAS_WIDTH = 800;
+        let CANVAS_HEIGHT = 600;
+        const MIN_BLOCK_WIDTH = 80;
+        const MIN_BLOCK_HEIGHT = 40;
+        const LINE_HEIGHT = 20;
+        
+                 // 캔버스 크기 업데이트 함수 (전체 화면)
+        function updateCanvasSize() {
+            CANVAS_WIDTH = window.innerWidth;
+            CANVAS_HEIGHT = window.innerHeight;
+            
+            const canvas = document.getElementById('gameCanvas');
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            
+            if (render) {
+                render.canvas.width = CANVAS_WIDTH;
+                render.canvas.height = CANVAS_HEIGHT;
+                render.options.width = CANVAS_WIDTH;
+                render.options.height = CANVAS_HEIGHT;
+                render.canvas.style.width = CANVAS_WIDTH + 'px';
+                render.canvas.style.height = CANVAS_HEIGHT + 'px';
+            }
+        }
+        
+        // 벽 생성 함수
+        function createWalls() {
+            // 기존 벽들 제거
+            if (walls.length > 0) {
+                World.remove(world, walls);
+                walls = [];
+            }
+            
+            const wallThickness = 20;
+            walls = [
+                // 바닥 벽 (화면 아래)
+                Bodies.rectangle(CANVAS_WIDTH/2, CANVAS_HEIGHT + wallThickness/2, CANVAS_WIDTH + wallThickness*2, wallThickness, { 
+                    isStatic: true, 
+                    render: { fillStyle: '#fff' } 
+                }),
+                // 왼쪽 벽 (화면 왼쪽 경계에 맞춤)
+                Bodies.rectangle(-wallThickness/2, CANVAS_HEIGHT/2, wallThickness, CANVAS_HEIGHT + wallThickness*2, { 
+                    isStatic: true, 
+                    render: { fillStyle: '#fff' } 
+                }),
+                // 오른쪽 벽 (동적 너비에 맞춤)
+                Bodies.rectangle(CANVAS_WIDTH - wallThickness/2, CANVAS_HEIGHT/2, wallThickness, CANVAS_HEIGHT + wallThickness*2, { 
+                    isStatic: true, 
+                    render: { fillStyle: '#fff' } 
+                }),
+                // 위쪽 벽 (화면 위쪽 경계에 맞춤)
+                Bodies.rectangle(CANVAS_WIDTH/2, -wallThickness/2, CANVAS_WIDTH + wallThickness*2, wallThickness, { 
+                    isStatic: true, 
+                    render: { fillStyle: '#fff' } 
+                })
+            ];
+            
+            World.add(world, walls);
+        }
+
+        // 게임 초기화
+        function initGame() {
+            // 캔버스 크기 먼저 설정
+            updateCanvasSize();
+            
+            // 엔진 생성
+            engine = Engine.create();
+            world = engine.world;
+            engine.world.gravity.y = 0.4;
+            
+            // 렌더러 생성
+            render = Render.create({
+                canvas: document.getElementById('gameCanvas'),
+                engine: engine,
+                options: {
+                    width: CANVAS_WIDTH,
+                    height: CANVAS_HEIGHT,
+                    wireframes: false,
+                    background: 'transparent',
+                    showVelocity: false,
+                    showAngleIndicator: false,
+                    showDebug: false
+                }
+            });
+            
+            // 벽 생성
+            createWalls();
+            
+            // 마우스 드래그 제어 추가 (경계 제한)
+            const mouse = Mouse.create(render.canvas);
+            const mouseConstraint = MouseConstraint.create(engine, {
+                mouse: mouse,
+                constraint: {
+                    stiffness: 0.6, // 약간 부드럽게 조정
+                    render: { visible: false },
+                    length: 0, // 마우스와 블럭 사이 거리 제한
+                    damping: 0.9 // 감쇠 추가로 안정성 향상
+                }
+            });
+            World.add(world, mouseConstraint);
+            
+            // 렌더링 시작
+            Render.run(render);
+            Engine.run(engine);
+            
+            // 충돌 감지
+            Events.on(engine, 'collisionStart', handleCollision);
+        }
+        
+                 // 텍스트를 줄바꿈하는 함수 (20자리 기준)
+        function wrapText(text, maxCharsPerLine = 20) {
+            const lines = [];
+            for (let i = 0; i < text.length; i += maxCharsPerLine) {
+                lines.push(text.substring(i, i + maxCharsPerLine));
+            }
+            return lines;
+        }
+        
+        // 블럭 크기 계산 함수 (컴팩트한 사이즈)
+        function calculateBlockSize(text) {
+            const lines = wrapText(text);
+            
+            // 실제 텍스트 길이를 더 정확하게 측정
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 12px Arial';
+            
+            // 가장 긴 줄의 실제 픽셀 너비 계산
+            let maxTextWidth = 0;
+            lines.forEach(line => {
+                const textWidth = ctx.measureText(line).width;
+                maxTextWidth = Math.max(maxTextWidth, textWidth);
+            });
+            
+            // 컴팩트한 사이즈 계산 (텍스트 너비 + 최소 패딩)
+            const width = Math.max(MIN_BLOCK_WIDTH, maxTextWidth + 20); // 패딩 20px로 줄임
+            const height = Math.max(MIN_BLOCK_HEIGHT, lines.length * LINE_HEIGHT + 15); // 상하 패딩 15px로 줄임
+            
+            return { width, height, lines };
+        }
+        
+                 // 새 블럭 생성
+        function createTodoBlock(text) {
+            // 랜덤한 x 위치 (블럭 크기를 고려한 안전 범위)
+            const margin = 100; // 벽에서 떨어진 거리
+            const x = margin + Math.random() * (CANVAS_WIDTH - margin * 2);
+            const y = 30; // 위쪽 벽(y=-12.5) 바로 아래에서 생성
+            
+            // 블럭 크기 계산
+            const { width, height, lines } = calculateBlockSize(text);
+            
+            // 색상 랜덤 생성
+            const colors = [
+                '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
+                '#ffd93d', '#ff9ff3', '#54a0ff', '#5f27cd'
+            ];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const block = Bodies.rectangle(x, y, width, height, {
+                render: {
+                    fillStyle: color,
+                    strokeStyle: '#fff',
+                    lineWidth: 3
+                },
+                chamfer: { radius: 15 }, // 둥근 모서리
+                density: 0.002, // 2배 무게감 (기본값 0.001의 2배)
+                frictionAir: 0.005, // 공기 저항 감소로 더 무겁게
+                restitution: 0.2, // 탄성 감소로 더 묵직하게
+                friction: 0.9 // 마찰 증가로 더 안정적으로
+            });
+            
+            // 블럭에 텍스트 정보 저장
+            block.todoText = text;
+            block.textLines = lines;
+            block.blockWidth = width;
+            block.blockHeight = height;
+            block.isCompleted = false;
+            block.isSelected = false;
+            block.originalColor = color;
+            block.id = Date.now() + Math.random();
+            
+            World.add(world, block);
+            todos.push(block);
+            currentBlock = block;
+            isBlockFalling = true;
+            
+            updateStats();
+            return block;
+        }
+        
+                 // 블럭 완료 처리 (회색 + 취소선, 삭제하지 않음)
+        function completeBlock(block) {
+            if (block && !block.isCompleted) {
+                block.isCompleted = true;
+                block.render.fillStyle = '#888888'; // 회색으로 변경
+                block.originalColor = '#888888';
+                completedCount++;
+                
+                // 완료 축하 파티클 효과 (2배 + 이모티콘)
+                const completeEmojis = ['✨', '🎉', '✅', '👏', '🎊', '🌟', '💫', '🎈'];
+                createParticles(block.position.x, block.position.y, '#51cf66', 40); // 2배 파티클
+                createEmojiParticles(block.position.x, block.position.y, completeEmojis, 20); // 이모티콘 파티클
+                
+                updateStats();
+            }
+        }
+        
+                 // 파티클 시스템 (3배 확장된 폭발 범위)
+        function createParticles(x, y, color, count = 20) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 30, // 3배 확장
+                    vy: (Math.random() - 0.5) * 30 - 15, // 3배 확장
+                    size: Math.random() * 5 + 2,
+                    color: color,
+                    life: 1.0,
+                    decay: Math.random() * 0.02 + 0.01,
+                    type: 'circle'
+                });
+            }
+        }
+        
+        // 이모티콘 파티클 생성 (3배 확장된 폭발 범위)
+        function createEmojiParticles(x, y, emojis, count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 24, // 3배 확장
+                    vy: (Math.random() - 0.5) * 24 - 9, // 3배 확장
+                    size: Math.random() * 10 + 15,
+                    emoji: emojis[Math.floor(Math.random() * emojis.length)],
+                    life: 1.0,
+                    decay: Math.random() * 0.015 + 0.008,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 0.2,
+                    type: 'emoji'
+                });
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3; // 중력
+                p.vx *= 0.98; // 공기 저항
+                p.life -= p.decay;
+                
+                // 이모티콘 파티클 회전
+                if (p.type === 'emoji') {
+                    p.rotation += p.rotationSpeed;
+                }
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        // 리사이즈 핸들 생성 함수 (회전 고려)
+        function createResizeHandles(block) {
+            removeResizeHandles(); // 기존 핸들 제거
+            
+            if (!block || !block.isSelected) return;
+            
+            const pos = block.position;
+            const width = block.blockWidth || MIN_BLOCK_WIDTH;
+            const height = block.blockHeight || MIN_BLOCK_HEIGHT;
+            const angle = block.angle; // 블럭의 회전 각도
+            
+            // 블럭 중심을 기준으로 한 상대 위치들 (회전 전)
+            const relativePositions = [
+                { type: 'nw', x: -width/2, y: -height/2 },
+                { type: 'n', x: 0, y: -height/2 },
+                { type: 'ne', x: width/2, y: -height/2 },
+                { type: 'e', x: width/2, y: 0 },
+                { type: 'se', x: width/2, y: height/2 },
+                { type: 's', x: 0, y: height/2 },
+                { type: 'sw', x: -width/2, y: height/2 },
+                { type: 'w', x: -width/2, y: 0 }
+            ];
+            
+            // 회전 변환을 적용한 절대 위치들
+            const rotatedHandles = relativePositions.map(relPos => {
+                const rotatedX = relPos.x * Math.cos(angle) - relPos.y * Math.sin(angle);
+                const rotatedY = relPos.x * Math.sin(angle) + relPos.y * Math.cos(angle);
+                
+                return {
+                    type: relPos.type,
+                    x: pos.x + rotatedX,
+                    y: pos.y + rotatedY
+                };
+            });
+            
+            rotatedHandles.forEach(handle => {
+                const handleElement = document.createElement('div');
+                handleElement.className = `resize-handle ${handle.type}-resize`;
+                handleElement.style.left = (handle.x - 6) + 'px';
+                handleElement.style.top = (handle.y - 6) + 'px';
+                handleElement.dataset.type = handle.type;
+                
+                // 핸들 마우스 이벤트
+                handleElement.addEventListener('mousedown', startResize);
+                
+                document.body.appendChild(handleElement);
+                resizeHandles.push(handleElement);
+            });
+        }
+        
+        // 리사이즈 핸들 제거
+        function removeResizeHandles() {
+            resizeHandles.forEach(handle => {
+                if (handle.parentNode) {
+                    handle.parentNode.removeChild(handle);
+                }
+            });
+            resizeHandles = [];
+        }
+        
+        // 리사이즈 핸들 위치 업데이트 (회전 고려)
+        function updateResizeHandles() {
+            if (!selectedBlock || resizeHandles.length === 0) return;
+            
+            const pos = selectedBlock.position;
+            const width = selectedBlock.blockWidth || MIN_BLOCK_WIDTH;
+            const height = selectedBlock.blockHeight || MIN_BLOCK_HEIGHT;
+            const angle = selectedBlock.angle; // 블럭의 회전 각도
+            
+            // 블럭 중심을 기준으로 한 상대 위치들 (회전 전)
+            const relativePositions = [
+                { x: -width/2, y: -height/2 }, // nw
+                { x: 0, y: -height/2 },         // n
+                { x: width/2, y: -height/2 },   // ne
+                { x: width/2, y: 0 },           // e
+                { x: width/2, y: height/2 },    // se
+                { x: 0, y: height/2 },          // s
+                { x: -width/2, y: height/2 },   // sw
+                { x: -width/2, y: 0 }           // w
+            ];
+            
+            // 회전 변환을 적용한 절대 위치들
+            const rotatedPositions = relativePositions.map(relPos => {
+                const rotatedX = relPos.x * Math.cos(angle) - relPos.y * Math.sin(angle);
+                const rotatedY = relPos.x * Math.sin(angle) + relPos.y * Math.cos(angle);
+                
+                return {
+                    x: pos.x + rotatedX,
+                    y: pos.y + rotatedY
+                };
+            });
+            
+            resizeHandles.forEach((handle, index) => {
+                if (rotatedPositions[index]) {
+                    handle.style.left = (rotatedPositions[index].x - 6) + 'px';
+                    handle.style.top = (rotatedPositions[index].y - 6) + 'px';
+                }
+            });
+        }
+        
+        // 리사이즈 시작
+        function startResize(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!selectedBlock) return;
+            
+            isResizing = true;
+            const handleType = e.target.dataset.type;
+            
+            resizeData = {
+                block: selectedBlock,
+                handleType: handleType,
+                startX: e.clientX,
+                startY: e.clientY,
+                startWidth: selectedBlock.blockWidth || MIN_BLOCK_WIDTH,
+                startHeight: selectedBlock.blockHeight || MIN_BLOCK_HEIGHT,
+                startPosX: selectedBlock.position.x,
+                startPosY: selectedBlock.position.y,
+                startAngle: selectedBlock.angle
+            };
+            
+            document.addEventListener('mousemove', doResize);
+            document.addEventListener('mouseup', endResize);
+            
+            // 물리엔진 일시 정지 (리사이즈 중 안정성을 위해)
+            Body.setStatic(selectedBlock, true);
+        }
+        
+        // 리사이즈 실행 (회전 고려)
+        function doResize(e) {
+            if (!isResizing || !resizeData) return;
+            
+            const deltaX = e.clientX - resizeData.startX;
+            const deltaY = e.clientY - resizeData.startY;
+            const angle = resizeData.block.angle;
+            
+            // 마우스 이동량을 블럭의 로컬 좌표계로 변환
+            const localDeltaX = deltaX * Math.cos(-angle) - deltaY * Math.sin(-angle);
+            const localDeltaY = deltaX * Math.sin(-angle) + deltaY * Math.cos(-angle);
+            
+            let newWidth = resizeData.startWidth;
+            let newHeight = resizeData.startHeight;
+            let localPosOffsetX = 0;
+            let localPosOffsetY = 0;
+            
+            // 핸들 타입에 따른 크기 조정 (로컬 좌표계 기준)
+            switch (resizeData.handleType) {
+                case 'nw':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth - localDeltaX);
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight - localDeltaY);
+                    localPosOffsetX = localDeltaX / 2;
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 'n':
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight - localDeltaY);
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 'ne':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth + localDeltaX);
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight - localDeltaY);
+                    localPosOffsetX = localDeltaX / 2;
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 'e':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth + localDeltaX);
+                    localPosOffsetX = localDeltaX / 2;
+                    break;
+                case 'se':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth + localDeltaX);
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight + localDeltaY);
+                    localPosOffsetX = localDeltaX / 2;
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 's':
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight + localDeltaY);
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 'sw':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth - localDeltaX);
+                    newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeData.startHeight + localDeltaY);
+                    localPosOffsetX = localDeltaX / 2;
+                    localPosOffsetY = localDeltaY / 2;
+                    break;
+                case 'w':
+                    newWidth = Math.max(MIN_BLOCK_WIDTH, resizeData.startWidth - localDeltaX);
+                    localPosOffsetX = localDeltaX / 2;
+                    break;
+            }
+            
+            // 로컬 좌표계의 위치 오프셋을 글로벌 좌표계로 변환
+            const globalPosOffsetX = localPosOffsetX * Math.cos(angle) - localPosOffsetY * Math.sin(angle);
+            const globalPosOffsetY = localPosOffsetX * Math.sin(angle) + localPosOffsetY * Math.cos(angle);
+            
+            const newPosX = resizeData.startPosX + globalPosOffsetX;
+            const newPosY = resizeData.startPosY + globalPosOffsetY;
+            
+            // 블럭 크기와 위치 업데이트
+            Body.scale(resizeData.block, newWidth / resizeData.block.blockWidth, newHeight / resizeData.block.blockHeight);
+            Body.setPosition(resizeData.block, { x: newPosX, y: newPosY });
+            
+            // 블럭 속성 업데이트
+            resizeData.block.blockWidth = newWidth;
+            resizeData.block.blockHeight = newHeight;
+            
+            // 핸들 위치 업데이트
+            updateResizeHandles();
+        }
+        
+        // 리사이즈 종료
+        function endResize() {
+            if (isResizing && resizeData) {
+                // 물리엔진 재개
+                Body.setStatic(resizeData.block, false);
+                
+                isResizing = false;
+                resizeData = null;
+                
+                document.removeEventListener('mousemove', doResize);
+                document.removeEventListener('mouseup', endResize);
+            }
+        }
+        
+        // 블럭 경계 체크 및 복구 함수
+        function checkAndFixBlockBounds() {
+            todos.forEach(block => {
+                const pos = block.position;
+                const blockWidth = block.blockWidth || MIN_BLOCK_WIDTH;
+                const blockHeight = block.blockHeight || MIN_BLOCK_HEIGHT;
+                
+                let needsRepositioning = false;
+                let newX = pos.x;
+                let newY = pos.y;
+                
+                // 좌우 경계 체크 (벽 두께 고려)
+                const wallThickness = 20;
+                if (pos.x - blockWidth/2 < wallThickness) {
+                    newX = blockWidth/2 + wallThickness + 5;
+                    needsRepositioning = true;
+                } else if (pos.x + blockWidth/2 > CANVAS_WIDTH - wallThickness) {
+                    newX = CANVAS_WIDTH - wallThickness - blockWidth/2 - 5;
+                    needsRepositioning = true;
+                }
+                
+                // 상하 경계 체크 (위쪽만, 아래쪽은 바닥 벽이 처리)
+                if (pos.y - blockHeight/2 < wallThickness) {
+                    newY = blockHeight/2 + wallThickness + 5;
+                    needsRepositioning = true;
+                }
+                
+                // 블럭이 화면 아래로 너무 많이 나갔을 때도 체크
+                if (pos.y > CANVAS_HEIGHT + 100) {
+                    newY = CANVAS_HEIGHT - blockHeight/2 - 5;
+                    needsRepositioning = true;
+                }
+                
+                // 위치 조정이 필요한 경우
+                if (needsRepositioning) {
+                    Body.setPosition(block, { x: newX, y: newY });
+                    // 속도도 초기화해서 안정화
+                    Body.setVelocity(block, { x: 0, y: 0 });
+                    Body.setAngularVelocity(block, 0);
+                }
+            });
+        }
+        
+        function renderParticles() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                
+                if (p.type === 'emoji') {
+                    // 이모티콘 파티클 렌더링
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation);
+                    ctx.font = `${p.size}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(p.emoji, 0, 0);
+                } else {
+                    // 원형 파티클 렌더링
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+        }
+        
+                 // 블럭 삭제 처리 (파티클 효과와 함께)
+        function deleteBlock(block) {
+            if (block) {
+                // 선택된 블럭이 삭제되는 경우 리사이즈 핸들 제거
+                if (selectedBlock && selectedBlock.id === block.id) {
+                    removeResizeHandles();
+                    selectedBlock = null;
+                }
+                
+                // 삭제 폭발 파티클 효과
+                const deleteEmojis = ['💥', '🔥', '💨', '💀', '⚡', '🌪️', '💣', '🚀'];
+                createParticles(block.position.x, block.position.y, block.originalColor || block.render.fillStyle, 30);
+                createEmojiParticles(block.position.x, block.position.y, deleteEmojis, 15);
+                
+                // 블럭 제거
+                World.remove(world, block);
+                todos = todos.filter(todo => todo.id !== block.id);
+                updateStats();
+            }
+        }
+        
+        // 충돌 처리
+        function handleCollision(event) {
+            const pairs = event.pairs;
+            pairs.forEach(pair => {
+                const { bodyA, bodyB } = pair;
+                
+                // 현재 떨어지는 블럭이 다른 블럭이나 바닥에 닿으면 조작 불가
+                if ((bodyA === currentBlock || bodyB === currentBlock) && isBlockFalling) {
+                    setTimeout(() => {
+                        isBlockFalling = false;
+                        currentBlock = null;
+                    }, 100);
+                }
+            });
+        }
+        
+        // 키보드 입력 처리
+        document.addEventListener('keydown', (e) => {
+            if (!currentBlock || !isBlockFalling) return;
+            
+            const force = 0.01;
+            const torque = 0.1;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    Body.applyForce(currentBlock, currentBlock.position, { x: -force, y: 0 });
+                    break;
+                case 'ArrowRight':
+                    Body.applyForce(currentBlock, currentBlock.position, { x: force, y: 0 });
+                    break;
+                case 'ArrowDown':
+                    Body.applyForce(currentBlock, currentBlock.position, { x: 0, y: force * 2 });
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    Body.setAngularVelocity(currentBlock, torque);
+                    break;
+
+            }
+        });
+        
+                 // 마우스 움직임 감지 (호버 효과)
+        document.getElementById('gameCanvas').addEventListener('mousemove', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 호버된 블럭 찾기
+            let foundBlock = null;
+            todos.forEach(block => {
+                const pos = block.position;
+                const blockWidth = block.blockWidth || MIN_BLOCK_WIDTH;
+                const blockHeight = block.blockHeight || MIN_BLOCK_HEIGHT;
+                
+                if (x >= pos.x - blockWidth/2 && x <= pos.x + blockWidth/2 &&
+                    y >= pos.y - blockHeight/2 && y <= pos.y + blockHeight/2) {
+                    foundBlock = block;
+                }
+            });
+            
+                         if (foundBlock !== hoveredBlock) {
+                hoveredBlock = foundBlock;
+                updateButtonStates();
+            }
+        });
+        
+                 // 마우스가 캔버스를 벗어날 때 호버 상태 초기화
+        document.getElementById('gameCanvas').addEventListener('mouseleave', () => {
+            hoveredBlock = null;
+            updateButtonStates();
+        });
+        
+        // 마우스 클릭으로 블럭 선택
+        document.getElementById('gameCanvas').addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 클릭된 블럭 찾기
+            let clickedBlock = null;
+            todos.forEach(block => {
+                const pos = block.position;
+                const blockWidth = block.blockWidth || MIN_BLOCK_WIDTH;
+                const blockHeight = block.blockHeight || MIN_BLOCK_HEIGHT;
+                
+                if (x >= pos.x - blockWidth/2 && x <= pos.x + blockWidth/2 &&
+                    y >= pos.y - blockHeight/2 && y <= pos.y + blockHeight/2) {
+                    clickedBlock = block;
+                }
+            });
+            
+            // 이전 선택 해제
+            if (selectedBlock) {
+                selectedBlock.isSelected = false;
+                selectedBlock.render.fillStyle = selectedBlock.originalColor;
+                selectedBlock.render.strokeStyle = '#fff'; // 원래 테두리로 복원
+                selectedBlock.render.lineWidth = 3; // 원래 두께로 복원
+                removeResizeHandles(); // 리사이즈 핸들 제거
+            }
+            
+            // 새로운 블럭 선택
+            if (clickedBlock) {
+                selectedBlock = clickedBlock;
+                selectedBlock.isSelected = true;
+                selectedBlock.render.strokeStyle = '#ff0000'; // 빨간색 테두리
+                selectedBlock.render.lineWidth = 6; // 굵은 테두리
+                createResizeHandles(selectedBlock); // 리사이즈 핸들 생성
+            } else {
+                selectedBlock = null;
+                removeResizeHandles(); // 선택 해제 시 핸들 제거
+            }
+            
+            updateButtonStates();
+        });
+        
+        
+        
+        // 할일 추가
+        function addTodo() {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            
+            if (text && !isBlockFalling) {
+                createTodoBlock(text);
+                input.value = '';
+                totalCount++;
+                updateStats();
+            }
+        }
+        
+        // 통계 업데이트
+        function updateStats() {
+            document.getElementById('totalTodos').textContent = totalCount;
+            document.getElementById('completedTodos').textContent = completedCount;
+            document.getElementById('activeTodos').textContent = todos.filter(t => !t.isCompleted).length;
+        }
+        
+                 // 블럭 텍스트 렌더링
+        function renderBlockText() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            todos.forEach(block => {
+                if (block.render.visible !== false) {
+                    const pos = block.position;
+                    const angle = block.angle;
+                    
+                    ctx.save();
+                    ctx.translate(pos.x, pos.y);
+                    ctx.rotate(angle);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // 완료된 블럭은 취소선 추가
+                    if (block.isCompleted) {
+                        ctx.fillStyle = '#333333'; // 완료된 블럭은 어두운 글자
+                    }
+                    
+                    // 멀티라인 텍스트 렌더링
+                    if (block.textLines && block.textLines.length > 1) {
+                        const totalHeight = (block.textLines.length - 1) * LINE_HEIGHT;
+                        const startY = -totalHeight / 2;
+                        
+                        block.textLines.forEach((line, index) => {
+                            const y = startY + (index * LINE_HEIGHT);
+                            ctx.fillText(line, 0, y);
+                            
+                            // 완료된 블럭은 취소선 그리기
+                            if (block.isCompleted) {
+                                ctx.strokeStyle = '#333333';
+                                ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                ctx.moveTo(-ctx.measureText(line).width / 2, y);
+                                ctx.lineTo(ctx.measureText(line).width / 2, y);
+                                ctx.stroke();
+                            }
+                        });
+                    } else {
+                        ctx.fillText(block.todoText, 0, 0);
+                        
+                        // 완료된 블럭은 취소선 그리기
+                        if (block.isCompleted) {
+                            ctx.strokeStyle = '#333333';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.moveTo(-ctx.measureText(block.todoText).width / 2, 0);
+                            ctx.lineTo(ctx.measureText(block.todoText).width / 2, 0);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    ctx.restore();
+                }
+            });
+        }
+        
+                 // 렌더링 루프
+        function gameLoop() {
+            updateParticles();
+            checkAndFixBlockBounds(); // 매 프레임마다 블럭 경계 체크
+            updateResizeHandles(); // 리사이즈 핸들 위치 업데이트
+            renderBlockText();
+            renderParticles();
+            requestAnimationFrame(gameLoop);
+        }
+        
+                 // 버튼 상태 업데이트
+        function updateButtonStates() {
+            const completeBtn = document.getElementById('completeBtn');
+            const deleteBtn = document.getElementById('deleteBtn');
+            
+            if (selectedBlock) {
+                completeBtn.disabled = false;
+                deleteBtn.disabled = false;
+            } else {
+                completeBtn.disabled = true;
+                deleteBtn.disabled = true;
+            }
+            
+            // 버튼 텍스트는 항상 고정
+            completeBtn.textContent = '✅ 완료';
+            deleteBtn.textContent = '🗑️ 삭제';
+        }
+        
+        // 버튼 클릭 핸들러
+        function completeSelectedBlock() {
+            if (selectedBlock) {
+                completeBlock(selectedBlock);
+                selectedBlock = null;
+                updateButtonStates();
+            }
+        }
+        
+        function deleteSelectedBlock() {
+            if (selectedBlock) {
+                deleteBlock(selectedBlock);
+                selectedBlock = null;
+                updateButtonStates();
+            }
+        }
+        
+        // 이벤트 리스너
+        document.getElementById('addBtn').addEventListener('click', addTodo);
+        document.getElementById('completeBtn').addEventListener('click', completeSelectedBlock);
+        document.getElementById('deleteBtn').addEventListener('click', deleteSelectedBlock);
+        document.getElementById('todoInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTodo();
+        });
+        
+        // 브라우저 크기 변경 감지
+        function handleResize() {
+            updateCanvasSize();
+            createWalls();
+            // 창 크기 변경 시 리사이즈 핸들 위치도 업데이트
+            if (selectedBlock) {
+                createResizeHandles(selectedBlock);
+            }
+        }
+        
+        // 이벤트 리스너 추가
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('load', handleResize);
+        
+        // 게임 시작
+        initGame();
+        gameLoop();
+        updateStats();
+        updateButtonStates();
+    </script>
+</body>
+</html>

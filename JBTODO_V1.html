@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>향상된 테트리스 TODO 리스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .input-container {
+            position: relative;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .todo-input {
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            width: 250px;
+            outline: none;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .search-input {
+            padding: 10px 15px;
+            font-size: 14px;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            width: 200px;
+            outline: none;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .priority-select {
+            padding: 10px;
+            font-size: 14px;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .add-btn {
+            padding: 15px 25px;
+            font-size: 16px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .add-btn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .control-btn {
+            padding: 10px 15px;
+            font-size: 14px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .control-btn.danger {
+            background: #f44336;
+        }
+
+        .control-btn.danger:hover {
+            background: #d32f2f;
+        }
+
+        .game-area {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: rgba(0,0,0,0.8);
+            border: 4px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .todo-block {
+            position: absolute;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: 2px solid #fff;
+            border-radius: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 18px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            white-space: nowrap;
+            min-width: 80px;
+            transition: filter 0.2s ease;
+            user-select: none;
+            max-width: 350px;
+            overflow: hidden;
+        }
+
+        .todo-block.priority-high {
+            background: linear-gradient(45deg, #E91E63, #C2185B);
+            border-width: 3px;
+            box-shadow: 0 6px 12px rgba(233, 30, 99, 0.4);
+        }
+
+        .todo-block.priority-medium {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+        }
+
+        .todo-block.priority-low {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+
+        .todo-block:nth-child(odd):not(.priority-high):not(.priority-medium):not(.priority-low) {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+        }
+
+        .todo-block:nth-child(3n):not(.priority-high):not(.priority-medium):not(.priority-low) {
+            background: linear-gradient(45deg, #9C27B0, #7B1FA2);
+        }
+
+        .todo-block:nth-child(4n):not(.priority-high):not(.priority-medium):not(.priority-low) {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+
+        .todo-block:nth-child(5n):not(.priority-high):not(.priority-medium):not(.priority-low) {
+            background: linear-gradient(45deg, #E91E63, #C2185B);
+        }
+
+        .todo-text {
+            margin-right: 8px;
+            line-height: 1.2;
+            flex: 1;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .todo-text::before {
+            content: '#';
+            margin-right: 2px;
+            font-weight: bold;
+        }
+
+        .priority-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.3);
+            margin-right: 5px;
+        }
+
+        .todo-date {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-right: 5px;
+        }
+
+        .delete-btn {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            margin-left: 8px;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+            background: linear-gradient(45deg, #666, #888) !important;
+        }
+
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 150px;
+        }
+
+        .stats h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #4CAF50;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .shortcut-help {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .shortcut-help h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(-180deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1) rotate(-90deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .priority-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .game-area {
+                width: 90%;
+                max-width: 350px;
+            }
+            
+            .todo-input {
+                width: 180px;
+            }
+
+            .search-input {
+                width: 150px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .input-container {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .stats {
+                position: relative;
+                margin-top: 20px;
+            }
+
+            .shortcut-help {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 향상된 테트리스 TODO</h1>
+        <p>할일을 입력하면 블록이 떨어져요! (Ctrl+Enter로 빠른 추가)</p>
+    </div>
+
+    <div class="controls">
+        <div class="input-container">
+            <input type="text" class="todo-input" placeholder="할일을 입력하세요..." id="todoInput">
+            <select class="priority-select" id="prioritySelect">
+                <option value="normal">일반</option>
+                <option value="low">낮음</option>
+                <option value="medium">보통</option>
+                <option value="high">높음</option>
+            </select>
+            <button class="add-btn" onclick="addTodo()">추가</button>
+        </div>
+        
+        <input type="text" class="search-input" placeholder="검색..." id="searchInput">
+        
+        <button class="control-btn" onclick="clearCompleted()">완료된 항목 삭제</button>
+        <button class="control-btn danger" onclick="clearAll()">모두 삭제</button>
+        <button class="control-btn" onclick="exportData()">내보내기</button>
+        <button class="control-btn" onclick="document.getElementById('importFile').click()">가져오기</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+    </div>
+
+    <div class="game-area" id="gameArea">
+    </div>
+
+    <div class="stats">
+        <h3>📊 통계</h3>
+        <div class="stat-item">
+            <span>전체:</span>
+            <span id="totalCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span>완료:</span>
+            <span id="completedCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span>진행중:</span>
+            <span id="activeCount">0</span>
+        </div>
+        <div class="stat-item">
+            <span>높은 우선순위:</span>
+            <span id="highPriorityCount">0</span>
+        </div>
+    </div>
+
+    <div class="shortcut-help">
+        <h4>⌨️ 단축키</h4>
+        <div>Ctrl+Enter: 빠른 추가</div>
+        <div>Escape: 검색 초기화</div>
+        <div>Delete: 완료된 항목 삭제</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 전역 변수
+        let todoCount = 0;
+        let completedCount = 0;
+        let todos = [];
+        let animationId;
+        let searchFilter = '';
+        
+        const physics = {
+            gravity: 0.5,
+            friction: 0.85,
+            bounce: 0.3,
+            damping: 0.995,
+            airResistance: 0.999,
+            minVelocity: 0.1
+        };
+
+        const gameArea = document.getElementById('gameArea');
+        const todoInput = document.getElementById('todoInput');
+        const searchInput = document.getElementById('searchInput');
+        const prioritySelect = document.getElementById('prioritySelect');
+
+        // 로컬 스토리지 관리
+        class StorageManager {
+            static save() {
+                const data = {
+                    todos: todos.map(todo => ({
+                        text: todo.text,
+                        completed: todo.completed,
+                        priority: todo.priority,
+                        createdAt: todo.createdAt,
+                        x: todo.x,
+                        y: todo.y,
+                        isSettled: todo.isSettled
+                    })),
+                    stats: {
+                        todoCount,
+                        completedCount
+                    }
+                };
+                localStorage.setItem('tetrisTodo', JSON.stringify(data));
+            }
+
+            static load() {
+                const data = localStorage.getItem('tetrisTodo');
+                if (data) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        return parsed;
+                    } catch (e) {
+                        console.error('데이터 로드 실패:', e);
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            static clear() {
+                localStorage.removeItem('tetrisTodo');
+            }
+        }
+
+        // 토스트 알림
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 향상된 물리 엔진 클래스
+        class TodoBlock {
+            constructor(element, text, priority = 'normal', createdAt = null) {
+                this.element = element;
+                this.text = text;
+                this.priority = priority;
+                this.completed = false;
+                this.createdAt = createdAt || new Date();
+                this.x = gameArea.clientWidth / 2;
+                this.y = -80;
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = 0;
+                this.width = 0;
+                this.height = 40;
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+                this.isSettled = false;
+                this.settlementTimer = 0;
+                this.id = Date.now() + Math.random();
+                this.onGround = false;
+                this.supportingBlocks = new Set();
+                this.mass = 1; // 질량
+                
+                setTimeout(() => {
+                    this.width = this.element.offsetWidth;
+                    this.height = this.element.offsetHeight;
+                    // 우선순위에 따른 질량 조정
+                    this.mass = this.priority === 'high' ? 1.5 : 
+                               this.priority === 'low' ? 0.7 : 1.0;
+                }, 100);
+
+                // 우선순위에 따른 초기 효과
+                if (priority === 'high') {
+                    this.element.classList.add('priority-pulse');
+                }
+            }
+
+            update() {
+                if (this.isSettled) return;
+
+                // 지지하는 블록들이 모두 정착했는지 확인
+                this.updateSupportState();
+
+                // 우선순위와 질량에 따른 중력 조정
+                const gravityMultiplier = this.priority === 'high' ? 1.3 : 
+                                         this.priority === 'low' ? 0.7 : 1.0;
+                const gravityForce = physics.gravity * gravityMultiplier * this.mass;
+
+                // 중력 적용
+                this.vy += gravityForce;
+
+                // 공기 저항
+                this.vx *= physics.airResistance;
+                this.vy *= physics.airResistance;
+
+                // 위치 업데이트
+                this.x += this.vx;
+                this.y += this.vy;
+                this.rotation += this.rotationSpeed;
+
+                // 경계 충돌 처리
+                this.handleBoundaryCollision();
+
+                // 블록 간 충돌 처리
+                this.handleBlockCollisions();
+
+                // 감속 효과 (바닥이나 블록 위에 있을 때 더 강함)
+                const dampingFactor = this.onGround ? physics.friction : physics.damping;
+                this.vx *= dampingFactor;
+                this.vy *= dampingFactor;
+                this.rotationSpeed *= dampingFactor;
+
+                // 미세한 움직임 제거
+                if (Math.abs(this.vx) < physics.minVelocity) this.vx = 0;
+                if (Math.abs(this.vy) < physics.minVelocity) this.vy = 0;
+                if (Math.abs(this.rotationSpeed) < 0.01) this.rotationSpeed = 0;
+
+                // 정착 조건 확인
+                this.checkSettlement();
+
+                // DOM 업데이트
+                this.updateDOM();
+            }
+
+            handleBoundaryCollision() {
+                // 좌우 벽 충돌
+                if (this.x - this.width/2 <= 0) {
+                    this.x = this.width/2;
+                    this.vx = -this.vx * physics.bounce;
+                    this.rotationSpeed *= -0.3;
+                }
+                if (this.x + this.width/2 >= gameArea.clientWidth) {
+                    this.x = gameArea.clientWidth - this.width/2;
+                    this.vx = -this.vx * physics.bounce;
+                    this.rotationSpeed *= -0.3;
+                }
+
+                // 바닥 충돌 - 더 정확한 착지
+                if (this.y + this.height/2 >= gameArea.clientHeight) {
+                    this.y = gameArea.clientHeight - this.height/2;
+                    
+                    // 바닥에 닿았을 때
+                    if (this.vy > 0) {
+                        this.vy = -this.vy * physics.bounce;
+                        this.vx *= physics.friction;
+                        this.rotationSpeed *= physics.friction;
+                        this.onGround = true;
+                        
+                        // 바닥 충돌 시 진동 효과
+                        if (Math.abs(this.vy) > 1) {
+                            this.element.style.filter = 'brightness(1.3)';
+                            setTimeout(() => {
+                                this.element.style.filter = '';
+                            }, 200);
+                        }
+                    }
+                } else {
+                    this.onGround = false;
+                }
+            }
+
+            updateSupportState() {
+                // 지지하는 블록들의 상태 확인
+                this.supportingBlocks.clear();
+                
+                todos.forEach(other => {
+                    if (other !== this && this.isRestingOn(other)) {
+                        this.supportingBlocks.add(other);
+                    }
+                });
+            }
+
+            isRestingOn(other) {
+                if (!other.isSettled) return false;
+                
+                // 수직적으로 다른 블록 위에 있는지 확인
+                const horizontalOverlap = Math.abs(this.x - other.x) < (this.width + other.width) / 2 - 5;
+                const verticalDistance = (this.y + this.height/2) - (other.y - other.height/2);
+                
+                return horizontalOverlap && verticalDistance >= -5 && verticalDistance <= 5;
+            }
+
+            handleBlockCollisions() {
+                todos.forEach(other => {
+                    if (other !== this) {
+                        this.resolveCollision(other);
+                    }
+                });
+            }
+
+            resolveCollision(other) {
+                // 박스 기반 충돌 감지 (더 정확함)
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const combinedHalfWidth = (this.width + other.width) / 2;
+                const combinedHalfHeight = (this.height + other.height) / 2;
+
+                // 충돌 감지
+                if (Math.abs(dx) < combinedHalfWidth && Math.abs(dy) < combinedHalfHeight) {
+                    // 겹침 계산
+                    const overlapX = combinedHalfWidth - Math.abs(dx);
+                    const overlapY = combinedHalfHeight - Math.abs(dy);
+
+                    // 더 작은 겹침 방향으로 분리
+                    if (overlapX < overlapY) {
+                        // 수평 분리
+                        const separationX = overlapX / 2;
+                        if (dx > 0) {
+                            this.x += separationX;
+                            other.x -= separationX;
+                        } else {
+                            this.x -= separationX;
+                            other.x += separationX;
+                        }
+
+                        // 속도 교환 (질량 고려)
+                        const totalMass = this.mass + other.mass;
+                        const newThisVx = ((this.mass - other.mass) * this.vx + 2 * other.mass * other.vx) / totalMass;
+                        const newOtherVx = ((other.mass - this.mass) * other.vx + 2 * this.mass * this.vx) / totalMass;
+                        
+                        this.vx = newThisVx * physics.bounce;
+                        other.vx = newOtherVx * physics.bounce;
+                    } else {
+                        // 수직 분리
+                        const separationY = overlapY / 2;
+                        if (dy > 0) {
+                            this.y += separationY;
+                            other.y -= separationY;
+                        } else {
+                            this.y -= separationY;
+                            other.y += separationY;
+                        }
+
+                        // 수직 속도 교환
+                        const totalMass = this.mass + other.mass;
+                        const newThisVy = ((this.mass - other.mass) * this.vy + 2 * other.mass * other.vy) / totalMass;
+                        const newOtherVy = ((other.mass - this.mass) * other.vy + 2 * this.mass * this.vy) / totalMass;
+                        
+                        this.vy = newThisVy * physics.bounce;
+                        other.vy = newOtherVy * physics.bounce;
+
+                        // 위에서 아래로 충돌하는 경우 처리
+                        if (this.y > other.y && this.vy > 0) {
+                            this.y = other.y + other.height/2 + this.height/2;
+                            this.vy = Math.max(0, this.vy * physics.bounce);
+                            this.onGround = true;
+                        }
+                    }
+
+                    // 회전 효과
+                    this.rotationSpeed += (Math.random() - 0.5) * 0.05;
+                    other.rotationSpeed += (Math.random() - 0.5) * 0.05;
+
+                    // 시각 효과
+                    this.element.style.filter = 'brightness(1.2)';
+                    other.element.style.filter = 'brightness(1.2)';
+                    
+                    setTimeout(() => {
+                        this.element.style.filter = '';
+                        other.element.style.filter = '';
+                    }, 200);
+
+                    // 정착 상태 리셋
+                    this.settlementTimer = 0;
+                    other.settlementTimer = 0;
+                }
+            }
+
+            checkSettlement() {
+                const totalSpeed = Math.abs(this.vx) + Math.abs(this.vy) + Math.abs(this.rotationSpeed);
+                const isStable = totalSpeed < 0.3;
+                const hasSupport = this.onGround || this.supportingBlocks.size > 0;
+
+                if (isStable && hasSupport) {
+                    this.settlementTimer++;
+                    if (this.settlementTimer > 30) { // 0.5초 후 정착
+                        this.settle();
+                    }
+                } else {
+                    this.settlementTimer = 0;
+                }
+
+                // 15초 후 강제 정착
+                setTimeout(() => {
+                    if (!this.isSettled) {
+                        this.settle();
+                    }
+                }, 15000);
+            }
+
+            updateDOM() {
+                this.element.style.left = (this.x - this.width/2) + 'px';
+                this.element.style.top = (this.y - this.height/2) + 'px';
+                this.element.style.transform = `rotate(${this.rotation}rad)`;
+            }
+
+            settle() {
+                this.isSettled = true;
+                this.vx = 0;
+                this.vy = 0;
+                this.rotationSpeed = 0;
+                
+                // 최종 위치 조정 - 바닥이나 다른 블록에 정확히 맞춤
+                this.adjustFinalPosition();
+                
+                this.element.style.transition = 'all 0.3s ease';
+                this.element.classList.remove('priority-pulse');
+                
+                // 정착 효과
+                this.element.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+                
+                // 자동 저장
+                StorageManager.save();
+            }
+
+            adjustFinalPosition() {
+                // 바닥에 정확히 맞추기
+                if (this.y + this.height/2 >= gameArea.clientHeight - 5) {
+                    this.y = gameArea.clientHeight - this.height/2;
+                    this.onGround = true;
+                }
+
+                // 다른 블록 위에 정확히 맞추기
+                let foundSupport = false;
+                todos.forEach(other => {
+                    if (other !== this && other.isSettled && this.isNearBlock(other)) {
+                        // 수평으로 겹치고 수직으로 가까운 경우
+                        const horizontalOverlap = Math.abs(this.x - other.x) < (this.width + other.width) / 2;
+                        const verticalDistance = (this.y + this.height/2) - (other.y - other.height/2);
+                        
+                        if (horizontalOverlap && verticalDistance > -10 && verticalDistance < 10) {
+                            this.y = other.y - other.height/2 - this.height/2;
+                            foundSupport = true;
+                        }
+                    }
+                });
+
+                if (foundSupport) {
+                    this.onGround = true;
+                }
+            }
+
+            isNearBlock(other) {
+                const dx = Math.abs(this.x - other.x);
+                const dy = Math.abs(this.y - other.y);
+                const maxDistance = Math.max(this.width, this.height, other.width, other.height);
+                return dx < maxDistance && dy < maxDistance;
+            }
+
+            getBounds() {
+                return {
+                    left: this.x - this.width/2,
+                    right: this.x + this.width/2,
+                    top: this.y - this.height/2,
+                    bottom: this.y + this.height/2
+                };
+            }
+
+            snapToGrid() {
+                // 미세한 정렬을 위한 그리드 스냅
+                if (this.isSettled) {
+                    this.x = Math.round(this.x);
+                    this.y = Math.round(this.y);
+                    this.rotation = Math.round(this.rotation * 20) / 20; // 약간의 회전 정렬
+                }
+            }
+        }
+
+        // TODO 추가 함수
+        function addTodo() {
+            const text = todoInput.value.trim();
+            if (!text) {
+                showToast('할일을 입력해주세요!', 'error');
+                return;
+            }
+
+            const priority = prioritySelect.value;
+            const todoBlock = document.createElement('div');
+            todoBlock.className = `todo-block ${priority !== 'normal' ? 'priority-' + priority : ''}`;
+            
+            const createdAt = new Date();
+            const dateStr = createdAt.toLocaleDateString('ko-KR', {
+                month: 'short',
+                day: 'numeric'
+            });
+
+            todoBlock.innerHTML = `
+                ${priority !== 'normal' ? `<span class="priority-badge">${getPriorityText(priority)}</span>` : ''}
+                <span class="todo-date">${dateStr}</span>
+                <div class="todo-text">${text}</div>
+                <button class="delete-btn" onclick="deleteTodo(this)">×</button>
+            `;
+
+            todoBlock.style.position = 'absolute';
+            gameArea.appendChild(todoBlock);
+            
+            const physicsBlock = new TodoBlock(todoBlock, text, priority, createdAt);
+            todos.push(physicsBlock);
+            
+            todoBlock.addEventListener('click', function(e) {
+                if (e.target.classList.contains('delete-btn')) return;
+                toggleComplete(physicsBlock);
+            });
+
+            todoCount++;
+            todoInput.value = '';
+            prioritySelect.value = 'normal';
+            updateStats();
+            
+            if (!animationId) {
+                startPhysics();
+            }
+
+            showToast(`"${text}" 할일이 추가되었습니다!`);
+            StorageManager.save();
+        }
+
+        function getPriorityText(priority) {
+            const priorities = {
+                'high': '높음',
+                'medium': '보통',
+                'low': '낮음'
+            };
+            return priorities[priority] || '';
+        }
+
+        // TODO 삭제 함수
+        function deleteTodo(btn) {
+            const todoBlock = btn.parentElement;
+            const index = todos.findIndex(todo => todo.element === todoBlock);
+            
+            if (index !== -1) {
+                if (todos[index].completed) {
+                    completedCount--;
+                }
+                todos.splice(index, 1);
+                todoCount--;
+            }
+
+            // 폭발 효과
+            todoBlock.style.transform = 'scale(1.5) rotate(360deg)';
+            todoBlock.style.opacity = '0';
+            todoBlock.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                if (todoBlock.parentNode) {
+                    todoBlock.parentNode.removeChild(todoBlock);
+                }
+                updateStats();
+                StorageManager.save();
+            }, 500);
+
+            showToast('할일이 삭제되었습니다!');
+        }
+
+        // 완료 상태 토글
+        function toggleComplete(physicsBlock) {
+            const isCompleted = physicsBlock.completed;
+            physicsBlock.completed = !isCompleted;
+
+            if (isCompleted) {
+                physicsBlock.element.classList.remove('completed');
+                completedCount--;
+                showToast('할일이 미완료로 변경되었습니다!');
+            } else {
+                physicsBlock.element.classList.add('completed');
+                completedCount++;
+                
+                // 완료 시 축하 효과
+                physicsBlock.vy -= 8;
+                physicsBlock.vx += (Math.random() - 0.5) * 4;
+                physicsBlock.rotationSpeed += (Math.random() - 0.5) * 0.2;
+                physicsBlock.isSettled = false;
+                physicsBlock.settlementTimer = 0;
+                
+                showToast('🎉 할일을 완료했습니다!');
+            }
+
+            updateStats();
+            StorageManager.save();
+        }
+
+        // 향상된 물리 시뮬레이션 시작
+        function startPhysics() {
+            let frameCount = 0;
+            
+            function animate() {
+                frameCount++;
+                const movingBlocks = todos.filter(block => !block.isSettled);
+                
+                // 각 블록 업데이트
+                movingBlocks.forEach(block => {
+                    block.update();
+                });
+
+                // 모든 블록에 대해 그리드 스냅 적용 (매 5프레임마다)
+                if (frameCount % 5 === 0) {
+                    todos.forEach(block => {
+                        block.snapToGrid();
+                    });
+                }
+
+                // 모든 블록이 정착되면 애니메이션 정지
+                if (todos.length > 0 && todos.every(block => block.isSettled)) {
+                    stopPhysics();
+                    // 최종 정렬
+                    todos.forEach(block => {
+                        block.snapToGrid();
+                        block.updateDOM();
+                    });
+                    return;
+                }
+
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+
+        // 물리 시뮬레이션 중지
+        function stopPhysics() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        // 통계 업데이트
+        function updateStats() {
+            document.getElementById('totalCount').textContent = todoCount;
+            document.getElementById('completedCount').textContent = completedCount;
+            document.getElementById('activeCount').textContent = todoCount - completedCount;
+            
+            const highPriorityCount = todos.filter(todo => 
+                todo.priority === 'high' && !todo.completed
+            ).length;
+            document.getElementById('highPriorityCount').textContent = highPriorityCount;
+        }
+
+        // 검색 기능
+        function applySearchFilter() {
+            const filter = searchInput.value.toLowerCase();
+            searchFilter = filter;
+            
+            todos.forEach(todo => {
+                const matches = todo.text.toLowerCase().includes(filter);
+                todo.element.style.display = matches ? 'flex' : 'none';
+            });
+            
+            if (filter) {
+                const matchCount = todos.filter(todo => 
+                    todo.text.toLowerCase().includes(filter)
+                ).length;
+                showToast(`${matchCount}개의 항목을 찾았습니다.`);
+            }
+        }
+
+        // 완료된 항목 삭제
+        function clearCompleted() {
+            const completedTodos = todos.filter(todo => todo.completed);
+            
+            if (completedTodos.length === 0) {
+                showToast('완료된 항목이 없습니다.', 'error');
+                return;
+            }
+
+            completedTodos.forEach(todo => {
+                todo.element.remove();
+            });
+
+            todos = todos.filter(todo => !todo.completed);
+            todoCount = todos.length;
+            completedCount = 0;
+            
+            updateStats();
+            StorageManager.save();
+            showToast(`${completedTodos.length}개의 완료된 항목을 삭제했습니다!`);
+        }
+
+        // 모든 항목 삭제
+        function clearAll() {
+            if (todos.length === 0) {
+                showToast('삭제할 항목이 없습니다.', 'error');
+                return;
+            }
+
+            if (confirm('정말로 모든 할일을 삭제하시겠습니까?')) {
+                todos.forEach(todo => {
+                    todo.element.remove();
+                });
+
+                todos = [];
+                todoCount = 0;
+                completedCount = 0;
+                
+                stopPhysics();
+                updateStats();
+                StorageManager.save();
+                showToast('모든 할일이 삭제되었습니다!');
+            }
+        }
+
+        // 데이터 내보내기
+        function exportData() {
+            const data = {
+                todos: todos.map(todo => ({
+                    text: todo.text,
+                    completed: todo.completed,
+                    priority: todo.priority,
+                    createdAt: todo.createdAt
+                })),
+                exportDate: new Date(),
+                version: '2.0'
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tetris-todo-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showToast('데이터가 내보내졌습니다!');
+        }
+
+        // 데이터 가져오기
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.todos && Array.isArray(data.todos)) {
+                        // 기존 데이터 삭제
+                        clearAll();
+                        
+                        // 새 데이터 추가
+                        data.todos.forEach(todoData => {
+                            todoInput.value = todoData.text;
+                            prioritySelect.value = todoData.priority || 'normal';
+                            addTodo();
+                            
+                            // 완료 상태 복원
+                            if (todoData.completed) {
+                                const lastTodo = todos[todos.length - 1];
+                                toggleComplete(lastTodo);
+                            }
+                        });
+                        
+                        showToast(`${data.todos.length}개의 할일을 가져왔습니다!`);
+                    }
+                } catch (error) {
+                    showToast('파일 형식이 올바르지 않습니다.', 'error');
+                }
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // 데이터 로드
+        function loadData() {
+            const data = StorageManager.load();
+            if (data && data.todos) {
+                data.todos.forEach(todoData => {
+                    const todoBlock = document.createElement('div');
+                    todoBlock.className = `todo-block ${todoData.priority !== 'normal' ? 'priority-' + todoData.priority : ''}`;
+                    
+                    const createdAt = new Date(todoData.createdAt);
+                    const dateStr = createdAt.toLocaleDateString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric'
+                    });
+
+                    todoBlock.innerHTML = `
+                        ${todoData.priority !== 'normal' ? `<span class="priority-badge">${getPriorityText(todoData.priority)}</span>` : ''}
+                        <span class="todo-date">${dateStr}</span>
+                        <div class="todo-text">${todoData.text}</div>
+                        <button class="delete-btn" onclick="deleteTodo(this)">×</button>
+                    `;
+
+                    todoBlock.style.position = 'absolute';
+                    
+                    if (todoData.completed) {
+                        todoBlock.classList.add('completed');
+                        completedCount++;
+                    }
+
+                    gameArea.appendChild(todoBlock);
+                    
+                    const physicsBlock = new TodoBlock(todoBlock, todoData.text, todoData.priority, createdAt);
+                    physicsBlock.completed = todoData.completed;
+                    
+                    // 저장된 위치가 있으면 복원
+                    if (todoData.x && todoData.y) {
+                        physicsBlock.x = todoData.x;
+                        physicsBlock.y = todoData.y;
+                        physicsBlock.isSettled = todoData.isSettled;
+                        physicsBlock.updateDOM();
+                    }
+                    
+                    todos.push(physicsBlock);
+                    
+                    todoBlock.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('delete-btn')) return;
+                        toggleComplete(physicsBlock);
+                    });
+                });
+
+                todoCount = data.todos.length;
+                updateStats();
+                
+                // 움직이는 블록이 있으면 물리 시뮬레이션 시작
+                if (todos.some(block => !block.isSettled)) {
+                    startPhysics();
+                }
+            }
+        }
+
+        // 키보드 단축키
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter: 할일 추가
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                addTodo();
+            }
+            
+            // Escape: 검색 초기화
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                applySearchFilter();
+            }
+            
+            // Delete: 완료된 항목 삭제
+            if (e.key === 'Delete' && !e.target.matches('input')) {
+                clearCompleted();
+            }
+        });
+
+        // 이벤트 리스너
+        todoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        searchInput.addEventListener('input', applySearchFilter);
+
+        // 페이지 로드 시 데이터 복원
+        window.addEventListener('load', function() {
+            loadData();
+            showToast('데이터가 로드되었습니다!');
+        });
+
+        // 페이지 언로드 시 데이터 저장
+        window.addEventListener('beforeunload', function() {
+            StorageManager.save();
+        });
+
+        // 초기 샘플 데이터 (저장된 데이터가 없을 때만)
+        setTimeout(() => {
+            if (todos.length === 0) {
+                const sampleTodos = [
+                    { text: '프로젝트 완성', priority: 'high' },
+                    { text: '점심 먹기', priority: 'medium' },
+                    { text: '운동하기', priority: 'normal' },
+                    { text: '독서', priority: 'low' },
+                    { text: '영화 보기', priority: 'normal' }
+                ];
+
+                sampleTodos.forEach((sample, index) => {
+                    setTimeout(() => {
+                        todoInput.value = sample.text;
+                        prioritySelect.value = sample.priority;
+                        addTodo();
+                    }, index * 1000);
+                });
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

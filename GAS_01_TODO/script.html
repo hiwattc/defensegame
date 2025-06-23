@@ -1,0 +1,239 @@
+<script>
+  let todos = [];
+  let cloud = null;
+  
+  // 초기 로드
+  window.onload = function() {
+    loadTodos();
+    setupEventListeners();
+  };
+  
+  // 이벤트 리스너 설정
+  function setupEventListeners() {
+    document.getElementById('addButton').addEventListener('click', addTodo);
+    document.getElementById('todoInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') addTodo();
+    });
+    
+    document.querySelector('.close').addEventListener('click', function() {
+      document.getElementById('adviceModal').style.display = 'none';
+    });
+  }
+  
+  // 할일 로드
+  function loadTodos() {
+    console.log('할일 로드 시작');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        console.log('서버 응답:', result);
+        todos = result || [];
+        console.log('할일 목록 설정됨:', todos);
+        updateCloud();
+      })
+      .withFailureHandler(function(error) {
+        console.error('할일 로드 실패:', error);
+        todos = [];
+        updateCloud();
+      })
+      .getTodos();
+  }
+  
+  // 할일 추가
+  function addTodo() {
+    const input = document.getElementById('todoInput');
+    const todo = input.value.trim();
+    
+    if (todo) {
+      google.script.run
+        .withSuccessHandler(function(id) {
+          input.value = '';
+          loadTodos();
+          // 할일 추가 직후 상세 조회 실행
+          showAdvice(todo, id);
+        })
+        .addTodo(todo);
+    }
+  }
+  
+  // 클라우드 업데이트
+  function updateCloud() {
+    console.log('클라우드 업데이트 시작');
+    const container = document.getElementById('cloudContainer');
+    container.innerHTML = '';
+    
+    if (!todos || todos.length === 0) {
+      console.log('할일이 없습니다.');
+      container.innerHTML = '<div style="text-align: center; padding-top: 50px; color: #666;">등록된 할일이 없습니다.</div>';
+      return;
+    }
+    
+    console.log('클라우드 생성 시작, 할일 수:', todos.length);
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    const words = todos.map(todo => ({
+      text: todo.todo,
+      size: 20 + Math.random() * 30,
+      id: todo.id,
+      status: todo.status
+    }));
+    
+    console.log('단어 배열 생성됨:', words);
+    
+    const layout = d3.layout.cloud()
+      .size([width, height])
+      .words(words)
+      .padding(5)
+      .rotate(() => ~~(Math.random() * 2) * 90)
+      .font('Arial')
+      .fontSize(d => d.size)
+      .on('end', draw);
+    
+    layout.start();
+  }
+  
+  // 클라우드 그리기
+  function draw(words) {
+    const container = document.getElementById('cloudContainer');
+    
+    d3.select(container)
+      .append('svg')
+      .attr('width', layout.size()[0])
+      .attr('height', layout.size()[1])
+      .append('g')
+      .attr('transform', `translate(${layout.size()[0] / 2},${layout.size()[1] / 2})`)
+      .selectAll('text')
+      .data(words)
+      .enter()
+      .append('text')
+      .style('font-size', d => `${d.size}px`)
+      .style('font-family', 'Arial')
+      .style('fill', d => d.status === '완료' ? '#999' : '#000')
+      .style('text-decoration', d => d.status === '완료' ? 'line-through' : 'none')
+      .attr('text-anchor', 'middle')
+      .attr('transform', d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
+      .text(d => d.text)
+      .on('click', function(event, d) {
+        if (d.status === '완료') {
+          deleteTodo(d.id);
+        } else {
+          showAdvice(d.text, d.id);
+        }
+      });
+  }
+  
+  // 조언 표시
+  function showAdvice(todo, id) {
+    const modal = document.getElementById('adviceModal');
+    const title = document.getElementById('modalTitle');
+    const adviceContent = document.getElementById('adviceContent');
+    const bibleVerses = document.getElementById('bibleVerses');
+    
+    title.textContent = todo;
+    
+    // 로딩 상태 표시 개선
+    adviceContent.innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        <div style="margin-bottom: 10px;">AI가 조언을 생성하고 있습니다...</div>
+        <div class="loading-spinner"></div>
+      </div>
+    `;
+    bibleVerses.innerHTML = '';
+    
+    modal.style.display = 'block';
+    
+    // Gemini API 호출
+    google.script.run
+      .withSuccessHandler(function(result) {
+        try {
+          const lines = result.split('\n');
+          let advice = '';
+          let verses = '';
+          
+          lines.forEach(line => {
+            if (line.startsWith('1. 조언:')) {
+              advice = line.replace('1. 조언:', '').trim();
+            } else if (line.startsWith('2. 성경 구절:')) {
+              verses = lines.slice(lines.indexOf(line) + 1).join('\n');
+            }
+          });
+          
+          if (!advice) {
+            throw new Error('조언을 찾을 수 없습니다.');
+          }
+          
+          adviceContent.innerHTML = `
+            <h3>조언</h3>
+            <p>${advice}</p>
+          `;
+          
+          if (verses) {
+            bibleVerses.innerHTML = `
+              <h3>성경 구절</h3>
+              <p>${verses}</p>
+            `;
+          } else {
+            bibleVerses.innerHTML = `
+              <h3>성경 구절</h3>
+              <p>관련된 성경 구절을 찾을 수 없습니다.</p>
+            `;
+          }
+        } catch (error) {
+          console.error('응답 처리 오류:', error);
+          adviceContent.innerHTML = `
+            <h3>오류</h3>
+            <p>죄송합니다. 조언을 처리하는 중에 문제가 발생했습니다.</p>
+          `;
+        }
+      })
+      .withFailureHandler(function(error) {
+        console.error('API 호출 실패:', error);
+        adviceContent.innerHTML = `
+          <h3>오류</h3>
+          <p>죄송합니다. 조언을 가져오는데 실패했습니다. 잠시 후 다시 시도해주세요.</p>
+        `;
+      })
+      .getAdviceAndVerses(todo);
+  }
+  
+  // 할일 삭제
+  function deleteTodo(id) {
+    createConfetti();
+    
+    setTimeout(() => {
+      google.script.run
+        .withSuccessHandler(function() {
+          loadTodos();
+        })
+        .deleteTodo(id);
+    }, 1000);
+  }
+  
+  // 컨페티 효과 생성
+  function createConfetti() {
+    const container = document.getElementById('cloudContainer');
+    const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff'];
+    
+    for (let i = 0; i < 50; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * container.clientWidth + 'px';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+      container.appendChild(confetti);
+      
+      setTimeout(() => {
+        confetti.remove();
+      }, 1000);
+    }
+  }
+  
+  // 할일 상태 업데이트
+  function updateTodoStatus(id, status) {
+    google.script.run
+      .withSuccessHandler(function() {
+        loadTodos();
+      })
+      .updateTodoStatus(id, status);
+  }
+</script> 

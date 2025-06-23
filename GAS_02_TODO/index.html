@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>할일 관리</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .todo-form {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .todo-list {
+        list-style: none;
+        padding: 0;
+      }
+      .todo-item {
+        background: white;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .todo-item.completed {
+        background: #e8f5e9;
+      }
+      input, textarea {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      .delete-btn {
+        background: #f44336;
+      }
+      .delete-btn:hover {
+        background: #da190b;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>할일 관리</h1>
+    
+    <div class="todo-form">
+      <h2>새 할일 추가</h2>
+      <input type="text" id="title" placeholder="제목">
+      <textarea id="description" placeholder="설명"></textarea>
+      <input type="date" id="dueDate">
+      <button onclick="addTodo()">추가</button>
+    </div>
+
+    <h2>할일 목록</h2>
+    <ul id="todoList" class="todo-list"></ul>
+
+    <script>
+      // 페이지 로드 시 할일 목록 가져오기
+      window.onload = function() {
+        loadTodos();
+      };
+
+      // 할일 목록 로드
+      function loadTodos() {
+        google.script.run
+          .withSuccessHandler(displayTodos)
+          .getTodos();
+      }
+
+      // 할일 목록 표시
+      function displayTodos(todos) {
+        const todoList = document.getElementById('todoList');
+        todoList.innerHTML = '';
+        
+        todos.forEach(todo => {
+          const li = document.createElement('li');
+          li.className = `todo-item ${todo.status === '완료' ? 'completed' : ''}`;
+          li.innerHTML = `
+            <div>
+              <h3>${todo.title}</h3>
+              <p>${todo.description}</p>
+              <p>기한: ${todo.dueDate}</p>
+              <p>상태: ${todo.status}</p>
+            </div>
+            <div>
+              <button onclick="toggleStatus(${todo.id}, '${todo.status}')">상태 변경</button>
+              <button class="delete-btn" onclick="deleteTodo(${todo.id})">삭제</button>
+            </div>
+          `;
+          todoList.appendChild(li);
+        });
+      }
+
+      // 새 할일 추가
+      function addTodo() {
+        const title = document.getElementById('title').value;
+        const description = document.getElementById('description').value;
+        const dueDate = document.getElementById('dueDate').value;
+        
+        if (!title) {
+          alert('제목을 입력해주세요.');
+          return;
+        }
+
+        const todo = {
+          title: title,
+          description: description,
+          dueDate: dueDate,
+          status: '진행중'
+        };
+
+        google.script.run
+          .withSuccessHandler(function(todos) {
+            displayTodos(todos);
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('dueDate').value = '';
+          })
+          .addTodo(todo);
+      }
+
+      // 할일 상태 변경
+      function toggleStatus(id, currentStatus) {
+        const newStatus = currentStatus === '완료' ? '진행중' : '완료';
+        const todo = {
+          id: id,
+          status: newStatus
+        };
+
+        google.script.run
+          .withSuccessHandler(displayTodos)
+          .updateTodo(todo);
+      }
+
+      // 할일 삭제
+      function deleteTodo(id) {
+        if (confirm('정말 삭제하시겠습니까?')) {
+          google.script.run
+            .withSuccessHandler(displayTodos)
+            .deleteTodo(id);
+        }
+      }
+    </script>
+  </body>
+</html>

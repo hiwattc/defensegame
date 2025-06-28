@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Conflict 학습 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "dev-a graph dev-b"
+                "commands commands commands";
+            grid-template-rows: 60px 1fr 200px;
+            grid-template-columns: 1fr 2fr 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-area: header;
+            background: #2d2d2d;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+
+        .hint-btn {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .hint-btn:hover {
+            background: #e55a2b;
+        }
+
+        .developer-panel {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dev-a {
+            grid-area: dev-a;
+        }
+
+        .dev-b {
+            grid-area: dev-b;
+        }
+
+        .dev-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #404040;
+        }
+
+        .dev-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .dev-a .dev-avatar {
+            background: #4a9eff;
+        }
+
+        .dev-b .dev-avatar {
+            background: #ff6b35;
+        }
+
+        .dev-info h3 {
+            margin-bottom: 5px;
+        }
+
+        .dev-status {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .editor {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #ffffff;
+            resize: none;
+            outline: none;
+            min-height: 200px;
+        }
+
+        .git-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .git-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .git-btn:hover {
+            background: #555;
+        }
+
+        .git-btn.primary {
+            background: #4a9eff;
+            border-color: #4a9eff;
+        }
+
+        .git-btn.danger {
+            background: #ff4757;
+            border-color: #ff4757;
+        }
+
+        .graph-container {
+            grid-area: graph;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .graph-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .graph-header h2 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+        }
+
+        .branch-graph {
+            flex: 1;
+            position: relative;
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .branch-line {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .branch-name {
+            width: 100px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: right;
+            padding-right: 15px;
+        }
+
+        .branch-name.remote {
+            color: #ff6b35;
+        }
+
+        .branch-name.local-a {
+            color: #4a9eff;
+        }
+
+        .branch-name.local-b {
+            color: #26de81;
+        }
+
+        .commit-line {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .commit {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .commit.remote {
+            background: #ff6b35;
+            color: white;
+        }
+
+        .commit.local-a {
+            background: #4a9eff;
+            color: white;
+        }
+
+        .commit.local-b {
+            background: #26de81;
+            color: white;
+        }
+
+        .commit-line::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #404040;
+            z-index: 0;
+        }
+
+        .commands-panel {
+            grid-area: commands;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .commands-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .terminal {
+            flex: 1;
+            background: #000;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            color: #00ff00;
+        }
+
+        .hint-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2d2d2d;
+            border: 2px solid #4a9eff;
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 500px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .hint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .hint-title {
+            color: #4a9eff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: #fff;
+        }
+
+        .scenario-selector {
+            margin-left: 20px;
+        }
+
+        .scenario-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+
+        .scenario-btn.active {
+            background: #4a9eff;
+            border-color: #4a9eff;
+        }
+
+        .conflict-indicator {
+            background: #ff4757;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🎮 Git Conflict 학습 게임</div>
+            <div class="scenario-selector">
+                <button class="scenario-btn active" onclick="setScenario('basic')">기본 충돌</button>
+                <button class="scenario-btn" onclick="setScenario('complex')">복잡한 충돌</button>
+                <button class="scenario-btn" onclick="setScenario('merge')">머지 충돌</button>
+            </div>
+            <div>
+                <div class="conflict-indicator" id="conflictIndicator">⚠️ 충돌 발생!</div>
+                <button class="hint-btn" onclick="showHint()">💡 힌트</button>
+            </div>
+        </div>
+
+        <div class="developer-panel dev-a">
+            <div class="dev-header">
+                <div class="dev-avatar">A</div>
+                <div class="dev-info">
+                    <h3>개발자 A</h3>
+                    <div class="dev-status" id="statusA">master 브랜치에서 작업 중</div>
+                </div>
+            </div>
+            <textarea class="editor" id="editorA" placeholder="README.md 파일을 편집하세요...">
+# 프로젝트 README
+
+## 소개
+이것은 멋진 프로젝트입니다.
+
+## 기능
+- 기능 1
+- 기능 2
+- 기능 3
+
+## 사용법
+프로젝트를 실행하려면...
+            </textarea>
+            <div class="git-actions">
+                <button class="git-btn" onclick="gitAction('A', 'add')">git add .</button>
+                <button class="git-btn" onclick="gitAction('A', 'commit')">git commit</button>
+                <button class="git-btn primary" onclick="gitAction('A', 'push')">git push</button>
+                <button class="git-btn" onclick="gitAction('A', 'pull')">git pull</button>
+                <button class="git-btn danger" onclick="gitAction('A', 'reset')">git reset</button>
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <div class="graph-header">
+                <h2>🌳 브랜치 그래프</h2>
+                <div style="font-size: 12px; opacity: 0.7;">실시간 브랜치 상태</div>
+            </div>
+            <div class="branch-graph" id="branchGraph">
+                <div class="branch-line">
+                    <div class="branch-name remote">origin/master</div>
+                    <div class="commit-line">
+                        <div class="commit remote">1</div>
+                        <div class="commit remote">2</div>
+                        <div class="commit remote">3</div>
+                    </div>
+                </div>
+                <div class="branch-line">
+                    <div class="branch-name local-a">A/master</div>
+                    <div class="commit-line">
+                        <div class="commit local-a">1</div>
+                        <div class="commit local-a">2</div>
+                        <div class="commit local-a">3</div>
+                    </div>
+                </div>
+                <div class="branch-line">
+                    <div class="branch-name local-b">B/master</div>
+                    <div class="commit-line">
+                        <div class="commit local-b">1</div>
+                        <div class="commit local-b">2</div>
+                        <div class="commit local-b">3</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="developer-panel dev-b">
+            <div class="dev-header">
+                <div class="dev-avatar">B</div>
+                <div class="dev-info">
+                    <h3>개발자 B</h3>
+                    <div class="dev-status" id="statusB">master 브랜치에서 작업 중</div>
+                </div>
+            </div>
+            <textarea class="editor" id="editorB" placeholder="README.md 파일을 편집하세요...">
+# 프로젝트 README
+
+## 소개
+이것은 멋진 프로젝트입니다.
+
+## 기능
+- 기능 1
+- 기능 2
+- 기능 3
+
+## 사용법
+프로젝트를 실행하려면...
+            </textarea>
+            <div class="git-actions">
+                <button class="git-btn" onclick="gitAction('B', 'add')">git add .</button>
+                <button class="git-btn" onclick="gitAction('B', 'commit')">git commit</button>
+                <button class="git-btn primary" onclick="gitAction('B', 'push')">git push</button>
+                <button class="git-btn" onclick="gitAction('B', 'pull')">git pull</button>
+                <button class="git-btn danger" onclick="gitAction('B', 'reset')">git reset</button>
+            </div>
+        </div>
+
+        <div class="commands-panel">
+            <div class="commands-header">
+                <h3>📟 명령어 로그</h3>
+                <button class="git-btn" onclick="clearLog()">로그 지우기</button>
+            </div>
+            <div class="terminal" id="terminal">
+                <div>$ Git Conflict 학습 게임에 오신 것을 환영합니다!</div>
+                <div>$ 두 개발자가 동시에 같은 파일을 수정할 때 발생하는 충돌을 해결해보세요.</div>
+                <div>$ 힌트 버튼을 클릭하여 문제 해결 방법을 확인할 수 있습니다.</div>
+                <div>$ 시나리오를 선택하여 다양한 충돌 상황을 학습해보세요.</div>
+                <div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hint-panel" id="hintPanel">
+        <div class="hint-header">
+            <div class="hint-title">💡 해결 힌트</div>
+            <button class="close-btn" onclick="hideHint()">&times;</button>
+        </div>
+        <div id="hintContent">
+            <p><strong>Git Conflict 해결 방법:</strong></p>
+            <ol>
+                <li>두 개발자가 같은 파일의 같은 부분을 수정했을 때 충돌이 발생합니다.</li>
+                <li>먼저 한 개발자가 변경사항을 커밋하고 푸시합니다.</li>
+                <li>다른 개발자가 푸시하려고 하면 충돌이 발생합니다.</li>
+                <li>git pull을 통해 원격 저장소의 변경사항을 가져옵니다.</li>
+                <li>충돌이 발생한 파일을 수동으로 편집하여 해결합니다.</li>
+                <li>해결 후 다시 add, commit, push 합니다.</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // 게임 상태 관리
+        let gameState = {
+            scenario: 'basic',
+            commits: {
+                remote: 3,
+                A: 3,
+                B: 3
+            },
+            hasUncommittedChanges: {
+                A: false,
+                B: false
+            },
+            conflictState: false,
+            pushedFirst: null
+        };
+
+        // 시나리오 설정
+        function setScenario(scenario) {
+            gameState.scenario = scenario;
+            document.querySelectorAll('.scenario-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            resetGame();
+            logCommand(`시나리오 변경: ${getScenarioName(scenario)}`);
+        }
+
+        function getScenarioName(scenario) {
+            const names = {
+                'basic': '기본 충돌',
+                'complex': '복잡한 충돌',
+                'merge': '머지 충돌'
+            };
+            return names[scenario] || '알 수 없는 시나리오';
+        }
+
+        // Git 액션 처리
+        function gitAction(developer, action) {
+            const editor = document.getElementById(`editor${developer}`);
+            const status = document.getElementById(`status${developer}`);
+            
+            switch(action) {
+                case 'add':
+                    if (hasChanges(developer)) {
+                        gameState.hasUncommittedChanges[developer] = true;
+                        status.textContent = "변경사항이 스테이징됨";
+                        logCommand(`[${developer}] git add . - 변경사항을 스테이징 영역에 추가했습니다.`);
+                    } else {
+                        logCommand(`[${developer}] git add . - 추가할 변경사항이 없습니다.`);
+                    }
+                    break;
+                    
+                case 'commit':
+                    if (gameState.hasUncommittedChanges[developer]) {
+                        gameState.commits[developer]++;
+                        gameState.hasUncommittedChanges[developer] = false;
+                        status.textContent = "변경사항이 커밋됨";
+                        logCommand(`[${developer}] git commit -m "변경사항 커밋" - 로컬에 커밋했습니다.`);
+                        updateBranchGraph();
+                    } else {
+                        logCommand(`[${developer}] git commit - 커밋할 변경사항이 없습니다.`);
+                    }
+                    break;
+                    
+                case 'push':
+                    if (gameState.commits[developer] > gameState.commits.remote) {
+                        if (gameState.pushedFirst === null) {
+                            // 첫 번째 푸시 성공
+                            gameState.pushedFirst = developer;
+                            gameState.commits.remote = gameState.commits[developer];
+                            status.textContent = "푸시 성공!";
+                            logCommand(`[${developer}] git push origin master - 원격 저장소에 푸시했습니다.`);
+                            updateBranchGraph();
+                        } else if (gameState.pushedFirst !== developer) {
+                            // 충돌 발생
+                            gameState.conflictState = true;
+                            status.textContent = "푸시 실패 - 충돌 발생!";
+                            logCommand(`[${developer}] git push origin master - ERROR: 푸시가 거부되었습니다. 원격 저장소가 앞서 있습니다.`);
+                            showConflictIndicator();
+                        } else {
+                            logCommand(`[${developer}] git push origin master - 이미 최신 상태입니다.`);
+                        }
+                    } else {
+                        logCommand(`[${developer}] git push origin master - 푸시할 새로운 커밋이 없습니다.`);
+                    }
+                    break;
+                    
+                case 'pull':
+                    if (gameState.commits.remote > gameState.commits[developer]) {
+                        if (gameState.hasUncommittedChanges[developer]) {
+                            logCommand(`[${developer}] git pull origin master - ERROR: 커밋되지 않은 변경사항이 있습니다.`);
+                        } else {
+                            gameState.commits[developer] = gameState.commits.remote;
+                            status.textContent = "원격 변경사항을 가져옴";
+                            logCommand(`[${developer}] git pull origin master - 원격 저장소의 변경사항을 가져왔습니다.`);
+                            
+                            if (gameState.conflictState && gameState.pushedFirst !== developer) {
+                                // 머지 충돌 시뮬레이션
+                                simulateMergeConflict(developer);
+                            }
+                            
+                            updateBranchGraph();
+                        }
+                    } else {
+                        logCommand(`[${developer}] git pull origin master - 이미 최신 상태입니다.`);
+                    }
+                    break;
+                    
+                case 'reset':
+                    gameState.hasUncommittedChanges[developer] = false;
+                    status.textContent = "변경사항이 리셋됨";
+                    logCommand(`[${developer}] git reset --hard HEAD - 작업 디렉토리를 마지막 커밋 상태로 되돌렸습니다.`);
+                    resetEditor(developer);
+                    break;
+            }
+        }
+
+        // 변경사항 확인
+        function hasChanges(developer) {
+            const editor = document.getElementById(`editor${developer}`);
+            const originalContent = getOriginalContent();
+            return editor.value !== originalContent;
+        }
+
+        function getOriginalContent() {
+            return `# 프로젝트 README
+
+## 소개
+이것은 멋진 프로젝트입니다.
+
+## 기능
+- 기능 1
+- 기능 2
+- 기능 3
+
+## 사용법
+프로젝트를 실행하려면...`;
+        }
+
+        // 머지 충돌 시뮬레이션
+        function simulateMergeConflict(developer) {
+            const editor = document.getElementById(`editor${developer}`);
+            const conflictContent = `# 프로젝트 README
+
+## 소개
+<<<<<<< HEAD
+이것은 멋진 프로젝트입니다.
+=======
+이것은 정말 훌륭한 프로젝트입니다.
+>>>>>>> ${gameState.pushedFirst === 'A' ? 'origin/master' : 'local-branch'}
+
+## 기능
+- 기능 1
+- 기능 2
+- 기능 3
+
+## 사용법
+프로젝트를 실행하려면...`;
+            
+            editor.value = conflictContent;
+            logCommand(`[${developer}] CONFLICT (content): README.md에서 머지 충돌이 발생했습니다.`);
+            logCommand(`[${developer}] 자동 머지 실패, 수동으로 충돌을 해결하고 커밋하세요.`);
+        }
+
+        // 브랜치 그래프 업데이트
+        function updateBranchGraph() {
+            const graph = document.getElementById('branchGraph');
+            graph.innerHTML = '';
+            
+            // 원격 브랜치
+            const remoteLine = createBranchLine('origin/master', 'remote', gameState.commits.remote);
+            graph.appendChild(remoteLine);
+            
+            // 개발자 A 브랜치
+            const aLine = createBranchLine('A/master', 'local-a', gameState.commits.A);
+            graph.appendChild(aLine);
+            
+            // 개발자 B 브랜치
+            const bLine = createBranchLine('B/master', 'local-b', gameState.commits.B);
+            graph.appendChild(bLine);
+        }
+
+        function createBranchLine(name, type, commitCount) {
+            const line = document.createElement('div');
+            line.className = 'branch-line';
+            
+            const branchName = document.createElement('div');
+            branchName.className = `branch-name ${type}`;
+            branchName.textContent = name;
+            
+            const commitLine = document.createElement('div');
+            commitLine.className = 'commit-line';
+            
+            for (let i = 1; i <= Math.max(5, commitCount); i++) {
+                const commit = document.createElement('div');
+                commit.className = `commit ${type}`;
+                commit.textContent = i;
+                
+                if (i > commitCount) {
+                    commit.style.opacity = '0.2';
+                }
+                
+                commitLine.appendChild(commit);
+            }
+            
+            line.appendChild(branchName);
+            line.appendChild(commitLine);
+            
+            return line;
+        }
+
+        // 충돌 표시기
+        function showConflictIndicator() {
+            document.getElementById('conflictIndicator').style.display = 'block';
+        }
+
+        function hideConflictIndicator() {
+            document.getElementById('conflictIndicator').style.display = 'none';
+        }
+
+        // 힌트 패널
+        function showHint() {
+            const hintContent = getHintForCurrentState();
+            document.getElementById('hintContent').innerHTML = hintContent;
+            document.getElementById('hintPanel').style.display = 'block';
+        }
+
+        function hideHint() {
+            document.getElementById('hintPanel').style.display = 'none';
+        }
+
+        function getHintForCurrentState() {
+            if (gameState.conflictState) {
+                return `
+                    <p><strong>🚨 충돌 상황 해결 방법:</strong></p>
+                    <ol>
+                        <li><strong>git pull</strong>을 실행하여 원격 저장소의 변경사항을 가져오세요.</li>
+                        <li>충돌 마커(&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======, &gt;&gt;&gt;&gt;&gt;&gt;&gt;)를 찾아 수동으로 편집하세요.</li>
+                        <li>원하는 내용으로 파일을 수정한 후 충돌 마커를 제거하세요.</li>
+                        <li><strong>git add .</strong>로 해결된 파일을 스테이징하세요.</li>
+                        <li><strong>git commit</strong>으로 머지 커밋을 생성하세요.</li>
+                        <li><strong>git push</strong>로 최종 결과를 업로드하세요.</li>
+                    </ol>
+                    <p><em>💡 팁: 충돌 해결 시 두 변경사항을 모두 포함하거나 하나를 선택할 수 있습니다.</em></p>
+                `;
+            } else {
+                return `
+                    <p><strong>🎯 Git 충돌 생성 방법:</strong></p>
+                    <ol>
+                        <li>두 개발자가 각각 README.md 파일을 다르게 수정하세요.</li>
+                        <li>첫 번째 개발자: <strong>git add</strong> → <strong>git commit</strong> → <strong>git push</strong></li>
+                        <li>두 번째 개발자: <strong>git add</strong> → <strong>git commit</strong> → <strong>git push</strong> (실패!)</li>
+                        <li>이제 충돌 상황이 만들어졌습니다. 두 번째 개발자는 git pull을 해야 합니다.</li>
+                    </ol>
+                    <p><strong>📚 학습 목표:</strong></p>
+                    <ul>
+                        <li>여러 개발자가 동시에 작업할 때 발생하는 충돌 이해</li>
+                        <li>충돌 해결을 위한 올바른 Git 워크플로우 학습</li>
+                        <li>머지 충돌 마커 해석 및 수동 해결 방법 습득</li>
+                    </ul>
+                `;
+            }
+        }
+
+        // 로그 관리
+        function logCommand(message) {
+            const terminal = document.getElementById('terminal');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `$ ${message}`;
+            terminal.appendChild(logEntry);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('terminal').innerHTML = '';
+        }
+
+        // 게임 리셋
+        function resetGame() {
+            gameState = {
+                scenario: gameState.scenario,
+                commits: { remote: 3, A: 3, B: 3 },
+                hasUncommittedChanges: { A: false, B: false },
+                conflictState: false,
+                pushedFirst: null
+            };
+            
+            resetEditor('A');
+            resetEditor('B');
+            updateBranchGraph();
+            hideConflictIndicator();
+            
+            document.getElementById('statusA').textContent = 'master 브랜치에서 작업 중';
+            document.getElementById('statusB').textContent = 'master 브랜치에서 작업 중';
+        }
+
+        function resetEditor(developer) {
+            document.getElementById(`editor${developer}`).value = getOriginalContent();
+        }
+
+        // 에디터 이벤트 리스너
+        document.getElementById('editorA').addEventListener('input', function() {
+            if (hasChanges('A')) {
+                document.getElementById('statusA').textContent = '파일이 수정됨 (스테이징 필요)';
+            }
+        });
+
+        document.getElementById('editorB').addEventListener('input', function() {
+            if (hasChanges('B')) {
+                document.getElementById('statusB').textContent = '파일이 수정됨 (스테이징 필요)';
+            }
+        });
+
+        // 초기화
+        updateBranchGraph();
+        
+        // 키보드 단축키
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideHint();
+            } else if (e.ctrlKey && e.key === 'h') {
+                e.preventDefault();
+                showHint();
+            }
+        });
+    </script>
+</body>
+</html>

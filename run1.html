@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>허들 단거리 달리기 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            border: 3px solid #333;
+            border-radius: 10px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #90EE90 70%, #228B22 100%);
+            display: block;
+            margin: 20px auto;
+        }
+
+        .controls {
+            margin: 20px 0;
+            font-size: 1.2em;
+            color: #555;
+        }
+
+        .score {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .game-over {
+            color: #ff4444;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        button {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🏃‍♂️ 허들 단거리 달리기</h1>
+        <div class="controls">스페이스바를 눌러 점프하세요!</div>
+        <div class="score" id="score">거리: 0m | 점수: 0점</div>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="gameOver" class="game-over" style="display: none;">게임 오버!</div>
+        <button onclick="startGame()">게임 시작</button>
+        <button onclick="location.reload()">다시 시작</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const gameOverElement = document.getElementById('gameOver');
+
+        let gameRunning = false;
+        let gameSpeed = 5;
+        let score = 0;
+        let distance = 0;
+
+        // 플레이어 객체
+        const player = {
+            x: 100,
+            y: 300,
+            width: 40,
+            height: 60,
+            velocityY: 0,
+            jumping: false,
+            grounded: true,
+            jumpPower: 18,
+            gravity: 0.8
+        };
+
+        // 허들 배열
+        let hurdles = [];
+        let hurdleSpacing = 300;
+        let nextHurdleDistance = 200;
+
+        // 배경 요소들
+        let clouds = [];
+        let trees = [];
+
+        // 게임 초기화
+        function initGame() {
+            // 구름 생성
+            for (let i = 0; i < 5; i++) {
+                clouds.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * 100 + 20,
+                    size: Math.random() * 30 + 20,
+                    speed: Math.random() * 1 + 0.5
+                });
+            }
+
+            // 나무 생성
+            for (let i = 0; i < 8; i++) {
+                trees.push({
+                    x: Math.random() * canvas.width + canvas.width,
+                    y: 250,
+                    size: Math.random() * 20 + 30
+                });
+            }
+        }
+
+        // 허들 생성
+        function createHurdle() {
+            hurdles.push({
+                x: canvas.width,
+                y: 280,
+                width: 15,
+                height: 80
+            });
+        }
+
+        // 플레이어 그리기
+        function drawPlayer() {
+            ctx.fillStyle = '#FF6B6B';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // 머리
+            ctx.fillStyle = '#FFB347';
+            ctx.beginPath();
+            ctx.arc(player.x + 20, player.y - 10, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 눈
+            ctx.fillStyle = 'black';
+            ctx.fillRect(player.x + 15, player.y - 15, 3, 3);
+            ctx.fillRect(player.x + 22, player.y - 15, 3, 3);
+            
+            // 팔
+            ctx.fillStyle = '#FF6B6B';
+            ctx.fillRect(player.x - 10, player.y + 15, 8, 25);
+            ctx.fillRect(player.x + 42, player.y + 15, 8, 25);
+            
+            // 다리
+            ctx.fillRect(player.x + 8, player.y + 50, 8, 25);
+            ctx.fillRect(player.x + 24, player.y + 50, 8, 25);
+        }
+
+        // 허들 그리기
+        function drawHurdles() {
+            ctx.fillStyle = '#8B4513';
+            hurdles.forEach(hurdle => {
+                // 허들 기둥
+                ctx.fillRect(hurdle.x, hurdle.y, hurdle.width, hurdle.height);
+                ctx.fillRect(hurdle.x + 50, hurdle.y, hurdle.width, hurdle.height);
+                
+                // 허들 바
+                ctx.fillRect(hurdle.x, hurdle.y + 10, 65, 8);
+                ctx.fillRect(hurdle.x, hurdle.y + 30, 65, 8);
+                ctx.fillRect(hurdle.x, hurdle.y + 50, 65, 8);
+            });
+        }
+
+        // 배경 그리기
+        function drawBackground() {
+            // 트랙
+            ctx.fillStyle = '#CD853F';
+            ctx.fillRect(0, 360, canvas.width, 40);
+            
+            // 트랙 라인
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < canvas.width; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(i - (distance * 2) % 30, 340);
+                ctx.lineTo(i + 20 - (distance * 2) % 30, 340);
+                ctx.stroke();
+            }
+
+            // 구름
+            ctx.fillStyle = 'white';
+            clouds.forEach(cloud => {
+                ctx.beginPath();
+                ctx.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(cloud.x + cloud.size * 0.7, cloud.y, cloud.size * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(cloud.x - cloud.size * 0.7, cloud.y, cloud.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 나무
+            ctx.fillStyle = '#8B4513';
+            trees.forEach(tree => {
+                ctx.fillRect(tree.x, tree.y, 10, tree.size);
+                ctx.fillStyle = '#228B22';
+                ctx.beginPath();
+                ctx.arc(tree.x + 5, tree.y, tree.size * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#8B4513';
+            });
+        }
+
+        // 충돌 감지
+        function checkCollision() {
+            for (let hurdle of hurdles) {
+                if (player.x < hurdle.x + 65 &&
+                    player.x + player.width > hurdle.x &&
+                    player.y < hurdle.y + hurdle.height &&
+                    player.y + player.height > hurdle.y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 플레이어 업데이트
+        function updatePlayer() {
+            if (player.jumping) {
+                player.velocityY += player.gravity;
+                player.y += player.velocityY;
+                
+                if (player.y >= 300) {
+                    player.y = 300;
+                    player.jumping = false;
+                    player.grounded = true;
+                    player.velocityY = 0;
+                }
+            }
+        }
+
+        // 게임 업데이트
+        function updateGame() {
+            if (!gameRunning) return;
+
+            // 거리 및 점수 업데이트
+            distance += gameSpeed * 0.1;
+            score = Math.floor(distance * 10);
+            
+            // 게임 속도 점진적 증가
+            gameSpeed += 0.002;
+
+            // 허들 생성
+            if (distance > nextHurdleDistance) {
+                createHurdle();
+                nextHurdleDistance += hurdleSpacing;
+                hurdleSpacing = Math.max(200, hurdleSpacing - 2); // 허들 간격 점진적 감소
+            }
+
+            // 허들 이동
+            hurdles.forEach((hurdle, index) => {
+                hurdle.x -= gameSpeed;
+                if (hurdle.x + 65 < 0) {
+                    hurdles.splice(index, 1);
+                }
+            });
+
+            // 배경 요소 이동
+            clouds.forEach(cloud => {
+                cloud.x -= cloud.speed;
+                if (cloud.x + cloud.size < 0) {
+                    cloud.x = canvas.width + cloud.size;
+                }
+            });
+
+            trees.forEach(tree => {
+                tree.x -= gameSpeed;
+                if (tree.x + 15 < 0) {
+                    tree.x = canvas.width + Math.random() * 200;
+                }
+            });
+
+            updatePlayer();
+
+            // 충돌 체크
+            if (checkCollision()) {
+                gameOver();
+            }
+
+            // 점수 업데이트
+            scoreElement.textContent = `거리: ${Math.floor(distance)}m | 점수: ${score}점`;
+        }
+
+        // 게임 그리기
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawHurdles();
+            drawPlayer();
+        }
+
+        // 게임 루프
+        function gameLoop() {
+            updateGame();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 점프 함수
+        function jump() {
+            if (gameRunning && player.grounded) {
+                player.jumping = true;
+                player.grounded = false;
+                player.velocityY = -player.jumpPower;
+            }
+        }
+
+        // 게임 시작
+        function startGame() {
+            gameRunning = true;
+            gameSpeed = 5;
+            score = 0;
+            distance = 0;
+            hurdles = [];
+            nextHurdleDistance = 200;
+            hurdleSpacing = 300;
+            
+            player.x = 100;
+            player.y = 300;
+            player.velocityY = 0;
+            player.jumping = false;
+            player.grounded = true;
+            
+            gameOverElement.style.display = 'none';
+            
+            if (clouds.length === 0) initGame();
+        }
+
+        // 게임 오버
+        function gameOver() {
+            gameRunning = false;
+            gameOverElement.style.display = 'block';
+        }
+
+        // 키보드 이벤트
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                jump();
+            }
+        });
+
+        // 클릭 이벤트
+        canvas.addEventListener('click', jump);
+
+        // 게임 초기화 및 시작
+        initGame();
+        gameLoop();
+    </script>
+</body>
+</html>

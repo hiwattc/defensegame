@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>숫자 기억 게임</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .info-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .phase-display {
+            font-size: 1.5em;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .numbers-display {
+            font-size: 3em;
+            font-weight: bold;
+            color: #ffeb3b;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .countdown {
+            font-size: 4em;
+            color: #ff5722;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .grid-container {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .grid-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 30px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .grid-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 10px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .grid-label {
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #ffeb3b;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .grid-cell {
+            aspect-ratio: 1;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-cell.preview {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .grid-cell.highlight {
+            background: #ffeb3b !important;
+            color: #333 !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { box-shadow: 0 0 10px rgba(255, 235, 59, 0.8); }
+            to { box-shadow: 0 0 20px rgba(255, 235, 59, 1); }
+        }
+
+        .grid-cell:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+
+        .grid-cell.preview:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: none;
+        }
+
+        .grid-cell.selected {
+            background: #4caf50;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .grid-cell.correct {
+            background: #2196f3;
+            color: white;
+        }
+
+        .grid-cell.wrong {
+            background: #f44336;
+            color: white;
+        }
+
+        .start-btn, .next-btn {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+            margin: 20px 10px;
+        }
+
+        .start-btn:hover, .next-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .result {
+            font-size: 1.5em;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .success {
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+            color: white;
+        }
+
+        .failure {
+            background: linear-gradient(45deg, #f44336, #ff5722);
+            color: white;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .grid-wrapper {
+                max-width: 90vw;
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(4, 1fr);
+                gap: 20px;
+            }
+            
+            .grid {
+                max-width: 300px;
+            }
+            
+            .grid-cell {
+                font-size: 0.8em;
+            }
+            
+            .numbers-display {
+                font-size: 2em;
+            }
+
+            .grid-label {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 숫자 기억 게임</h1>
+        
+        <div class="game-info">
+            <div class="info-item">
+                <div class="info-label">단계</div>
+                <div class="info-value" id="level">1</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">기억할 숫자</div>
+                <div class="info-value" id="numberCount">2</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">기억 시간</div>
+                <div class="info-value" id="countdownTime">10초</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">점수</div>
+                <div class="info-value" id="score">0</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <strong>게임 방법:</strong><br>
+            1️⃣ 화면에 나타나는 숫자들을 기억하세요 (타이머와 함께 표시됩니다)<br>
+            2️⃣ 타이머가 끝나면 바로 10×10 격자에서 해당 숫자들을 찾아 클릭하세요<br>
+            3️⃣ 성공하면 다음 단계로! 기억할 숫자가 2개씩, 시간은 5초씩 늘어납니다
+        </div>
+
+        <div class="phase-display" id="phaseDisplay">
+            <button class="start-btn" onclick="startGame()">게임 시작!</button>
+        </div>
+
+        <div class="grid-container" id="gridContainer">
+            <div class="grid-wrapper">
+                <div class="grid-section">
+                    <div class="grid-label">1 ~ 25</div>
+                    <div class="grid" id="grid1"></div>
+                </div>
+                <div class="grid-section">
+                    <div class="grid-label">26 ~ 50</div>
+                    <div class="grid" id="grid2"></div>
+                </div>
+                <div class="grid-section">
+                    <div class="grid-label">51 ~ 75</div>
+                    <div class="grid" id="grid3"></div>
+                </div>
+                <div class="grid-section">
+                    <div class="grid-label">76 ~ 100</div>
+                    <div class="grid" id="grid4"></div>
+                </div>
+            </div>
+            <div id="result"></div>
+            <button class="next-btn" id="nextBtn" onclick="nextLevel()" style="display: none;">다음 단계</button>
+        </div>
+    </div>
+
+    <script>
+        let currentLevel = 1;
+        let numbersToRemember = [];
+        let selectedNumbers = [];
+        let currentNumberCount = 2;
+        let score = 0;
+        let gamePhase = 'ready'; // ready, showing, countdown, selecting, result
+
+        function startGame() {
+            gamePhase = 'showing';
+            generateRandomNumbers();
+            showNumbersWithTimer();
+        }
+
+        function generateRandomNumbers() {
+            numbersToRemember = [];
+            const usedNumbers = new Set();
+            
+            while (numbersToRemember.length < currentNumberCount) {
+                const randomNum = Math.floor(Math.random() * 100) + 1;
+                if (!usedNumbers.has(randomNum)) {
+                    numbersToRemember.push(randomNum);
+                    usedNumbers.add(randomNum);
+                }
+            }
+        }
+
+        function showNumbersWithTimer() {
+            const totalTime = 5 + (currentLevel * 5); // 단계별로 5초씩 추가
+            let timeLeft = totalTime;
+            const display = document.getElementById('phaseDisplay');
+            
+            // 격자를 미리 생성하고 표시
+            createGrid();
+            highlightCorrectNumbers();
+            document.getElementById('gridContainer').style.display = 'block';
+            
+            const timerInterval = setInterval(() => {
+                display.innerHTML = `
+                    <div>
+                        <div style="font-size: 1.2em; margin-bottom: 15px;">이 숫자들을 기억하세요!</div>
+                        <div class="numbers-display">${numbersToRemember.join(' , ')}</div>
+                        <div style="font-size: 2em; color: #ff5722; font-weight: bold; margin-top: 20px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);">⏰ ${timeLeft}초</div>
+                    </div>
+                `;
+                
+                timeLeft--;
+                
+                if (timeLeft < 0) {
+                    clearInterval(timerInterval);
+                    startSelection();
+                }
+            }, 1000);
+        }
+
+        function createGrid() {
+            const grid1 = document.getElementById('grid1');
+            const grid2 = document.getElementById('grid2');
+            const grid3 = document.getElementById('grid3');
+            const grid4 = document.getElementById('grid4');
+            
+            // 그리드 생성
+            grid1.innerHTML = '';
+            grid2.innerHTML = '';
+            grid3.innerHTML = '';
+            grid4.innerHTML = '';
+            
+            for (let i = 1; i <= 25; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'grid-cell preview';
+                cell.textContent = i;
+                cell.onclick = () => selectNumber(i, cell);
+                grid1.appendChild(cell);
+            }
+            for (let i = 26; i <= 50; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'grid-cell preview';
+                cell.textContent = i;
+                cell.onclick = () => selectNumber(i, cell);
+                grid2.appendChild(cell);
+            }
+            for (let i = 51; i <= 75; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'grid-cell preview';
+                cell.textContent = i;
+                cell.onclick = () => selectNumber(i, cell);
+                grid3.appendChild(cell);
+            }
+            for (let i = 76; i <= 100; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'grid-cell preview';
+                cell.textContent = i;
+                cell.onclick = () => selectNumber(i, cell);
+                grid4.appendChild(cell);
+            }
+        }
+
+        function highlightCorrectNumbers() {
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => {
+                const cellNumber = parseInt(cell.textContent);
+                if (numbersToRemember.includes(cellNumber)) {
+                    cell.classList.add('highlight');
+                }
+            });
+        }
+
+        function startSelection() {
+            gamePhase = 'selecting';
+            selectedNumbers = [];
+            
+            document.getElementById('phaseDisplay').innerHTML = `
+                <div style="font-size: 1.2em;">기억한 숫자들을 클릭하세요! (${numbersToRemember.length}개)</div>
+            `;
+            
+            // 하이라이트 제거하고 클릭 활성화
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => {
+                cell.classList.remove('preview', 'highlight');
+            });
+            
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('nextBtn').style.display = 'none';
+        }
+
+        function showGrid() {
+            // 이 함수는 이제 startSelection()으로 대체됨
+            startSelection();
+        }
+
+        function selectNumber(number, cellElement) {
+            if (gamePhase !== 'selecting') return;
+            if (cellElement.classList.contains('preview')) return; // 미리보기 모드에서는 클릭 불가
+            
+            if (selectedNumbers.includes(number)) {
+                // 이미 선택된 숫자 - 선택 해제
+                selectedNumbers = selectedNumbers.filter(n => n !== number);
+                cellElement.classList.remove('selected');
+            } else if (selectedNumbers.length < currentNumberCount) {
+                // 새로운 숫자 선택
+                selectedNumbers.push(number);
+                cellElement.classList.add('selected');
+                
+                // 모든 숫자를 선택했다면 결과 확인
+                if (selectedNumbers.length === currentNumberCount) {
+                    setTimeout(checkResult, 500);
+                }
+            }
+        }
+
+        function checkResult() {
+            gamePhase = 'result';
+            
+            // 정답 확인
+            const isCorrect = numbersToRemember.every(num => selectedNumbers.includes(num)) && 
+                             selectedNumbers.every(num => numbersToRemember.includes(num));
+            
+            // 그리드에 결과 표시
+            const cells = document.querySelectorAll('.grid-cell');
+            cells.forEach(cell => {
+                const cellNumber = parseInt(cell.textContent);
+                if (numbersToRemember.includes(cellNumber)) {
+                    cell.classList.add('correct');
+                } else if (selectedNumbers.includes(cellNumber)) {
+                    cell.classList.add('wrong');
+                }
+            });
+            
+            const resultDiv = document.getElementById('result');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            if (isCorrect) {
+                score += currentLevel * 10;
+                document.getElementById('score').textContent = score;
+                
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        🎉 정답입니다! 
+                        <br>+${currentLevel * 10}점 획득!
+                    </div>
+                `;
+                nextBtn.style.display = 'inline-block';
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="result failure">
+                        😅 틀렸습니다!
+                        <br>정답: ${numbersToRemember.join(', ')}
+                        <br>선택: ${selectedNumbers.join(', ')}
+                    </div>
+                `;
+                
+                // 재시작 버튼 표시
+                setTimeout(() => {
+                    document.getElementById('phaseDisplay').innerHTML = `
+                        <button class="start-btn" onclick="restartLevel()">다시 도전!</button>
+                    `;
+                    document.getElementById('gridContainer').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            currentNumberCount += 2;
+            const newCountdownTime = 5 + (currentLevel * 5);
+            
+            document.getElementById('level').textContent = currentLevel;
+            document.getElementById('numberCount').textContent = currentNumberCount;
+            document.getElementById('countdownTime').textContent = newCountdownTime + '초';
+            
+            document.getElementById('phaseDisplay').innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 1.5em; color: #ffeb3b;">🎊 단계 ${currentLevel}! 🎊</div>
+                    <div style="font-size: 1.1em; margin-top: 10px;">이제 ${currentNumberCount}개의 숫자를 ${newCountdownTime}초 동안 기억하세요!</div>
+                </div>
+                <button class="start-btn" onclick="startGame()">시작!</button>
+            `;
+            
+            document.getElementById('gridContainer').style.display = 'none';
+            gamePhase = 'ready';
+        }
+
+        function restartLevel() {
+            document.getElementById('phaseDisplay').innerHTML = `
+                <button class="start-btn" onclick="startGame()">다시 시작!</button>
+            `;
+            
+            document.getElementById('gridContainer').style.display = 'none';
+            gamePhase = 'ready';
+        }
+    </script>
+</body>
+</html>

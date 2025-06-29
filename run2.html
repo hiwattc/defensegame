@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>말 허들 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #87CEEB 0%, #98FB98 100%);
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        canvas {
+            border: 3px solid #8B4513;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 100%);
+        }
+        
+        .ui {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .energy-bar {
+            width: 200px;
+            height: 20px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #ddd;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ffaa00, #44ff44);
+            transition: width 0.3s ease;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            text-align: center;
+            color: #333;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div>점수: <span id="score">0</span></div>
+        <div>에너지: 
+            <div class="energy-bar">
+                <div class="energy-fill" id="energyFill"></div>
+            </div>
+        </div>
+        <div>속도: <span id="speed">5</span> km/h</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="1000" height="400"></canvas>
+    
+    <div class="controls">
+        <p><strong>조작법:</strong></p>
+        <p>SPACE 키 또는 클릭: 점프</p>
+        <p>장애물에 부딪혀도 게임이 끝나지 않습니다!</p>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                
+                // 게임 상태
+                this.score = 0;
+                this.gameSpeed = 5;
+                this.gravity = 0.8;
+                this.groundY = this.height - 50;
+                
+                // 말 객체
+                this.horse = {
+                    x: 100,
+                    y: this.groundY - 60,
+                    width: 60,
+                    height: 60,
+                    velY: 0,
+                    energy: 100,
+                    maxEnergy: 100,
+                    isJumping: false,
+                    jumpPower: -18,
+                    color: '#8B4513'
+                };
+                
+                // 장애물 배열
+                this.obstacles = [];
+                this.particles = []; // 파괴 효과용 파티클
+                this.clouds = []; // 구름 배경
+                
+                // 입력 처리
+                this.keys = {};
+                this.setupControls();
+                
+                // 초기 장애물 생성
+                this.generateObstacles();
+                this.generateClouds();
+                
+                // 게임 루프 시작
+                this.gameLoop();
+            }
+            
+            setupControls() {
+                // 키보드 이벤트
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+                
+                // 마우스/터치 이벤트
+                this.canvas.addEventListener('click', () => {
+                    this.jump();
+                });
+                
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.jump();
+                });
+            }
+            
+            jump() {
+                if (!this.horse.isJumping && this.horse.energy > 10) {
+                    this.horse.velY = this.horse.jumpPower;
+                    this.horse.isJumping = true;
+                    this.horse.energy -= 10;
+                }
+            }
+            
+            generateObstacles() {
+                for (let i = 0; i < 5; i++) {
+                    this.obstacles.push({
+                        x: this.width + i * 300,
+                        y: this.groundY - 80,
+                        width: 15,
+                        height: 80,
+                        color: '#8B4513',
+                        broken: false,
+                        health: 100
+                    });
+                }
+            }
+            
+            generateClouds() {
+                for (let i = 0; i < 8; i++) {
+                    this.clouds.push({
+                        x: Math.random() * this.width,
+                        y: Math.random() * 100 + 50,
+                        size: Math.random() * 30 + 20,
+                        speed: Math.random() * 0.5 + 0.2
+                    });
+                }
+            }
+            
+            update() {
+                // 점프 입력 처리
+                if (this.keys['Space']) {
+                    this.jump();
+                }
+                
+                // 말 물리 업데이트
+                this.updateHorse();
+                
+                // 장애물 업데이트
+                this.updateObstacles();
+                
+                // 파티클 업데이트
+                this.updateParticles();
+                
+                // 구름 업데이트
+                this.updateClouds();
+                
+                // 충돌 감지
+                this.checkCollisions();
+                
+                // 에너지 회복
+                if (this.horse.energy < this.horse.maxEnergy) {
+                    this.horse.energy += 0.2;
+                }
+                
+                // 점수 증가
+                this.score += 1;
+                
+                // 속도 증가
+                if (this.score % 500 === 0) {
+                    this.gameSpeed += 0.5;
+                }
+                
+                // UI 업데이트
+                this.updateUI();
+            }
+            
+            updateHorse() {
+                // 중력 적용
+                this.horse.velY += this.gravity;
+                this.horse.y += this.horse.velY;
+                
+                // 땅 충돌 검사
+                if (this.horse.y >= this.groundY - this.horse.height) {
+                    this.horse.y = this.groundY - this.horse.height;
+                    this.horse.velY = 0;
+                    this.horse.isJumping = false;
+                }
+            }
+            
+            updateObstacles() {
+                this.obstacles.forEach((obstacle, index) => {
+                    obstacle.x -= this.gameSpeed;
+                    
+                    // 화면을 벗어난 장애물 제거 및 새로운 장애물 생성
+                    if (obstacle.x + obstacle.width < 0) {
+                        this.obstacles.splice(index, 1);
+                        this.obstacles.push({
+                            x: this.width + Math.random() * 200,
+                            y: this.groundY - 80,
+                            width: 15,
+                            height: 80,
+                            color: '#8B4513',
+                            broken: false,
+                            health: 100
+                        });
+                    }
+                });
+            }
+            
+            updateParticles() {
+                this.particles.forEach((particle, index) => {
+                    particle.x += particle.velX;
+                    particle.y += particle.velY;
+                    particle.velY += 0.3; // 중력
+                    particle.life--;
+                    
+                    if (particle.life <= 0) {
+                        this.particles.splice(index, 1);
+                    }
+                });
+            }
+            
+            updateClouds() {
+                this.clouds.forEach(cloud => {
+                    cloud.x -= cloud.speed;
+                    if (cloud.x + cloud.size < 0) {
+                        cloud.x = this.width + cloud.size;
+                        cloud.y = Math.random() * 100 + 50;
+                    }
+                });
+            }
+            
+            checkCollisions() {
+                this.obstacles.forEach(obstacle => {
+                    if (!obstacle.broken &&
+                        this.horse.x < obstacle.x + obstacle.width &&
+                        this.horse.x + this.horse.width > obstacle.x &&
+                        this.horse.y < obstacle.y + obstacle.height &&
+                        this.horse.y + this.horse.height > obstacle.y) {
+                        
+                        // 충돌 발생!
+                        this.handleCollision(obstacle);
+                    }
+                });
+            }
+            
+            handleCollision(obstacle) {
+                // 장애물 파괴
+                obstacle.broken = true;
+                obstacle.health = 0;
+                
+                // 말 에너지 감소
+                this.horse.energy -= 15;
+                if (this.horse.energy < 0) this.horse.energy = 0;
+                
+                // 파괴 효과 생성
+                this.createDestructionEffect(obstacle);
+                
+                // 점수 추가
+                this.score += 50;
+            }
+            
+            createDestructionEffect(obstacle) {
+                // 파티클 생성
+                for (let i = 0; i < 15; i++) {
+                    this.particles.push({
+                        x: obstacle.x + obstacle.width / 2,
+                        y: obstacle.y + obstacle.height / 2,
+                        velX: (Math.random() - 0.5) * 10,
+                        velY: Math.random() * -8 - 2,
+                        size: Math.random() * 8 + 2,
+                        color: `hsl(${Math.random() * 60 + 15}, 70%, 50%)`,
+                        life: 60
+                    });
+                }
+            }
+            
+            render() {
+                // 화면 지우기
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                
+                // 배경 그라디언트
+                const gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#98FB98');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                
+                // 구름 그리기
+                this.renderClouds();
+                
+                // 땅 그리기
+                this.ctx.fillStyle = '#228B22';
+                this.ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
+                
+                // 말 그리기
+                this.renderHorse();
+                
+                // 장애물 그리기
+                this.renderObstacles();
+                
+                // 파티클 그리기
+                this.renderParticles();
+            }
+            
+            renderHorse() {
+                this.ctx.save();
+                this.ctx.translate(this.horse.x + this.horse.width/2, this.horse.y + this.horse.height/2);
+                
+                // 말 몸체
+                this.ctx.fillStyle = this.horse.color;
+                this.ctx.fillRect(-30, -25, 50, 35);
+                
+                // 말 머리
+                this.ctx.fillStyle = '#A0522D';
+                this.ctx.fillRect(-35, -30, 25, 20);
+                
+                // 말 다리
+                this.ctx.fillStyle = '#8B4513';
+                this.ctx.fillRect(-20, 10, 8, 15);
+                this.ctx.fillRect(-5, 10, 8, 15);
+                this.ctx.fillRect(10, 10, 8, 15);
+                this.ctx.fillRect(25, 10, 8, 15);
+                
+                // 말 갈기
+                this.ctx.fillStyle = '#654321';
+                this.ctx.fillRect(-30, -35, 15, 10);
+                
+                // 말 꼬리
+                this.ctx.fillRect(20, -20, 15, 8);
+                
+                this.ctx.restore();
+            }
+            
+            renderObstacles() {
+                this.obstacles.forEach(obstacle => {
+                    if (!obstacle.broken) {
+                        // 장애물 기둥
+                        this.ctx.fillStyle = obstacle.color;
+                        this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                        
+                        // 상단 가로대
+                        this.ctx.fillStyle = '#654321';
+                        this.ctx.fillRect(obstacle.x - 10, obstacle.y, obstacle.width + 20, 8);
+                        
+                        // 하이라이트 효과
+                        this.ctx.fillStyle = '#D2691E';
+                        this.ctx.fillRect(obstacle.x, obstacle.y, 3, obstacle.height);
+                    }
+                });
+            }
+            
+            renderParticles() {
+                this.particles.forEach(particle => {
+                    this.ctx.save();
+                    this.ctx.globalAlpha = particle.life / 60;
+                    this.ctx.fillStyle = particle.color;
+                    this.ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+                    this.ctx.restore();
+                });
+            }
+            
+            renderClouds() {
+                this.clouds.forEach(cloud => {
+                    this.ctx.save();
+                    this.ctx.globalAlpha = 0.8;
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.beginPath();
+                    this.ctx.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
+                    this.ctx.arc(cloud.x + cloud.size * 0.7, cloud.y, cloud.size * 0.7, 0, Math.PI * 2);
+                    this.ctx.arc(cloud.x - cloud.size * 0.7, cloud.y, cloud.size * 0.7, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                });
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = Math.floor(this.score / 10);
+                document.getElementById('speed').textContent = this.gameSpeed.toFixed(1);
+                
+                const energyPercentage = (this.horse.energy / this.horse.maxEnergy) * 100;
+                document.getElementById('energyFill').style.width = energyPercentage + '%';
+            }
+            
+            gameLoop() {
+                this.update();
+                this.render();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // 게임 시작
+        window.addEventListener('load', () => {
+            new Game();
+        });
+    </script>
+</body>
+</html>

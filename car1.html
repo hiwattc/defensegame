@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 버기카 레이싱 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        #speedometer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #debug {
+            position: absolute;
+            top: 100px;
+            left: 10px;
+            color: yellow;
+            font-size: 12px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div>3D 버기카 레이싱 게임</div>
+            <div id="lapInfo">랩: 0/3</div>
+        </div>
+        <div id="speedometer">
+            <div>속도: <span id="speed">0</span> km/h</div>
+            <div>기어: <span id="gear">P</span></div>
+        </div>
+        <div id="controls">
+            <div>조작법:</div>
+            <div>W/S 또는 ↑/↓: 가속/후진</div>
+            <div>A/D 또는 ←/→: 좌/우 조향</div>
+            <div>Space: 브레이크</div>
+            <div>Z/X: 줌인/줌아웃</div>
+        </div>
+        <div id="debug">
+            <div>디버그 정보:</div>
+            <div id="debugInfo">로딩 중...</div>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Cannon.js 물리엔진 (대체 CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.20.0/cannon.min.js"></script>
+
+    <script>
+        // 게임 변수들
+        let scene, camera, renderer, world;
+        let playerCar, otherCars = [];
+        let keys = {};
+        let gameStarted = false;
+        let lapCount = 0;
+        let checkpoints = [];
+        let lastCheckpoint = -1;
+        let usePhysics = false; // 물리엔진 사용 여부
+        let cameraZoom = 1.0; // 카메라 줌 레벨
+
+        // 디버그 정보 업데이트
+        function updateDebugInfo(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            if (debugInfo) {
+                debugInfo.innerHTML = message;
+            }
+            console.log(message);
+        }
+
+        // 물리엔진 설정 (선택적)
+        function initPhysics() {
+            if (typeof CANNON === 'undefined') {
+                updateDebugInfo('물리엔진 없이 게임 실행...');
+                usePhysics = false;
+                return;
+            }
+            
+            updateDebugInfo('물리엔진 초기화...');
+            usePhysics = true;
+            world = new CANNON.World();
+            world.gravity.set(0, -9.82, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 10;
+            updateDebugInfo('물리엔진 초기화 완료');
+        }
+
+        // 씬 초기화
+        function initScene() {
+            updateDebugInfo('씬 초기화...');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 100, 400);
+
+            // 카메라 설정
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 80, 80);
+            camera.lookAt(0, 0, 0);
+
+            // 렌더러 설정
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setClearColor(0x87CEEB);
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+            // 조명 설정
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(50, 50, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.1;
+            directionalLight.shadow.camera.far = 200;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+
+            updateDebugInfo('씬 초기화 완료');
+        }
+
+        // 지면 생성
+        function createGround() {
+            updateDebugInfo('지면 생성...');
+            const groundGeometry = new THREE.PlaneGeometry(400, 300);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 물리엔진 지면 (선택적)
+            if (usePhysics) {
+                const groundShape = new CANNON.Plane();
+                const groundBody = new CANNON.Body({ mass: 0 });
+                groundBody.addShape(groundShape);
+                groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+                world.add(groundBody);
+            }
+
+            updateDebugInfo('지면 생성 완료');
+        }
+
+        // 레이싱 트랙 생성
+        function createRaceTrack() {
+            updateDebugInfo('레이싱 트랙 생성...');
+            
+            // 트랙 바닥 (원형) - 시각적 가이드만 제공
+            const trackGeometry = new THREE.RingGeometry(32, 42.5, 32);
+            const trackMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+            const track = new THREE.Mesh(trackGeometry, trackMaterial);
+            track.rotation.x = -Math.PI / 2;
+            track.position.y = 0.01;
+            track.receiveShadow = true;
+            scene.add(track);
+
+            // 시각적 경계선 (충돌 없음)
+            const innerWallGeometry = new THREE.CylinderGeometry(32, 32, 0.5, 32, 1, true);
+            const wallMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xff0000, 
+                transparent: true, 
+                opacity: 0.5 
+            });
+            const innerWall = new THREE.Mesh(innerWallGeometry, wallMaterial);
+            innerWall.position.y = 0.25;
+            innerWall.castShadow = true;
+            scene.add(innerWall);
+
+            // 외부 시각적 경계선 (충돌 없음)
+            const outerWallGeometry = new THREE.CylinderGeometry(42.5, 42.5, 0.5, 32, 1, true);
+            const outerWall = new THREE.Mesh(outerWallGeometry, wallMaterial);
+            outerWall.position.y = 0.25;
+            outerWall.castShadow = true;
+            scene.add(outerWall);
+
+            // 물리엔진 벽들 제거 - 자유로운 이동을 위해 주석 처리
+            /*
+            if (usePhysics) {
+                const innerWallShape = new CANNON.Cylinder(32, 32, 2, 8);
+                const innerWallBody = new CANNON.Body({ mass: 0 });
+                innerWallBody.addShape(innerWallShape);
+                innerWallBody.position.set(0, 1, 0);
+                world.add(innerWallBody);
+
+                const outerWallShape = new CANNON.Cylinder(42.5, 42.5, 2, 8);
+                const outerWallBody = new CANNON.Body({ mass: 0 });
+                outerWallBody.addShape(outerWallShape);
+                outerWallBody.position.set(0, 1, 0);
+                world.add(outerWallBody);
+            }
+            */
+
+            // 체크포인트 생성 (원형 트랙)
+            checkpoints = [
+                { x: 37, z: 0 },
+                { x: 0, z: 37 },
+                { x: -37, z: 0 },
+                { x: 0, z: -37 }
+            ];
+
+            checkpoints.forEach((cp, index) => {
+                const cpGeometry = new THREE.CylinderGeometry(3, 3, 0.3);
+                const cpMaterial = new THREE.MeshLambertMaterial({ 
+                    color: index === 0 ? 0x00ff00 : 0xffff00,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const checkpoint = new THREE.Mesh(cpGeometry, cpMaterial);
+                checkpoint.position.set(cp.x, 0.3, cp.z);
+                checkpoint.userData = { isCheckpoint: true, index: index };
+                scene.add(checkpoint);
+            });
+
+            updateDebugInfo('레이싱 트랙 생성 완료 - 자유 이동 모드');
+        }
+
+        // 고가도로 생성
+        function createElevatedRoad() {
+            updateDebugInfo('고가도로 생성...');
+            
+            const roadHeight = 8; // 고가도로 높이
+            const roadWidth = 8;  // 도로 폭
+            const bridgeLength = 160; // 다리 길이
+            const rampAngle = Math.PI / 6; // 30도 경사각
+            const rampLength = roadHeight / Math.tan(rampAngle); // 30도 각도에 맞는 램프 길이 계산 (약 13.86)
+            
+            // 고가도로 재질
+            const roadMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            const railMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            
+            // === 메인 고가도로 (맵 북쪽 가장자리) ===
+            const mainRoadGeometry = new THREE.BoxGeometry(bridgeLength, 0.5, roadWidth);
+            const mainRoad = new THREE.Mesh(mainRoadGeometry, roadMaterial);
+            mainRoad.position.set(0, roadHeight, 140);
+            mainRoad.castShadow = true;
+            mainRoad.receiveShadow = true;
+            scene.add(mainRoad);
+            
+            // 물리엔진 고가도로
+            if (usePhysics) {
+                const roadShape = new CANNON.Box(new CANNON.Vec3(bridgeLength/2, 0.25, roadWidth/2));
+                const roadBody = new CANNON.Body({ mass: 0 });
+                roadBody.addShape(roadShape);
+                roadBody.position.set(0, roadHeight, 140);
+                world.add(roadBody);
+            }
+            
+            // === 다리 지지대 ===
+            for (let i = -60; i <= 60; i += 30) {
+                // 왼쪽 지지대
+                const supportGeometry = new THREE.CylinderGeometry(1, 1, roadHeight);
+                const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+                leftSupport.position.set(i, roadHeight/2, 135);
+                leftSupport.castShadow = true;
+                scene.add(leftSupport);
+                
+                // 오른쪽 지지대
+                const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+                rightSupport.position.set(i, roadHeight/2, 145);
+                rightSupport.castShadow = true;
+                scene.add(rightSupport);
+                
+                // 물리엔진 지지대
+                if (usePhysics) {
+                    const supportShape = new CANNON.Cylinder(1, 1, roadHeight, 8);
+                    
+                    const leftSupportBody = new CANNON.Body({ mass: 0 });
+                    leftSupportBody.addShape(supportShape);
+                    leftSupportBody.position.set(i, roadHeight/2, 135);
+                    world.add(leftSupportBody);
+                    
+                    const rightSupportBody = new CANNON.Body({ mass: 0 });
+                    rightSupportBody.addShape(supportShape);
+                    rightSupportBody.position.set(i, roadHeight/2, 145);
+                    world.add(rightSupportBody);
+                }
+            }
+            
+            // === 난간 ===
+            const railHeight = 0.8;
+            const railGeometry = new THREE.BoxGeometry(bridgeLength, railHeight, 0.2);
+            
+            // 왼쪽 난간
+            const leftRail = new THREE.Mesh(railGeometry, railMaterial);
+            leftRail.position.set(0, roadHeight + railHeight/2, 136);
+            leftRail.castShadow = true;
+            scene.add(leftRail);
+            
+            // 오른쪽 난간
+            const rightRail = new THREE.Mesh(railGeometry, railMaterial);
+            rightRail.position.set(0, roadHeight + railHeight/2, 144);
+            rightRail.castShadow = true;
+            scene.add(rightRail);
+            
+            // === 30도 경사로 (동쪽 진입로) - 지면에서 고가도로까지 연속 ===
+            const eastRampGeometry = new THREE.BoxGeometry(rampLength, 0.5, roadWidth);
+            const eastRamp = new THREE.Mesh(eastRampGeometry, roadMaterial);
+            // 고가도로 끝점에서 시작하여 30도 각도로 지면까지 연결
+            eastRamp.position.set(80 + rampLength/2, roadHeight/2, 140);
+            eastRamp.rotation.x = rampAngle; // 30도 경사각
+            eastRamp.castShadow = true;
+            eastRamp.receiveShadow = true;
+            scene.add(eastRamp);
+            
+            // 물리엔진 동쪽 경사로
+            if (usePhysics) {
+                const eastRampShape = new CANNON.Box(new CANNON.Vec3(rampLength/2, 0.25, roadWidth/2));
+                const eastRampBody = new CANNON.Body({ mass: 0 });
+                eastRampBody.addShape(eastRampShape);
+                eastRampBody.position.set(80 + rampLength/2, roadHeight/2, 140);
+                eastRampBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), rampAngle);
+                world.add(eastRampBody);
+            }
+            
+            // === 30도 경사로 (서쪽 진입로) - 지면에서 고가도로까지 연속 ===
+            const westRampGeometry = new THREE.BoxGeometry(rampLength, 0.5, roadWidth);
+            const westRamp = new THREE.Mesh(westRampGeometry, roadMaterial);
+            // 고가도로 끝점에서 시작하여 30도 각도로 지면까지 연결
+            westRamp.position.set(-80 - rampLength/2, roadHeight/2, 140);
+            westRamp.rotation.x = -rampAngle; // -30도 경사각
+            westRamp.castShadow = true;
+            westRamp.receiveShadow = true;
+            scene.add(westRamp);
+            
+            // 물리엔진 서쪽 경사로
+            if (usePhysics) {
+                const westRampShape = new CANNON.Box(new CANNON.Vec3(rampLength/2, 0.25, roadWidth/2));
+                const westRampBody = new CANNON.Body({ mass: 0 });
+                westRampBody.addShape(westRampShape);
+                westRampBody.position.set(-80 - rampLength/2, roadHeight/2, 140);
+                westRampBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -rampAngle);
+                world.add(westRampBody);
+            }
+            
+            // === 연결 도로 (지상) ===
+            // 동쪽 연결로
+            const connectRoadGeometry = new THREE.BoxGeometry(30, 0.3, roadWidth);
+            const eastConnectRoad = new THREE.Mesh(connectRoadGeometry, roadMaterial);
+            eastConnectRoad.position.set(80 + rampLength + 15, 0.3, 140);
+            eastConnectRoad.castShadow = true;
+            eastConnectRoad.receiveShadow = true;
+            scene.add(eastConnectRoad);
+            
+            // 서쪽 연결로
+            const westConnectRoad = new THREE.Mesh(connectRoadGeometry, roadMaterial);
+            westConnectRoad.position.set(-80 - rampLength - 15, 0.3, 140);
+            westConnectRoad.castShadow = true;
+            westConnectRoad.receiveShadow = true;
+            scene.add(westConnectRoad);
+            
+            // 물리엔진 연결로
+            if (usePhysics) {
+                const connectShape = new CANNON.Box(new CANNON.Vec3(15, 0.15, roadWidth/2));
+                
+                const eastConnectBody = new CANNON.Body({ mass: 0 });
+                eastConnectBody.addShape(connectShape);
+                eastConnectBody.position.set(80 + rampLength + 15, 0.3, 140);
+                world.add(eastConnectBody);
+                
+                const westConnectBody = new CANNON.Body({ mass: 0 });
+                westConnectBody.addShape(connectShape);
+                westConnectBody.position.set(-80 - rampLength - 15, 0.3, 140);
+                world.add(westConnectBody);
+            }
+            
+            // === 남쪽 고가도로 (추가) ===
+            const southRoad = new THREE.Mesh(mainRoadGeometry, roadMaterial);
+            southRoad.position.set(0, roadHeight, -120);
+            southRoad.castShadow = true;
+            southRoad.receiveShadow = true;
+            scene.add(southRoad);
+            
+            // 물리엔진 남쪽 도로
+            if (usePhysics) {
+                const southRoadShape = new CANNON.Box(new CANNON.Vec3(bridgeLength/2, 0.25, roadWidth/2));
+                const southRoadBody = new CANNON.Body({ mass: 0 });
+                southRoadBody.addShape(southRoadShape);
+                southRoadBody.position.set(0, roadHeight, -120);
+                world.add(southRoadBody);
+            }
+            
+            // 남쪽 다리 지지대
+            for (let i = -60; i <= 60; i += 30) {
+                const supportGeometry = new THREE.CylinderGeometry(1, 1, roadHeight);
+                const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+                leftSupport.position.set(i, roadHeight/2, -125);
+                leftSupport.castShadow = true;
+                scene.add(leftSupport);
+                
+                const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+                rightSupport.position.set(i, roadHeight/2, -115);
+                rightSupport.castShadow = true;
+                scene.add(rightSupport);
+            }
+            
+            // === 남쪽 30도 경사로 (동쪽 진입로) ===
+            const southEastRamp = new THREE.Mesh(eastRampGeometry, roadMaterial);
+            southEastRamp.position.set(80 + rampLength/2, roadHeight/2, -120);
+            southEastRamp.rotation.x = rampAngle; // 30도 경사각
+            southEastRamp.castShadow = true;
+            southEastRamp.receiveShadow = true;
+            scene.add(southEastRamp);
+            
+            if (usePhysics) {
+                const southEastRampShape = new CANNON.Box(new CANNON.Vec3(rampLength/2, 0.25, roadWidth/2));
+                const southEastRampBody = new CANNON.Body({ mass: 0 });
+                southEastRampBody.addShape(southEastRampShape);
+                southEastRampBody.position.set(80 + rampLength/2, roadHeight/2, -120);
+                southEastRampBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), rampAngle);
+                world.add(southEastRampBody);
+            }
+            
+            // === 남쪽 30도 경사로 (서쪽 진입로) ===
+            const southWestRamp = new THREE.Mesh(westRampGeometry, roadMaterial);
+            southWestRamp.position.set(-80 - rampLength/2, roadHeight/2, -120);
+            southWestRamp.rotation.x = -rampAngle; // -30도 경사각
+            southWestRamp.castShadow = true;
+            southWestRamp.receiveShadow = true;
+            scene.add(southWestRamp);
+            
+            if (usePhysics) {
+                const southWestRampShape = new CANNON.Box(new CANNON.Vec3(rampLength/2, 0.25, roadWidth/2));
+                const southWestRampBody = new CANNON.Body({ mass: 0 });
+                southWestRampBody.addShape(southWestRampShape);
+                southWestRampBody.position.set(-80 - rampLength/2, roadHeight/2, -120);
+                southWestRampBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -rampAngle);
+                world.add(southWestRampBody);
+            }
+            
+            // 남쪽 연결로
+            const southEastConnectRoad = new THREE.Mesh(connectRoadGeometry, roadMaterial);
+            southEastConnectRoad.position.set(80 + rampLength + 15, 0.3, -120);
+            southEastConnectRoad.castShadow = true;
+            southEastConnectRoad.receiveShadow = true;
+            scene.add(southEastConnectRoad);
+            
+            const southWestConnectRoad = new THREE.Mesh(connectRoadGeometry, roadMaterial);
+            southWestConnectRoad.position.set(-80 - rampLength - 15, 0.3, -120);
+            southWestConnectRoad.castShadow = true;
+            southWestConnectRoad.receiveShadow = true;
+            scene.add(southWestConnectRoad);
+            
+            if (usePhysics) {
+                const connectShape = new CANNON.Box(new CANNON.Vec3(15, 0.15, roadWidth/2));
+                
+                const southEastConnectBody = new CANNON.Body({ mass: 0 });
+                southEastConnectBody.addShape(connectShape);
+                southEastConnectBody.position.set(80 + rampLength + 15, 0.3, -120);
+                world.add(southEastConnectBody);
+                
+                const southWestConnectBody = new CANNON.Body({ mass: 0 });
+                southWestConnectBody.addShape(connectShape);
+                southWestConnectBody.position.set(-80 - rampLength - 15, 0.3, -120);
+                world.add(southWestConnectBody);
+            }
+            
+            updateDebugInfo('고가도로 생성 완료 - 30도 경사로');
+        }
+
+        // 버기카 생성
+        function createBuggyCar(x, z, isPlayer = false) {
+            updateDebugInfo(`버기카 생성 중... (${x}, ${z})`);
+            const carGroup = new THREE.Group();
+            
+            // 차체 (앞뒤 길이 2배로 확장: 1.5×0.8×3 → 1.5×0.8×6)
+            const bodyGeometry = new THREE.BoxGeometry(1.5, 0.8, 6);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ 
+                color: isPlayer ? 0xff0000 : 0x0000ff 
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 2; // 큰 바퀴에 맞춰 높이 조정
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // 롤케이지 (차체 크기에 맞춤)
+            const cageGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.5);
+            const cageMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            
+            const cagePositions = [
+                { x: -0.6, y: 3, z: 2 },    // 앞왼쪽
+                { x: 0.6, y: 3, z: 2 },     // 앞오른쪽
+                { x: -0.6, y: 3, z: -2 },   // 뒤왼쪽
+                { x: 0.6, y: 3, z: -2 }     // 뒤오른쪽
+            ];
+            
+            cagePositions.forEach(pos => {
+                const cage = new THREE.Mesh(cageGeometry, cageMaterial);
+                cage.position.set(pos.x, pos.y, pos.z);
+                cage.castShadow = true;
+                carGroup.add(cage);
+            });
+
+            // 바퀴 (지름 2배로 확장: 0.5 → 1.0, 차체 크기에 맞춤)
+            const wheelPositions = [
+                { x: -0.8, y: 1, z: 2.5 },   // 앞왼쪽
+                { x: 0.8, y: 1, z: 2.5 },    // 앞오른쪽
+                { x: -0.8, y: 1, z: -2.5 },  // 뒤왼쪽
+                { x: 0.8, y: 1, z: -2.5 }    // 뒤오른쪽
+            ];
+            
+            const wheels = [];
+            wheelPositions.forEach((pos, index) => {
+                const wheelGeometry = new THREE.CylinderGeometry(1.0, 1.0, 0.4); // 지름 2배, 폭 약간 증가
+                
+                // 앞바퀴(인덱스 0, 1)는 파란색, 뒷바퀴는 회색
+                const wheelColor = (index === 0 || index === 1) ? 0x0000ff : 0x333333;
+                const wheelMaterial = new THREE.MeshLambertMaterial({ color: wheelColor });
+                
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.position.set(pos.x, pos.y, pos.z);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.castShadow = true;
+                carGroup.add(wheel);
+                wheels.push(wheel);
+                
+                // 쇼바 (서스펜션) - 큰 바퀴에 맞춰 길이 증가
+                const shockGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+                const shockMaterial = new THREE.MeshLambertMaterial({ color: 0xffa500 });
+                const shock = new THREE.Mesh(shockGeometry, shockMaterial);
+                shock.position.set(pos.x, pos.y + 0.75, pos.z);
+                shock.castShadow = true;
+                carGroup.add(shock);
+            });
+
+            carGroup.position.set(x, 1, z); // 큰 바퀴에 맞춰 높이 조정
+            scene.add(carGroup);
+
+            // 물리엔진 차체 (선택적)
+            let carBody = null;
+            if (usePhysics) {
+                const carShape = new CANNON.Box(new CANNON.Vec3(0.75, 0.4, 3)); // 길이 2배
+                carBody = new CANNON.Body({ mass: 400 }); // 무게 증가
+                carBody.addShape(carShape);
+                carBody.position.set(x, 2, z);
+                carBody.material = new CANNON.Material({ friction: 0.4, restitution: 0.3 });
+                world.add(carBody);
+            }
+
+            updateDebugInfo(`버기카 생성 완료: ${isPlayer ? '플레이어' : 'AI'} - 크기 2배`);
+            return {
+                mesh: carGroup,
+                body: carBody,
+                wheels: wheels,
+                speed: 0,
+                steerAngle: 0,
+                isPlayer: isPlayer,
+                // 물리엔진 없을 때 사용할 속도 벡터
+                velocity: new THREE.Vector3(0, 0, 0),
+                rotation: 0
+            };
+        }
+
+        // 장애물 생성
+        function createObstacles() {
+            updateDebugInfo('장애물 생성...');
+            const obstacleCount = 12;
+            for (let i = 0; i < obstacleCount; i++) {
+                const size = Math.random() * 2 + 1;
+                const angle = (i / obstacleCount) * Math.PI * 2;
+                const radius = 50 + Math.random() * 20;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                
+                const obstacleGeometry = new THREE.BoxGeometry(size, size, size);
+                const obstacleMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+                obstacle.position.set(x, size/2, z);
+                obstacle.castShadow = true;
+                obstacle.receiveShadow = true;
+                scene.add(obstacle);
+
+                // 물리엔진 장애물 (선택적)
+                if (usePhysics) {
+                    const obstacleShape = new CANNON.Box(new CANNON.Vec3(size/2, size/2, size/2));
+                    const obstacleBody = new CANNON.Body({ mass: 0 });
+                    obstacleBody.addShape(obstacleShape);
+                    obstacleBody.position.set(x, size/2, z);
+                    world.add(obstacleBody);
+                }
+            }
+            updateDebugInfo('장애물 생성 완료');
+        }
+
+        // 키보드 입력 처리
+        function handleInput() {
+            updateDebugInfo('키보드 입력 설정...');
+            document.addEventListener('keydown', (event) => {
+                keys[event.code] = true;
+                event.preventDefault();
+            });
+
+            document.addEventListener('keyup', (event) => {
+                keys[event.code] = false;
+                event.preventDefault();
+            });
+            updateDebugInfo('키보드 입력 설정 완료');
+        }
+
+        // 차량 제어 (물리엔진 사용/미사용 대응)
+        function updatePlayerCar() {
+            if (!playerCar) return;
+
+            const maxSpeed = 0.8;  // 고가도로 이용을 위해 속도 증가
+            const acceleration = 0.02;  // 가속도 증가
+            const steerSpeed = 0.012;  // 조향 속도 2배 더 증가 (기존 0.006에서 0.012)
+            const maxSteerAngle = Math.PI / 12; // 최대 조향각 더 제한 (기존 PI/6에서 PI/12)
+
+            // 가속/감속 (W/S 키와 화살표 키 - 화살표 반대 매핑)
+            if (keys['KeyW'] || keys['ArrowUp']) {
+                playerCar.speed = Math.min(playerCar.speed + acceleration, maxSpeed);
+            } else if (keys['KeyS'] || keys['ArrowDown']) {
+                playerCar.speed = Math.max(playerCar.speed - acceleration, -maxSpeed/2);
+            } else {
+                playerCar.speed *= 0.98;
+            }
+
+            // 조향 (A/D 키와 화살표 키) - 바퀴 회전만
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                playerCar.steerAngle = Math.min(playerCar.steerAngle + steerSpeed, maxSteerAngle);
+            } else if (keys['KeyD'] || keys['ArrowRight']) {
+                playerCar.steerAngle = Math.max(playerCar.steerAngle - steerSpeed, -maxSteerAngle);
+            } else {
+                playerCar.steerAngle *= 0.95; // 조향 복귀 속도 조정
+            }
+
+            // 브레이크
+            if (keys['Space']) {
+                playerCar.speed *= 0.9;
+            }
+
+            // 카메라 줌 제어
+            if (keys['KeyZ']) {
+                cameraZoom = Math.max(cameraZoom - 0.02, 0.3); // 줌인 (최소 0.3배)
+            } else if (keys['KeyX']) {
+                cameraZoom = Math.min(cameraZoom + 0.02, 3.0); // 줌아웃 (최대 3배)
+            }
+
+            // 앞바퀴 각도 적용 (바퀴만 회전)
+            if (playerCar.wheels && playerCar.wheels.length >= 2) {
+                playerCar.wheels[0].rotation.y = playerCar.steerAngle;
+                playerCar.wheels[1].rotation.y = playerCar.steerAngle;
+            }
+
+            // 차량 이동 (물리엔진 사용/미사용에 따라)
+            if (usePhysics && playerCar.body) {
+                // 물리엔진 사용 - 중력과 경사로 고려
+                const forward = new THREE.Vector3(0, 0, 1);
+                forward.applyQuaternion(playerCar.body.quaternion);
+                const velocity = forward.multiplyScalar(playerCar.speed * 15); // 속도 증가
+                playerCar.body.velocity.set(velocity.x, playerCar.body.velocity.y, velocity.z);
+                
+                // 조향에 따른 각속도 - 조향 스피드에 맞춰 2배 더 증가
+                if (Math.abs(playerCar.speed) > 0.01) {
+                    // 실제 자동차처럼 속도에 비례하여 조향 효과 적용 (2배 더 증가)
+                    const steerEffect = playerCar.steerAngle * (Math.abs(playerCar.speed) / maxSpeed) * 2.0; // 1.0에서 2.0으로 2배 증가
+                    playerCar.body.angularVelocity.y = steerEffect;
+                }
+                
+                playerCar.mesh.position.copy(playerCar.body.position);
+                playerCar.mesh.quaternion.copy(playerCar.body.quaternion);
+            } else {
+                // 물리엔진 미사용 - 자연스러운 자동차 조향 시뮬레이션
+                if (Math.abs(playerCar.speed) > 0.01) {
+                    // 조향각에 따른 회전 반경 계산 (자동차 물리학 기반)
+                    const wheelBase = 5; // 휠베이스 (앞바퀴와 뒷바퀴 사이 거리)
+                    const turnRadius = wheelBase / Math.tan(Math.abs(playerCar.steerAngle) + 0.01);
+                    
+                    // 각속도 계산 (속도 / 회전반경)
+                    const angularVelocity = playerCar.speed / turnRadius;
+                    
+                    // 조향 방향에 따른 회전 적용 - 조향 스피드에 맞춰 2배 더 증가
+                    if (Math.abs(playerCar.steerAngle) > 0.001) {
+                        const rotationAmount = angularVelocity * (playerCar.steerAngle > 0 ? 1 : -1);
+                        playerCar.rotation += rotationAmount * 1.2; // 회전 강도 2배 더 증가 (0.6에서 1.2)
+                    }
+                }
+                
+                // 차량 이동 (현재 방향으로)
+                const forward = new THREE.Vector3(
+                    Math.sin(playerCar.rotation) * playerCar.speed,
+                    0,
+                    Math.cos(playerCar.rotation) * playerCar.speed
+                );
+                
+                playerCar.mesh.position.add(forward);
+                playerCar.mesh.rotation.y = playerCar.rotation;
+            }
+
+            // 속도계 업데이트
+            document.getElementById('speed').textContent = Math.floor(Math.abs(playerCar.speed) * 100);
+            document.getElementById('gear').textContent = playerCar.speed > 0 ? 'D' : playerCar.speed < 0 ? 'R' : 'N';
+        }
+
+        // 카메라 추적
+        function updateCamera() {
+            if (!playerCar) return;
+
+            // 줌 레벨에 따른 카메라 거리 조정
+            const baseDistance = 50;
+            const zoomDistance = baseDistance / cameraZoom;
+
+            const targetPosition = new THREE.Vector3(
+                playerCar.mesh.position.x,
+                playerCar.mesh.position.y + zoomDistance,
+                playerCar.mesh.position.z + zoomDistance
+            );
+
+            camera.position.lerp(targetPosition, 0.1);
+            camera.lookAt(playerCar.mesh.position);
+        }
+
+        // 체크포인트 확인
+        function checkCollisions() {
+            if (!playerCar) return;
+
+            const carPos = playerCar.mesh.position;
+            
+            checkpoints.forEach((cp, index) => {
+                const distance = Math.sqrt(
+                    Math.pow(carPos.x - cp.x, 2) + 
+                    Math.pow(carPos.z - cp.z, 2)
+                );
+                
+                if (distance < 5 && index === (lastCheckpoint + 1) % checkpoints.length) {
+                    lastCheckpoint = index;
+                    if (index === 0 && lapCount > 0) {
+                        lapCount++;
+                        document.getElementById('lapInfo').textContent = `랩: ${lapCount}/3`;
+                        if (lapCount >= 3) {
+                            alert('축하합니다! 레이스를 완주했습니다!');
+                        }
+                    } else if (index === 0 && lapCount === 0) {
+                        lapCount = 1;
+                        document.getElementById('lapInfo').textContent = `랩: ${lapCount}/3`;
+                    }
+                }
+            });
+        }
+
+        // 게임 루프
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updatePlayerCar();
+            updateCamera();
+            checkCollisions();
+            
+            if (usePhysics && world) {
+                world.step(1/60);
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // 게임 초기화
+        function initGame() {
+            try {
+                updateDebugInfo('게임 초기화 시작...');
+                
+                initPhysics();
+                initScene();
+                createGround();
+                createRaceTrack();
+                createElevatedRoad(); // 고가도로 추가
+                createObstacles();
+                
+                // 플레이어 차량 생성 (고가도로 동쪽 진입로 근처)
+                playerCar = createBuggyCar(150, 140, true);
+                
+                // 다른 차량들 생성
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const x = Math.cos(angle) * 37;
+                    const z = Math.sin(angle) * 37;
+                    const car = createBuggyCar(x, z, false);
+                    otherCars.push(car);
+                }
+                
+                handleInput();
+                updateDebugInfo(`게임 초기화 완료! 큰 차량으로 고가도로 진입로에서 시작합니다. ${usePhysics ? '물리엔진 ON' : '물리엔진 OFF'}`);
+                animate();
+                
+            } catch (error) {
+                updateDebugInfo('오류 발생: ' + error.message);
+                console.error('게임 초기화 오류:', error);
+            }
+        }
+
+        // 윈도우 리사이즈 처리
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 페이지 로드 후 게임 시작
+        window.addEventListener('load', () => {
+            updateDebugInfo('페이지 로드 완료, 게임 시작...');
+            
+            // Three.js 라이브러리 확인
+            if (typeof THREE === 'undefined') {
+                updateDebugInfo('오류: Three.js 라이브러리가 로드되지 않았습니다.');
+                return;
+            }
+            
+            updateDebugInfo('Three.js 라이브러리 로드 완료');
+            
+            // Cannon.js는 선택적 확인
+            if (typeof CANNON === 'undefined') {
+                updateDebugInfo('Cannon.js 없이 게임 실행 (물리엔진 OFF)');
+            } else {
+                updateDebugInfo('Cannon.js 라이브러리 로드 완료 (물리엔진 ON)');
+            }
+            
+            initGame();
+        });
+    </script>
+</body>
+</html>

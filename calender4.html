@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo 관리 프로그램</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border: #dee2e6;
+            --accent: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --shadow: rgba(0, 0, 0, 0.1);
+            --high-priority: #dc3545;
+            --medium-priority: #ffc107;
+            --low-priority: #28a745;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --border: #404040;
+            --accent: #0d6efd;
+            --success: #198754;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --high-priority: #dc3545;
+            --medium-priority: #ffc107;
+            --low-priority: #198754;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-primary);
+            padding: 1rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        [data-theme="dark"] .theme-toggle {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        [data-theme="dark"] .theme-toggle:hover {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .main-content {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .todo-section {
+            width: 40%;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--border);
+            cursor: col-resize;
+            transition: background 0.3s ease;
+        }
+
+        .resize-handle:hover {
+            background: var(--accent);
+        }
+
+        .calendar-section {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .title-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .import-export-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .file-info {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: normal;
+            max-width: 200px;
+            text-align: right;
+            line-height: 1.2;
+        }
+
+        .import-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .import-dialog-content {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .import-dialog h3 {
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .import-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        .dialog-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .primary-btn {
+            background: var(--accent);
+            color: white;
+        }
+
+        .secondary-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .dialog-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .todo-input {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .todo-input input {
+            flex: 1;
+            padding: 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .todo-input input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .priority-select {
+            padding: 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .add-btn {
+            padding: 0.6rem 1rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .add-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .priority-lanes {
+            display: flex;
+            gap: 0.75rem;
+            height: calc(100vh - 180px);
+            overflow: visible;
+        }
+
+        .priority-lane {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 400px;
+            overflow: visible;
+        }
+
+        .lane-header {
+            font-weight: bold;
+            padding: 0.4rem;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 0.75rem;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .high-priority .lane-header {
+            background: var(--high-priority);
+        }
+
+        .medium-priority .lane-header {
+            background: var(--medium-priority);
+            color: var(--text-primary);
+        }
+
+        .low-priority .lane-header {
+            background: var(--low-priority);
+        }
+
+        .lane-drop-zone {
+            border: 2px dashed transparent;
+            border-radius: 8px;
+            min-height: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .lane-drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .todo-list.lane-drop-zone {
+            border: 2px dashed var(--accent) !important;
+            background: rgba(0, 123, 255, 0.1) !important;
+            border-radius: 8px;
+        }
+
+        .todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+            overflow: visible;
+        }
+
+        .todo-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.5rem;
+            cursor: grab;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .todo-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .todo-item.high-priority {
+            border-left: 4px solid var(--high-priority);
+        }
+
+        .todo-item.medium-priority {
+            border-left: 4px solid var(--medium-priority);
+        }
+
+        .todo-item.low-priority {
+            border-left: 4px solid var(--low-priority);
+        }
+
+        .todo-item.assigned {
+            border: 2px solid var(--info);
+            background: rgba(23, 162, 184, 0.1);
+        }
+
+        .todo-content {
+            font-size: 0.9rem;
+            line-height: 1.2;
+            margin-bottom: 0.25rem;
+        }
+
+        .todo-meta {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: normal;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .todo-actions {
+            display: none;
+            position: absolute;
+            top: -16px;
+            right: -16px;
+            gap: 0.25rem;
+            background: var(--bg-primary);
+            padding: 0.25rem;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid var(--border);
+            z-index: 100;
+        }
+
+        .day-todo .todo-actions {
+            top: -39px;
+            right: -9px;
+            background: var(--bg-primary);
+            box-shadow: 0 4px 12px var(--shadow);
+            border: 2px solid var(--border);
+            z-index: 9999;
+        }
+
+        .todo-item.active {
+            border: 2px solid var(--accent);
+            background: rgba(0, 123, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px var(--shadow);
+        }
+
+        .day-todo.active {
+            border: 2px solid #FFD700;
+            background: rgba(255, 215, 0, 0.2);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+        }
+
+        .todo-item.active .todo-actions,
+        .day-todo.active .todo-actions {
+            display: flex;
+        }
+
+        .action-btn {
+            padding: 0.25rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+        }
+
+        .complete-btn {
+            color: var(--success);
+        }
+
+        .complete-btn:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        .delete-btn {
+            color: var(--danger);
+        }
+
+        .delete-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .calendar {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .calendar-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 0.75rem;
+        }
+
+        .year-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .month-buttons {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 0.5rem;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .month-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            padding: 0.5rem 0.25rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+            min-width: 32px;
+        }
+
+        .month-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .month-btn.current {
+            background: var(--accent);
+            color: white;
+            font-weight: bold;
+        }
+
+        .month-btn.current:hover {
+            background: #0056b3;
+        }
+
+        .month-btn.selected {
+            background: #40E0D0;
+            color: white;
+            font-weight: bold;
+        }
+
+        .month-btn.selected:hover {
+            background: #20B2AA;
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .nav-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .nav-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .current-month {
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .day-header {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .calendar-day {
+            background: var(--bg-primary);
+            min-height: 120px;
+            padding: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .calendar-day.drop-zone {
+            background: rgba(0, 123, 255, 0.1);
+            border: 2px dashed var(--accent);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.3;
+        }
+
+        .calendar-day.past-date {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        [data-theme="dark"] .calendar-day.past-date {
+            background: #2a2a2a;
+            color: #666;
+        }
+
+        .calendar-day.past-date:hover {
+            background: #e8e8e8;
+        }
+
+        [data-theme="dark"] .calendar-day.past-date:hover {
+            background: #333;
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(135deg, var(--accent), #0056b3);
+            color: white;
+            font-weight: bold;
+        }
+
+        .calendar-day.today:hover {
+            background: linear-gradient(135deg, #0056b3, var(--accent));
+        }
+
+        .day-number {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .today-indicator {
+            font-size: 0.8rem;
+        }
+
+        .calendar-day.past-date .day-todo {
+            opacity: 0.7;
+        }
+
+        .day-todo {
+            background: var(--accent);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .day-todo:hover {
+            background: #0056b3;
+        }
+
+        .day-todo.completed {
+            background: var(--success);
+            text-decoration: line-through;
+        }
+
+        .day-todo.high-priority {
+            background: var(--high-priority);
+        }
+
+        .day-todo.medium-priority {
+            background: var(--medium-priority);
+            color: var(--text-primary);
+        }
+
+        .day-todo.low-priority {
+            background: var(--low-priority);
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+        }
+
+        .sortable-chosen {
+            background: var(--accent) !important;
+            color: white !important;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .todo-section,
+            .calendar-section {
+                width: 100%;
+            }
+
+            .todo-section {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                max-height: 40vh;
+            }
+
+            .priority-lanes {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .calendar-day {
+                min-height: 80px;
+            }
+
+            .input-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="todo-section" id="todoSection">
+                <div class="resize-handle" id="resizeHandle"></div>
+                <h2 class="section-title">
+                    <div class="title-left">
+                        📋 Todo 목록
+                        <div class="import-export-buttons">
+                            <button class="icon-btn" onclick="exportData()" title="데이터 내보내기">📤</button>
+                            <button class="icon-btn" onclick="triggerImport()" title="데이터 불러오기">📥</button>
+                        </div>
+                    </div>
+                    <span class="file-info" id="fileInfo">localStorage 사용중</span>
+                </h2>
+                <div class="todo-input">
+                    <div class="input-row">
+                        <input type="text" id="todoInput" placeholder="새로운 할 일을 입력하세요..." />
+                        <select class="priority-select" id="prioritySelect">
+                            <option value="high">높음</option>
+                            <option value="medium" selected>보통</option>
+                            <option value="low">낮음</option>
+                        </select>
+                        <button class="add-btn" onclick="addTodo()">추가</button>
+                    </div>
+                </div>
+                
+                <div class="priority-lanes">
+                    <div class="priority-lane high-priority" data-priority="high">
+                        <div class="lane-header">🔥 높음</div>
+                        <div class="todo-list" id="highPriorityList">
+                            <!-- High priority todos -->
+                        </div>
+                    </div>
+                    
+                    <div class="priority-lane medium-priority" data-priority="medium">
+                        <div class="lane-header">⚡ 보통</div>
+                        <div class="todo-list" id="mediumPriorityList">
+                            <!-- Medium priority todos -->
+                        </div>
+                    </div>
+                    
+                    <div class="priority-lane low-priority" data-priority="low">
+                        <div class="lane-header">📝 낮음</div>
+                        <div class="todo-list" id="lowPriorityList">
+                            <!-- Low priority todos -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-section">
+                <div class="calendar">
+                    <div class="calendar-header">
+                        <div class="nav-controls">
+                            <button class="nav-btn" onclick="changeYear(-1)">‹‹</button>
+                            <div class="year-display" id="yearDisplay"></div>
+                            <button class="nav-btn" onclick="changeYear(1)">››</button>
+                        </div>
+                        <div class="month-buttons" id="monthButtons">
+                            <!-- Month buttons will be generated here -->
+                        </div>
+                    </div>
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Calendar will be generated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+
+        <input type="file" id="fileInput" accept=".json" onchange="handleFileImport(event)">
+
+        <!-- Import Dialog -->
+        <div class="import-dialog" id="importDialog">
+            <div class="import-dialog-content">
+                <h3>📥 데이터 불러오기</h3>
+                <p>기존 데이터를 어떻게 처리하시겠습니까?</p>
+                <div class="import-options">
+                    <button class="dialog-btn secondary-btn" onclick="importData('merge')">🔀 병합</button>
+                    <button class="dialog-btn primary-btn" onclick="importData('replace')">🔄 교체</button>
+                    <button class="dialog-btn secondary-btn" onclick="closeImportDialog()">❌ 취소</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let todos = [];
+        let calendarTodos = {};
+        let currentDate = new Date();
+        let draggedTodo = null;
+        let todoIdCounter = 0;
+        let sortableInstances = {};
+        let fileHandle = null;
+        let directoryHandle = null;
+        let importedData = null;
+
+        // File System Access API for data persistence
+        async function initFileSystem() {
+            if ('showDirectoryPicker' in window) {
+                try {
+                    // Check if we have a saved directory handle
+                    const savedDirectoryHandle = localStorage.getItem('directoryHandle');
+                    if (savedDirectoryHandle) {
+                        // Try to restore the directory handle
+                        directoryHandle = await navigator.storage.getDirectory();
+                    }
+                    
+                    // If no directory handle, show setup button
+                    if (!directoryHandle) {
+                        showFileSystemSetup();
+                    } else {
+                        await loadFromFile();
+                        updateFileInfo();
+                    }
+                } catch (error) {
+                    console.log('File System Access not available, using localStorage');
+                    fallbackToLocalStorage();
+                }
+            } else {
+                console.log('File System Access API not supported, using localStorage');
+                fallbackToLocalStorage();
+            }
+        }
+
+        function updateFileInfo() {
+            const fileInfoElement = document.getElementById('fileInfo');
+            if (directoryHandle && directoryHandle.name) {
+                fileInfoElement.innerHTML = `📁 ${directoryHandle.name}/<br>📄 todo-data.json`;
+            } else {
+                fileInfoElement.textContent = 'localStorage 사용중';
+            }
+        }
+
+        function showFileSystemSetup() {
+            const setupButton = document.createElement('button');
+            setupButton.innerHTML = '📁 데이터 저장 폴더 선택';
+            setupButton.className = 'setup-btn';
+            setupButton.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                padding: 1rem 2rem;
+                background: var(--accent);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 1rem;
+                cursor: pointer;
+                z-index: 2000;
+                box-shadow: 0 4px 20px var(--shadow);
+            `;
+            
+            setupButton.onclick = async () => {
+                try {
+                    directoryHandle = await window.showDirectoryPicker();
+                    localStorage.setItem('directoryHandle', 'set');
+                    setupButton.remove();
+                    await loadFromFile();
+                    updateFileInfo(); // Update file path display
+                } catch (error) {
+                    console.log('Directory selection cancelled');
+                    fallbackToLocalStorage();
+                    setupButton.remove();
+                }
+            };
+            
+            document.body.appendChild(setupButton);
+        }
+
+        async function saveToFile() {
+            if (!directoryHandle) {
+                saveToLocalStorage();
+                return;
+            }
+
+            try {
+                const data = {
+                    todos: todos,
+                    todoIdCounter: todoIdCounter,
+                    lastUpdated: new Date().toISOString()
+                };
+
+                fileHandle = await directoryHandle.getFileHandle('todo-data.json', { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(data, null, 2));
+                await writable.close();
+                
+                console.log('Data saved to file successfully');
+            } catch (error) {
+                console.error('Error saving to file:', error);
+                saveToLocalStorage(); // Fallback to localStorage
+            }
+        }
+
+        async function loadFromFile() {
+            if (!directoryHandle) {
+                loadFromLocalStorage();
+                return;
+            }
+
+            try {
+                fileHandle = await directoryHandle.getFileHandle('todo-data.json');
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+                const data = JSON.parse(text);
+                
+                if (data.todos) {
+                    todos = data.todos;
+                }
+                if (data.todoIdCounter) {
+                    todoIdCounter = data.todoIdCounter;
+                }
+                
+                console.log('Data loaded from file successfully');
+            } catch (error) {
+                console.log('No existing file found or error loading, starting fresh');
+            }
+        }
+
+        function fallbackToLocalStorage() {
+            loadFromLocalStorage();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+            localStorage.setItem('todoIdCounter', todoIdCounter.toString());
+        }
+
+        function loadFromLocalStorage() {
+            const savedTodos = localStorage.getItem('todos');
+            const savedCounter = localStorage.getItem('todoIdCounter');
+            
+            if (savedTodos) {
+                todos = JSON.parse(savedTodos);
+            }
+            
+            if (savedCounter) {
+                todoIdCounter = parseInt(savedCounter);
+            }
+        }
+
+        // Theme functionality
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                button.innerHTML = '🌙';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                button.innerHTML = '☀️';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-toggle').innerHTML = '☀️';
+            }
+        }
+
+        // Resize functionality
+        function initResize() {
+            const resizeHandle = document.getElementById('resizeHandle');
+            const todoSection = document.getElementById('todoSection');
+            const calendarSection = document.querySelector('.calendar-section');
+            let isResizing = false;
+
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
+            });
+
+            function handleResize(e) {
+                if (!isResizing) return;
+                
+                const containerWidth = document.querySelector('.main-content').offsetWidth;
+                const newWidth = (e.clientX / containerWidth) * 100;
+                
+                if (newWidth >= 20 && newWidth <= 70) {
+                    todoSection.style.width = newWidth + '%';
+                }
+            }
+
+            function stopResize() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        }
+
+        // Todo functionality
+        function addTodo() {
+            const input = document.getElementById('todoInput');
+            const prioritySelect = document.getElementById('prioritySelect');
+            const text = input.value.trim();
+            const priority = prioritySelect.value;
+            
+            if (text === '') return;
+            
+            const todo = {
+                id: ++todoIdCounter,
+                text: text,
+                priority: priority,
+                completed: false,
+                createdAt: new Date(),
+                assignedDate: null
+            };
+            
+            todos.push(todo);
+            input.value = '';
+            renderTodos();
+            saveToFile(); // Auto-save to file
+        }
+
+        function deleteTodo(id) {
+            todos = todos.filter(todo => todo.id !== id);
+            // Remove from calendar as well
+            Object.keys(calendarTodos).forEach(date => {
+                calendarTodos[date] = calendarTodos[date].filter(todo => todo.id !== id);
+                if (calendarTodos[date].length === 0) {
+                    delete calendarTodos[date];
+                }
+            });
+            renderTodos();
+            renderCalendar();
+            saveToFile(); // Auto-save to file
+        }
+
+        function completeTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+            }
+            
+            // Update in calendar as well
+            Object.keys(calendarTodos).forEach(date => {
+                const calendarTodo = calendarTodos[date].find(t => t.id === id);
+                if (calendarTodo) {
+                    calendarTodo.completed = todo.completed;
+                }
+            });
+            
+            renderTodos();
+            renderCalendar();
+            saveToFile(); // Auto-save to file
+        }
+
+        function renderTodos() {
+            const priorities = ['high', 'medium', 'low'];
+            
+            priorities.forEach(priority => {
+                const list = document.getElementById(`${priority}PriorityList`);
+                list.innerHTML = '';
+                
+                const priorityTodos = todos
+                    .filter(todo => todo.priority === priority && !todo.assignedDate)
+                    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                
+                priorityTodos.forEach(todo => {
+                    const todoElement = createTodoElement(todo);
+                    list.appendChild(todoElement);
+                });
+            });
+            
+            initSortable();
+        }
+
+        function createTodoElement(todo) {
+            const todoElement = document.createElement('div');
+            todoElement.className = `todo-item ${todo.priority}-priority ${todo.completed ? 'completed' : ''} ${todo.assignedDate ? 'assigned' : ''}`;
+            todoElement.draggable = true;
+            todoElement.dataset.todoId = todo.id;
+            
+            todoElement.innerHTML = `
+                <div class="todo-content">${todo.text}</div>
+                ${todo.assignedDate ? `<div class="todo-meta">
+                    <span>📅 ${todo.assignedDate}</span>
+                </div>` : ''}
+                <div class="todo-actions">
+                    <button class="action-btn complete-btn" onclick="completeTodo(${todo.id})" title="${todo.completed ? '되돌리기' : '완료'}">
+                        ${todo.completed ? '↩️' : '✅'}
+                    </button>
+                    <button class="action-btn delete-btn" onclick="deleteTodo(${todo.id})" title="삭제">🗑️</button>
+                </div>
+            `;
+            
+            // Add click event to show actions
+            todoElement.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.todo-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelectorAll('.day-todo').forEach(item => {
+                    item.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+            
+            // Add drag events for calendar
+            todoElement.addEventListener('dragstart', handleDragStart);
+            todoElement.addEventListener('dragend', handleDragEnd);
+            
+            return todoElement;
+        }
+
+        function getPriorityText(priority) {
+            const priorityMap = {
+                'high': '높음',
+                'medium': '보통',
+                'low': '낮음'
+            };
+            return priorityMap[priority] || priority;
+        }
+
+        function initSortable() {
+            const priorities = ['high', 'medium', 'low'];
+            
+            priorities.forEach(priority => {
+                const list = document.getElementById(`${priority}PriorityList`);
+                
+                if (sortableInstances[priority]) {
+                    sortableInstances[priority].destroy();
+                }
+                
+                sortableInstances[priority] = new Sortable(list, {
+                    group: 'priority-lanes',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    onEnd: function(evt) {
+                        const todoId = parseInt(evt.item.dataset.todoId);
+                        const newPriority = evt.to.parentElement.dataset.priority;
+                        const newIndex = evt.newIndex;
+                        
+                        // Update todo priority
+                        const todo = todos.find(t => t.id === todoId);
+                        if (todo) {
+                            todo.priority = newPriority;
+                            // If moved from calendar, remove assignedDate
+                            if (todo.assignedDate) {
+                                todo.assignedDate = null;
+                            }
+                        }
+                        
+                        // Reorder todos within the same priority
+                        const priorityTodos = todos.filter(t => t.priority === newPriority && !t.assignedDate);
+                        const movedTodo = priorityTodos.splice(priorityTodos.findIndex(t => t.id === todoId), 1)[0];
+                        priorityTodos.splice(newIndex, 0, movedTodo);
+                        
+                        saveToFile(); // Auto-save to file
+                        renderTodos();
+                        renderCalendar(); // Re-render calendar to reflect changes
+                    }
+                });
+
+                // Add drop functionality to priority lanes for calendar items
+                list.addEventListener('dragover', handlePriorityLaneDragOver);
+                list.addEventListener('drop', (e) => handlePriorityLaneDrop(e, priority));
+                list.addEventListener('dragleave', handlePriorityLaneDragLeave);
+            });
+        }
+
+        function handlePriorityLaneDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('lane-drop-zone');
+        }
+
+        function handlePriorityLaneDragLeave(e) {
+            e.currentTarget.classList.remove('lane-drop-zone');
+        }
+
+        function handlePriorityLaneDrop(e, priority) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('lane-drop-zone');
+            
+            if (draggedTodo && draggedTodo.assignedDate) {
+                // Move from calendar to todo list
+                draggedTodo.assignedDate = null;
+                draggedTodo.priority = priority;
+                
+                renderTodos();
+                renderCalendar();
+                saveToFile();
+            }
+        }
+
+        // Enhanced drag and drop functionality
+        function handleDragStart(e) {
+            const todoId = parseInt(e.target.dataset.todoId);
+            draggedTodo = todos.find(todo => todo.id === todoId);
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedTodo = null;
+        }
+
+        function handleCalendarDragStart(e) {
+            e.stopPropagation();
+            const todoId = parseInt(e.target.dataset.todoId);
+            draggedTodo = todos.find(todo => todo.id === todoId);
+            e.target.classList.add('dragging');
+        }
+
+        function handleCalendarDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedTodo = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drop-zone');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drop-zone');
+        }
+
+        function handleDrop(e, dateKey) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop-zone');
+            
+            if (draggedTodo) {
+                // Check if todo is already assigned to another date (1:1 mapping)
+                if (draggedTodo.assignedDate && draggedTodo.assignedDate !== dateKey) {
+                    // Remove from previous date
+                    draggedTodo.assignedDate = null;
+                }
+                
+                // Assign to new date
+                draggedTodo.assignedDate = dateKey;
+                
+                renderTodos();
+                renderCalendar();
+                saveToFile(); // Auto-save to file
+            }
+        }
+
+        function changeMonth(direction) {
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        // Event listeners
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        // Click outside to hide todo actions
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.todo-item') && !e.target.closest('.day-todo')) {
+                document.querySelectorAll('.todo-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelectorAll('.day-todo').forEach(item => {
+                    item.classList.remove('active');
+                });
+            }
+        });
+
+        // Initialize app
+        async function init() {
+            loadTheme();
+            await initFileSystem(); // Initialize file system first
+            renderTodos();
+            renderCalendar();
+            initResize();
+        }
+
+        // Start the app
+        init();
+
+        // Export/Import functionality
+        function exportData() {
+            const data = {
+                todos: todos,
+                todoIdCounter: todoIdCounter,
+                exportedAt: new Date().toISOString(),
+                version: "1.0"
+            };
+
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10);
+            const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
+            link.download = `todo-backup-${dateStr}-${timeStr}.json`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            console.log('Data exported successfully');
+            
+            // Show success message
+            showNotification('📤 데이터가 성공적으로 내보내졌습니다!', 'success');
+        }
+
+        function triggerImport() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    importedData = JSON.parse(e.target.result);
+                    
+                    // Validate imported data
+                    if (!importedData.todos || !Array.isArray(importedData.todos)) {
+                        throw new Error('Invalid data format');
+                    }
+                    
+                    // Show import dialog
+                    document.getElementById('importDialog').style.display = 'flex';
+                    
+                } catch (error) {
+                    showNotification('❌ 파일 형식이 올바르지 않습니다.', 'error');
+                    console.error('Import error:', error);
+                }
+            };
+            
+            reader.readAsText(file);
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function importData(mode) {
+            if (!importedData) return;
+
+            try {
+                if (mode === 'replace') {
+                    // Replace all data
+                    todos = importedData.todos || [];
+                    todoIdCounter = importedData.todoIdCounter || 0;
+                } else if (mode === 'merge') {
+                    // Merge data
+                    const existingIds = new Set(todos.map(todo => todo.id));
+                    const newTodos = importedData.todos.filter(todo => !existingIds.has(todo.id));
+                    
+                    todos = [...todos, ...newTodos];
+                    todoIdCounter = Math.max(todoIdCounter, importedData.todoIdCounter || 0);
+                }
+
+                // Update UI
+                renderTodos();
+                renderCalendar();
+                
+                // Save to file/localStorage
+                saveToFile();
+                
+                // Close dialog
+                closeImportDialog();
+                
+                // Show success message
+                const message = mode === 'replace' ? 
+                    '🔄 데이터가 성공적으로 교체되었습니다!' : 
+                    '🔀 데이터가 성공적으로 병합되었습니다!';
+                showNotification(message, 'success');
+                
+            } catch (error) {
+                showNotification('❌ 데이터 불러오기에 실패했습니다.', 'error');
+                console.error('Import error:', error);
+            }
+        }
+
+        function closeImportDialog() {
+            document.getElementById('importDialog').style.display = 'none';
+            importedData = null;
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 2rem;
+                left: 50%;
+                transform: translateX(-50%);
+                background: ${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--accent)'};
+                color: white;
+                padding: 1rem 2rem;
+                border-radius: 8px;
+                font-weight: 500;
+                z-index: 4000;
+                box-shadow: 0 4px 12px var(--shadow);
+                animation: slideDown 0.3s ease;
+            `;
+            
+            // Add animation keyframes
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideDown {
+                        from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Calendar functionality
+        function renderCalendar() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const yearDisplay = document.getElementById('yearDisplay');
+            
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Get today's date for comparison
+            const today = new Date();
+            const todayYear = today.getFullYear();
+            const todayMonth = today.getMonth();
+            const todayDay = today.getDate();
+            
+            yearDisplay.textContent = `${year}년`;
+            
+            // Update month buttons
+            updateMonthButtons();
+            
+            // Clear previous calendar
+            calendarGrid.innerHTML = '';
+            
+            // Add day headers
+            const dayHeaders = ['일', '월', '화', '수', '목', '금', '토'];
+            dayHeaders.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+            
+            // Add empty cells for previous month
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day other-month';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add days of current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                // Check if this is today
+                const isToday = year === todayYear && month === todayMonth && day === todayDay;
+                
+                // Check if this is a past date
+                const currentDateObj = new Date(year, month, day);
+                const todayDateObj = new Date(todayYear, todayMonth, todayDay);
+                const isPastDate = currentDateObj < todayDateObj;
+                
+                // Add appropriate classes
+                if (isToday) {
+                    dayElement.classList.add('today');
+                } else if (isPastDate) {
+                    dayElement.classList.add('past-date');
+                }
+                
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // Create day number with today indicator
+                let dayNumberHtml = `<div class="day-number">${day}`;
+                if (isToday) {
+                    dayNumberHtml += `<span class="today-indicator">📍</span>`;
+                }
+                dayNumberHtml += `</div>`;
+                
+                dayElement.innerHTML = dayNumberHtml;
+                
+                // Add todos for this day
+                const assignedTodos = todos.filter(todo => todo.assignedDate === dateKey);
+                assignedTodos.forEach(todo => {
+                    const todoElement = document.createElement('div');
+                    todoElement.className = `day-todo ${todo.priority}-priority ${todo.completed ? 'completed' : ''}`;
+                    todoElement.textContent = todo.text.length > 15 ? todo.text.substring(0, 15) + '...' : todo.text;
+                    todoElement.title = todo.text;
+                    todoElement.dataset.todoId = todo.id;
+                    
+                    // Make calendar todos draggable
+                    todoElement.draggable = true;
+                    
+                    // Add drag events for calendar todos
+                    todoElement.addEventListener('dragstart', handleCalendarDragStart);
+                    todoElement.addEventListener('dragend', handleCalendarDragEnd);
+                    
+                    // Add actions for calendar todos
+                    const actionsHtml = `
+                        <div class="todo-actions">
+                            <button class="action-btn complete-btn" onclick="completeTodo(${todo.id})" title="${todo.completed ? '되돌리기' : '완료'}">
+                                ${todo.completed ? '↩️' : '✅'}
+                            </button>
+                            <button class="action-btn delete-btn" onclick="deleteTodo(${todo.id})" title="삭제">🗑️</button>
+                        </div>
+                    `;
+                    todoElement.innerHTML += actionsHtml;
+                    
+                    // Add click event to show actions
+                    todoElement.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        document.querySelectorAll('.todo-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        document.querySelectorAll('.day-todo').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        this.classList.add('active');
+                    });
+                    
+                    dayElement.appendChild(todoElement);
+                });
+                
+                // Add drop functionality
+                dayElement.addEventListener('dragover', handleDragOver);
+                dayElement.addEventListener('drop', (e) => handleDrop(e, dateKey));
+                dayElement.addEventListener('dragleave', handleDragLeave);
+                
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        function updateMonthButtons() {
+            const monthButtonsContainer = document.getElementById('monthButtons');
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+            
+            // Get today's date for comparison
+            const today = new Date();
+            const todayYear = today.getFullYear();
+            const todayMonth = today.getMonth();
+            
+            monthButtonsContainer.innerHTML = '';
+            
+            for (let i = 0; i < 12; i++) {
+                const button = document.createElement('button');
+                
+                // Check if this is the currently selected month (viewing)
+                const isSelectedMonth = (i === currentMonth);
+                
+                // Check if this is the actual current month (today)
+                const isCurrentMonth = (currentYear === todayYear && i === todayMonth);
+                
+                let className = 'month-btn';
+                if (isSelectedMonth) {
+                    className += ' selected';
+                } else if (isCurrentMonth) {
+                    className += ' current';
+                }
+                
+                button.className = className;
+                button.textContent = `${i + 1}`;
+                button.onclick = () => changeToMonth(i);
+                monthButtonsContainer.appendChild(button);
+            }
+        }
+
+        function changeToMonth(month) {
+            currentDate.setMonth(month);
+            renderCalendar();
+        }
+
+        function changeYear(direction) {
+            currentDate.setFullYear(currentDate.getFullYear() + direction);
+            renderCalendar();
+        }
+    </script>
+</body>
+</html>

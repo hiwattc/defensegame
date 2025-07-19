@@ -733,6 +733,29 @@
             color: white !important;
         }
 
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            font-weight: bold;
+            z-index: 10000;
+            transition: none;
+        }
+
+        @keyframes particleExplode {
+            0% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.5) rotate(720deg);
+            }
+        }
+
+        .particle.exploding {
+            animation: particleExplode 1.5s ease-out forwards;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 flex-direction: column;
@@ -1090,17 +1113,35 @@
         }
 
         function deleteTodo(id) {
-            todos = todos.filter(todo => todo.id !== id);
-            // Remove from calendar as well
-            Object.keys(calendarTodos).forEach(date => {
-                calendarTodos[date] = calendarTodos[date].filter(todo => todo.id !== id);
-                if (calendarTodos[date].length === 0) {
-                    delete calendarTodos[date];
-                }
-            });
-            renderTodos();
-            renderCalendar();
-            saveToFile(); // Auto-save to file
+            // Get the todo element for particle effect
+            const todoElement = document.querySelector(`[data-todo-id="${id}"]`);
+            const todo = todos.find(t => t.id === id);
+            
+            if (todoElement && todo) {
+                // Create particle explosion effect
+                createParticleExplosion(todoElement, todo.text);
+                
+                // Delay actual deletion to show particle effect
+                setTimeout(() => {
+                    todos = todos.filter(todo => todo.id !== id);
+                    // Remove from calendar as well
+                    Object.keys(calendarTodos).forEach(date => {
+                        calendarTodos[date] = calendarTodos[date].filter(todo => todo.id !== id);
+                        if (calendarTodos[date].length === 0) {
+                            delete calendarTodos[date];
+                        }
+                    });
+                    renderTodos();
+                    renderCalendar();
+                    saveToFile(); // Auto-save to file
+                }, 300);
+            } else {
+                // Fallback if element not found
+                todos = todos.filter(todo => todo.id !== id);
+                renderTodos();
+                renderCalendar();
+                saveToFile();
+            }
         }
 
         function completeTodo(id) {
@@ -1670,6 +1711,111 @@
             currentDate.setFullYear(currentDate.getFullYear() + direction);
             renderCalendar();
         }
+
+        function createParticleExplosion(element, text) {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Get element styles for particle appearance
+            const styles = window.getComputedStyle(element);
+            const fontSize = parseFloat(styles.fontSize) * 2; // 2x bigger font size
+            const color = styles.color;
+            
+            // Emoji particles to add to the explosion
+            const emojis = ['✨', '💥', '🎆', '⭐', '🌟', '💫', '🎊', '🎉', '💥', '🔥', '⚡', '💨', '🌈', '🦄', '🎯', '💎'];
+            
+            // Create particles from each character
+            const characters = text.split('');
+            
+            // Add text particles
+            characters.forEach((char, index) => {
+                if (char.trim() === '') return; // Skip spaces
+                
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = char;
+                particle.style.fontSize = fontSize + 'px';
+                particle.style.color = color;
+                particle.style.left = centerX + 'px';
+                particle.style.top = centerY + 'px';
+                
+                // Random explosion direction and distance (2x larger radius)
+                const angle = (index / characters.length) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+                const distance = 200 + Math.random() * 300; // 2x larger explosion radius
+                const endX = centerX + Math.cos(angle) * distance;
+                const endY = centerY + Math.sin(angle) * distance + Math.random() * 200; // 2x gravity effect
+                
+                document.body.appendChild(particle);
+                
+                // Animate particle
+                setTimeout(() => {
+                    particle.style.transition = 'all 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    particle.style.left = endX + 'px';
+                    particle.style.top = endY + 'px';
+                    particle.classList.add('exploding');
+                }, 10);
+                
+                // Remove particle after animation
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 1600);
+            });
+            
+            // Add emoji particles
+            const emojiCount = 8 + Math.floor(Math.random() * 8); // 8-15 emoji particles
+            
+            for (let i = 0; i < emojiCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                particle.style.fontSize = fontSize + 'px';
+                particle.style.left = centerX + 'px';
+                particle.style.top = centerY + 'px';
+                
+                // Random explosion direction and distance
+                const angle = (i / emojiCount) * Math.PI * 2 + (Math.random() - 0.5) * 1;
+                const distance = 150 + Math.random() * 350; // Large explosion radius for emojis
+                const endX = centerX + Math.cos(angle) * distance;
+                const endY = centerY + Math.sin(angle) * distance + Math.random() * 150;
+                
+                document.body.appendChild(particle);
+                
+                // Animate particle with slight delay for staggered effect
+                setTimeout(() => {
+                    particle.style.transition = 'all 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    particle.style.left = endX + 'px';
+                    particle.style.top = endY + 'px';
+                    particle.classList.add('exploding');
+                }, 10 + i * 20); // Staggered animation
+                
+                // Remove particle after animation
+                setTimeout(() => {
+                    if (particle.parentNode) {
+                        particle.parentNode.removeChild(particle);
+                    }
+                }, 1900);
+            }
+            
+            // Add screen shake effect
+            document.body.style.animation = 'shake 0.3s ease-in-out';
+            setTimeout(() => {
+                document.body.style.animation = '';
+            }, 300);
+        }
+
+        // Add screen shake animation
+        const shakeStyle = document.createElement('style');
+        shakeStyle.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+                20%, 40%, 60%, 80% { transform: translateX(2px); }
+            }
+        `;
+        document.head.appendChild(shakeStyle);
     </script>
 </body>
 </html>

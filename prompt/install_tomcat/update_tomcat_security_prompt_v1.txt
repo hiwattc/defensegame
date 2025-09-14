@@ -1,0 +1,19 @@
+Rocky Linux에서 기존 설치된 Tomcat 의 보안설정 수정/추가하는 bash script를 함수기반으로 만들어줘.
+
+필수 요구사항:
+1) 기존 설치 경로: /was/apache-tomcat-[VERSION] 형태
+2) 디버깅 기능 (--debug 옵션)
+3) 컬러 로그 출력 및 파일 저장
+   - 로그라인에 날짜및 시간포함
+4) 보안 수준 진단및 결과출력 (아래 설정 여부 확인):
+   - /conf/server.xml에서 Server header를 빈값("")으로 설정 존재 여부
+   - /conf/web.xml에서 모든 HTTP 에러설정 여부
+   - /conf/web.xml에서 PUT,DELETE,HEAD,OPTIONS,TRACE 메소드 비활성화 여부
+   - /webapps 하위에 examples,docs,manager,host-manager 웹앱 존재 여부
+   - /conf/tomcat-users.xml 존재 여부
+5) 보안적용 (수준진단 결과에 따라서 적용)
+   - Server header를 빈값("")으로 설정
+   - 모든 HTTP 에러를 error.html로 통합 (에러코드 노출 방지)
+   - PUT,DELETE,HEAD,OPTIONS,TRACE 메소드 비활성화
+   - examples,docs,manager,host-manager 웹앱 제거
+   - tomcat-users.xml 안전 제거

@@ -1,0 +1,17 @@
+Rocky Linux에서 Tomcat 9 최신버전 보안 설치 bash script를 함수기반으로 만들어줘.
+
+필수 요구사항:
+1) 설치 경로: /was/apache-tomcat-[VERSION] 형태
+2) 디버깅 기능 (--debug 옵션)
+3) 컬러 로그 출력 및 파일 저장
+4) 보안 강화:
+   - Server header를 빈값("")으로 설정
+   - 모든 HTTP 에러를 error.html로 통합 (에러코드 노출 방지)
+   - PUT,DELETE,HEAD,OPTIONS,TRACE 메소드 비활성화
+   - examples,docs,manager,host-manager 웹앱 제거
+   - tomcat-users.xml 안전 제거
+5) SELinux 지원 (bin_t, lib_t, etc_t 등 적절한 컨텍스트 설정)
+6) systemd 서비스 등록
+7) 설치 완료 후 상세 리포트 생성
+
+함수 구조: check_root, install_java, create_tomcat_user, install_tomcat, remove_server_header, configure_error_pages, remove_unnecessary_methods, remove_default_webapps, secure_tomcat_users, configure_selinux, create_systemd_service, generate_report

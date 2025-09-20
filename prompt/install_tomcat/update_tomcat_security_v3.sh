@@ -11,9 +11,7 @@
 SCRIPT_NAME="$(basename "$0")"
 DEBUG_MODE=false
 LOG_FILE=""
-TOMCAT_BASE_PATH="/was"
-TOMCAT_HOME=""
-BACKUP_DIR=""
+TOMCAT_HOME="/was/tomcat/apache-tomcat-9.0.109"  # 사용자가 실제 Tomcat 경로로 수정
 DATE_FORMAT="%Y-%m-%d %H:%M:%S"
 
 # Color codes for output
@@ -103,7 +101,7 @@ error_exit() {
 
 create_backup() {
     local source_file="$1"
-    local backup_file="${BACKUP_DIR}/$(basename "$source_file").backup.$(date +%Y%m%d_%H%M%S)"
+    local backup_file="${source_file}.backup.$(date +%Y%m%d_%H%M%S)"
 
     if [[ -f "$source_file" ]]; then
         cp "$source_file" "$backup_file"
@@ -118,26 +116,10 @@ create_backup() {
 # =============================================================================
 
 find_tomcat_installation() {
-    log_message "INFO" "Searching for Tomcat installation in $TOMCAT_BASE_PATH..."
+    log_message "INFO" "Validating Tomcat installation at $TOMCAT_HOME..."
 
-    if [[ ! -d "$TOMCAT_BASE_PATH" ]]; then
-        error_exit "Tomcat base path $TOMCAT_BASE_PATH does not exist"
-    fi
-
-    # Find apache-tomcat-* directories
-    local tomcat_dirs=($(find "$TOMCAT_BASE_PATH" -maxdepth 1 -type d -name "apache-tomcat-*" 2>/dev/null))
-
-    if [[ ${#tomcat_dirs[@]} -eq 0 ]]; then
-        error_exit "No Tomcat installation found in $TOMCAT_BASE_PATH"
-    elif [[ ${#tomcat_dirs[@]} -gt 1 ]]; then
-        log_message "WARN" "Multiple Tomcat installations found:"
-        for dir in "${tomcat_dirs[@]}"; do
-            log_message "WARN" "  - $dir"
-        done
-        TOMCAT_HOME="${tomcat_dirs[0]}"
-        log_message "INFO" "Using first installation: $TOMCAT_HOME"
-    else
-        TOMCAT_HOME="${tomcat_dirs[0]}"
+    if [[ ! -d "$TOMCAT_HOME" ]]; then
+        error_exit "Tomcat installation not found at $TOMCAT_HOME"
     fi
 
     log_message "SUCCESS" "Found Tomcat installation: $TOMCAT_HOME"
@@ -166,12 +148,23 @@ check_server_header() {
         return 1
     fi
 
-    # Check if server attribute is set to empty string
-    if grep -q 'server=""' "$server_xml" 2>/dev/null; then
+    # Count total Connector elements
+    local total_connectors=$(grep -c '<Connector' "$server_xml" 2>/dev/null)
+    if [[ $total_connectors -eq 0 ]]; then
+        SECURITY_STATUS["server_header"]="no_connectors"
+        return 1
+    fi
+
+    # Count Connector elements with server="" attribute
+    local secure_connectors=$(grep -c 'server=""' "$server_xml" 2>/dev/null)
+
+    if [[ $secure_connectors -eq $total_connectors ]]; then
         SECURITY_STATUS["server_header"]="secure"
+        debug_log "All $total_connectors Connector elements have server=\"\" attribute"
         return 0
     else
         SECURITY_STATUS["server_header"]="vulnerable"
+        debug_log "Only $secure_connectors out of $total_connectors Connector elements have server=\"\" attribute"
         return 1
     fi
 }
@@ -285,6 +278,9 @@ print_diagnosis_results() {
         "missing_file")
             log_message "ERROR" "✗ server.xml file not found"
             ;;
+        "no_connectors")
+            log_message "WARN" "✗ No Connector elements found in server.xml"
+            ;;
     esac
 
     # HTTP Errors
@@ -354,9 +350,11 @@ harden_server_header() {
 
     create_backup "$server_xml"
 
-    # Add server="" attribute to Connector elements
-    sed -i 's/<Connector port="[^"]*"/<Connector server="" port="8080"/g' "$server_xml"
-    sed -i 's/<Connector[^>]*port="[^"]*"[^>]*>/<Connector server="" port="8080" protocol="HTTP\/1.1" connectionTimeout="20000" redirectPort="8443" \/>/g' "$server_xml"
+    # First, remove all existing server attributes (any value)
+    sed -i 's/[[:space:]]*server="[^"]*"//g' "$server_xml"
+    
+    # Then, add server="" attribute to all Connector elements
+    sed -i ':a;N;$!ba;s/<Connector\([^>]*\)>/<Connector server=""\1>/g' "$server_xml"
 
     log_message "SUCCESS" "Server header hardening completed"
 }
@@ -534,11 +532,6 @@ initialize_script() {
 }
 
 setup_environment() {
-    # Create backup directory
-    BACKUP_DIR="$TOMCAT_HOME/security_backup_$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
-    debug_log "Created backup directory: $BACKUP_DIR"
-
     # Check if Tomcat is running
     if pgrep -f "tomcat" > /dev/null 2>&1; then
         log_message "WARN" "Tomcat appears to be running. Consider stopping it before applying changes."
@@ -565,7 +558,6 @@ main() {
         run_security_diagnosis
         print_diagnosis_results
 
-        log_message "INFO" "Backup files are stored in: $BACKUP_DIR"
         log_message "SUCCESS" "Tomcat security hardening completed successfully!"
     else
         log_message "INFO" "Security hardening cancelled by user"

@@ -1,0 +1,6 @@
+https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html?utm_source=chatgpt.com
+# OpenJDK 11 다운로드 (예: 11.0.24 버전, x64 Linux)
+wget https://download.oracle.com/java/17/archive/jdk-11.0.24_linux-x64_bin.tar.gz
+
+# OpenJDK 17 다운로드 
+wget https://download.oracle.com/java/17/archive/jdk-17.0.12_linux-x64_bin.tar.gz

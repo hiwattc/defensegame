@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>실시간 김치프리미엄 대시보드</title>
+<style>
+  body { font-family: Arial, sans-serif; background-color: #f0f2f5; text-align: center; padding: 20px; }
+  h1 { color: #333; margin-bottom: 30px; }
+  table { margin: 0 auto; border-collapse: collapse; width: 80%; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  th, td { padding: 15px; border-bottom: 1px solid #ddd; }
+  th { background: #f7f7f7; }
+  td { text-align: center; }
+  .premium { color: #d9534f; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>실시간 코인 김치프리미엄</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>코인</th>
+      <th>Upbit (KRW)</th>
+      <th>Binance (USD)</th>
+      <th>환율 (KRW/USD)</th>
+      <th>김치프리미엄 (%)</th>
+    </tr>
+  </thead>
+  <tbody id="coinTable">
+    <!-- 데이터가 JavaScript에서 들어갑니다 -->
+  </tbody>
+</table>
+
+<script>
+const coins = ["BTC", "ETH", "XRP", "ADA", "DOT"]; // 필요시 추가 가능
+
+async function fetchPrices() {
+    try {
+        // 환율 가져오기
+        const usdkrwRes = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=KRW');
+        const usdkrwData = await usdkrwRes.json();
+        const usdkrw = usdkrwData.rates.KRW;
+
+        const tableBody = document.getElementById('coinTable');
+        tableBody.innerHTML = ''; // 기존 데이터 초기화
+
+        for (let coin of coins) {
+            // Upbit KRW 가격
+            const upbitRes = await fetch(`https://api.upbit.com/v1/ticker?markets=KRW-${coin}`);
+            const upbitData = await upbitRes.json();
+            const upbitPrice = upbitData[0]?.trade_price || 0;
+
+            // Binance USD 가격
+            const binanceRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`);
+            const binanceData = await binanceRes.json();
+            const binancePriceUSD = parseFloat(binanceData.price || 0);
+
+            // 김치프리미엄 계산
+            const premium = ((upbitPrice / (binancePriceUSD * usdkrw)) - 1) * 100;
+
+            // 테이블에 추가
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${coin}</td>
+                <td>${upbitPrice.toLocaleString('ko-KR')} KRW</td>
+                <td>${binancePriceUSD.toFixed(4)} USD</td>
+                <td>${usdkrw.toFixed(2)}</td>
+                <td class="premium">${premium.toFixed(2)}%</td>
+            `;
+            tableBody.appendChild(row);
+        }
+    } catch (error) {
+        console.error('가격 가져오기 실패:', error);
+    }
+}
+
+// 5초마다 갱신
+fetchPrices();
+setInterval(fetchPrices, 5000);
+</script>
+
+</body>
+</html>

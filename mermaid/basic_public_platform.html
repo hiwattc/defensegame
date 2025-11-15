@@ -310,73 +310,152 @@
             font-weight: 600;
             margin-left: 10px;
         }
-        .period-1-6 {
+        .period-1-12 {
             background: #d4edda;
             color: #155724;
         }
-        .period-7-12 {
+        .period-13-24 {
             background: #fff3cd;
             color: #856404;
         }
-        .period-13-18 {
+        .period-25-36 {
             background: #d1ecf1;
             color: #0c5460;
         }
-        .period-19-24 {
-            background: #f8d7da;
-            color: #721c24;
+        .subgroup {
+            margin: 15px 0;
+            padding: 15px;
+            background: #ffffff;
+            border-left: 3px solid #667eea;
+            border-radius: 5px;
+        }
+        .subgroup h5 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .subgroup ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .source-info {
+            margin-top: 40px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        .source-info h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .source-section {
+            margin-bottom: 25px;
+        }
+        .source-section:last-child {
+            margin-bottom: 0;
+        }
+        .source-section h4 {
+            color: #667eea;
+            font-size: 16px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+        .prompt-content ul {
+            list-style: disc;
+            padding-left: 25px;
+            margin: 10px 0;
+        }
+        .prompt-content li {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        .prompt-content p {
+            margin: 15px 0 5px 0;
+            font-weight: 600;
+            color: #495057;
+        }
+        .llm-info p {
+            margin: 8px 0;
+            line-height: 1.6;
+            color: #495057;
+        }
+        .llm-info strong {
+            color: #667eea;
+            display: inline-block;
+            min-width: 100px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🏢 IT 요소기술 플랫폼 구성도</h1>
-        <p class="subtitle">대기업 IT 인프라 통합 플랫폼 | 24개월 구축 계획</p>
+        <p class="subtitle">대기업 IT 인프라 통합 플랫폼 | 36개월 구축 계획</p>
         
         <div class="mermaid">
 graph TB
-    subgraph Phase1["📅 1-6개월: 인프라 기반 구축"]
+    subgraph Phase1["📅 1-12개월: 인프라 기반 구축"]
         direction TB
-        subgraph Infra["🌐 인프라 서비스"]
+        subgraph InfraBase["🌐 인프라 기반"]
             DNS["DNS Server<br/>도메인 이름 해석"]
             NTP["NTP Server<br/>시간 동기화"]
             SMTP["SMTP Server<br/>이메일 전송"]
+            NFS["NFS 스토리지<br/>네트워크 파일 시스템"]
+            Nginx_DMZ["Nginx 공통웹서버<br/>DMZ용"]
+            Nginx_Internal["Nginx 공통웹서버<br/>내부서버용"]
         end
-        subgraph Directory["📁 디렉토리 서비스"]
+        subgraph DirAuth["📁 디렉토리/인증"]
             AD["Active Directory<br/>사용자/그룹 관리"]
             WSUS["WSUS<br/>Windows 업데이트"]
+            IAM["통합계정권한<br/>IAM<br/>Identity & Access Management"]
+            SSO["통합SSO<br/>Single Sign-On"]
+            JWT["JWT 인증서버<br/>토큰 기반 인증"]
+            MFA["MFA<br/>Multi-Factor Authentication<br/>이메일/FIDO/OTP/Passkey/QR/텔레그램"]
+        end
+        subgraph ITStandard["📋 IT표준화"]
+            PMS["프로젝트관리시스템<br/>PMS"]
+            PDMS["PDMS<br/>프로젝트 데이터/파일 공유 시스템"]
+            DevGuide["표준개발안내 시스템<br/>Frontend/Backend"]
+            DataStandard["데이터표준 안내시스템"]
+            Dictionary["용어사전<br/>DataDictionary"]
+            ERD["ERD관리시스템"]
+            LLM_RAG["LLM/RAG 기반 지식플랫폼<br/>Large Language Model<br/>Retrieval Augmented Generation"]
+            ITRequest["IT요청관리&게시판<br/>IT Request & Board"]
+        end
+        subgraph Messaging1["📨 메시징/공통 서비스"]
+            RabbitMQ["RabbitMQ<br/>메시지 브로커"]
+            Kafka["Kafka<br/>스트리밍 플랫폼"]
+            Report["공통 리포트서버<br/>리포트 생성/배포"]
+            Crypto["공통 암복호화 서버<br/>데이터 보호"]
+            Approval["통합결재<br/>전자결재 시스템"]
+        end
+        subgraph DevOps1["⚙️ 개발/운영 도구"]
+            CICD["CI/CD<br/>Jenkins Agent<br/>Nexus<br/>GitLab Runner"]
+            Ansible["Ansible 관리서버<br/>자동화 관리"]
+            ELK["통합로그서버<br/>ELK Stack"]
+            Mobile["모바일관리서버<br/>관리자/Push서버"]
+            Registry["컨테이너 이미지 레지스트리<br/>Container Registry"]
+            K8S_Dev["k8s기반 개발계 플랫폼<br/>Kubernetes Dev Platform"]
         end
     end
     
-    subgraph Phase2["📅 7-12개월: 보안 및 인증 시스템"]
+    subgraph Phase2["📅 13-24개월: 보안 시스템"]
         direction TB
-        subgraph Auth["🔐 인증/권한 관리"]
-            IAM["통합계정권한<br/>IAM<br/>Identity & Access Management"]
-            SSO["통합SSO<br/>Single Sign-On"]
-        end
         subgraph Security["🛡️ 보안 시스템"]
             NAC["NAC<br/>Network Access Control"]
             DAC["DAC<br/>Data Access Control"]
             DRM["DRM<br/>Digital Rights Management"]
             EDR["EDR<br/>Endpoint Detection & Response"]
             AV["Anti Virus<br/>백신 시스템"]
+            SAC["SAC<br/>Server Access Control<br/>서버 접근 제어"]
         end
     end
     
-    subgraph Phase3["📅 13-18개월: 메시징 및 공통 서비스"]
-        direction TB
-        subgraph Messaging["📨 메시징 큐"]
-            RabbitMQ["RabbitMQ<br/>메시지 브로커"]
-            Kafka["Kafka<br/>스트리밍 플랫폼"]
-        end
-        subgraph Common["🔧 공통 서비스"]
-            Report["공통 리포트서버<br/>리포트 생성/배포"]
-            Crypto["공통 암복호화 서버<br/>데이터 보호"]
-            Approval["통합결재<br/>전자결재 시스템"]
-        end
-    end
-    
-    subgraph Phase4["📅 19-24개월: 비즈니스 애플리케이션"]
+    subgraph Phase3["📅 25-36개월: 비즈니스 애플리케이션"]
         direction TB
         subgraph SAP["💼 SAP 시스템"]
             SAP_ERP["SAP ERP<br/>전사 자원 관리"]
@@ -395,33 +474,81 @@ graph TB
     AD -->|사용자 정보| SSO
     DNS -->|도메인 해석| IAM
     DNS -->|도메인 해석| SSO
+    DNS -->|도메인 해석| Nginx_DMZ
+    DNS -->|도메인 해석| Nginx_Internal
     NTP -->|시간 동기화| AD
     NTP -->|시간 동기화| IAM
+    NFS -->|파일 저장| CICD
+    NFS -->|파일 저장| ELK
+    NFS -->|파일 저장| Report
+    NFS -->|파일 저장| PDMS
+    PMS -->|프로젝트 정보| DevGuide
+    PMS -->|프로젝트 데이터| PDMS
+    PDMS -->|파일 공유| PMS
+    DevGuide -->|개발 표준| DataStandard
+    DataStandard -->|데이터 표준| Dictionary
+    DataStandard -->|데이터 표준| ERD
+    Dictionary -->|용어 정보| ERD
+    ERD -->|ERD 정보| DevGuide
+    LLM_RAG -->|지식 검색| Dictionary
+    LLM_RAG -->|지식 검색| DataStandard
+    LLM_RAG -->|지식 검색| ERD
+    LLM_RAG -->|지식 제공| DevGuide
+    LLM_RAG -->|지식 제공| PMS
+    LLM_RAG -->|지식 제공| PDMS
+    ITRequest -->|요청 관리| PMS
+    ITRequest -->|게시판| DevGuide
     
     %% 보안 시스템 연결
     IAM -->|권한 정보| NAC
     IAM -->|접근 제어| DAC
+    IAM -->|서버 접근 제어| SAC
+    MFA -->|다중 인증| IAM
+    MFA -->|다중 인증| SSO
     SSO -->|인증 토큰| SAP_ERP
     SSO -->|인증 토큰| SAP_HR
     SSO -->|인증 토큰| Groupware
     SSO -->|인증 토큰| M365
     SSO -->|인증 토큰| Teams
+    SSO -->|인증 토큰| Nginx_DMZ
+    SSO -->|인증 토큰| Nginx_Internal
+    SSO -->|인증 토큰| PMS
+    SSO -->|인증 토큰| PDMS
+    SSO -->|인증 토큰| ITRequest
+    JWT -->|토큰 발급| SSO
+    JWT -->|토큰 검증| Nginx_DMZ
+    JWT -->|토큰 검증| Nginx_Internal
     AD -->|그룹 정책| EDR
     AD -->|그룹 정책| AV
+    AD -->|서버 접근 제어| SAC
     WSUS -->|업데이트| EDR
     WSUS -->|업데이트| AV
+    SAC -->|서버 접근 제어| Ansible
     
     %% 메시징 및 공통 서비스 연결
     RabbitMQ -->|비동기 메시지| SAP_ERP
     RabbitMQ -->|비동기 메시지| SAP_HR
     Kafka -->|실시간 스트림| Report
     Kafka -->|이벤트 스트림| Approval
+    Kafka -->|로그 스트림| ELK
     Crypto -->|암복호화| SAP_ERP
     Crypto -->|암복호화| SAP_HR
     Crypto -->|암복호화| DRM
     Report -->|리포트| SAP_ERP
     Report -->|리포트| SAP_HR
     Report -->|리포트| Approval
+    ELK -->|로그 수집| SAP_ERP
+    ELK -->|로그 수집| SAP_HR
+    ELK -->|로그 수집| IAM
+    ELK -->|로그 수집| SSO
+    Ansible -->|자동화 배포| CICD
+    Ansible -->|서버 관리| SAC
+    CICD -->|배포| Nginx_DMZ
+    CICD -->|배포| Nginx_Internal
+    CICD -->|이미지 빌드| Registry
+    Registry -->|이미지 제공| K8S_Dev
+    K8S_Dev -->|컨테이너 배포| CICD
+    Mobile -->|Push 알림| Messenger
     
     %% 비즈니스 애플리케이션 연결
     SAP_ERP -->|데이터 연동| SAP_HR
@@ -433,12 +560,20 @@ graph TB
     Teams -->|통합| M365
     M365 -->|이메일| SMTP
     M365 -->|인증| SSO
+    Nginx_DMZ -->|프록시| Groupware
+    Nginx_DMZ -->|프록시| M365
+    Nginx_Internal -->|프록시| SAP_ERP
+    Nginx_Internal -->|프록시| SAP_HR
+    Nginx_Internal -->|프록시| PMS
+    Nginx_Internal -->|프록시| PDMS
+    Nginx_Internal -->|프록시| ITRequest
     
     %% 보안 통합 연결
     NAC -->|네트워크 제어| DAC
     DAC -->|데이터 보호| DRM
     EDR -->|위협 정보| AV
     DRM -->|권한 관리| IAM
+    SAC -->|서버 접근 제어| NAC
     
     %% 스타일 정의
     classDef phase1 fill:#d4edda,stroke:#28a745,stroke-width:3px,color:#000
@@ -454,139 +589,239 @@ graph TB
     classDef collab fill:#ffe6f0,stroke:#ff0066,stroke-width:2px
     
     %% Phase 1 스타일 적용
-    class Phase1,Infra,Directory,DNS,NTP,SMTP,AD,WSUS phase1
-    class DNS,NTP,SMTP infra
-    class AD,WSUS infra
+    class Phase1,InfraBase,DirAuth,ITStandard,Messaging1,DevOps1,DNS,NTP,SMTP,NFS,Nginx_DMZ,Nginx_Internal,AD,WSUS,IAM,SSO,JWT,MFA,PMS,PDMS,DevGuide,DataStandard,Dictionary,ERD,LLM_RAG,ITRequest,RabbitMQ,Kafka,Report,Crypto,Approval,CICD,Ansible,ELK,Mobile,Registry,K8S_Dev phase1
+    class DNS,NTP,SMTP,NFS,Nginx_DMZ,Nginx_Internal infra
+    class AD,WSUS,IAM,SSO,JWT,MFA auth
+    class PMS,PDMS,DevGuide,DataStandard,Dictionary,ERD,LLM_RAG,ITRequest infra
+    class RabbitMQ,Kafka,Report,Crypto,Approval messaging
+    class CICD,Ansible,ELK,Mobile,Registry,K8S_Dev common
     
     %% Phase 2 스타일 적용
-    class Phase2,Auth,Security,IAM,SSO,NAC,DAC,DRM,EDR,AV phase2
-    class IAM,SSO auth
-    class NAC,DAC,DRM,EDR,AV security
+    class Phase2,Security,NAC,DAC,DRM,EDR,AV,SAC phase2
+    class NAC,DAC,DRM,EDR,AV,SAC security
     
     %% Phase 3 스타일 적용
-    class Phase3,Messaging,Common,RabbitMQ,Kafka,Report,Crypto,Approval phase3
-    class RabbitMQ,Kafka messaging
-    class Report,Crypto,Approval common
-    
-    %% Phase 4 스타일 적용
-    class Phase4,SAP,Collaboration,SAP_ERP,SAP_HR,Groupware,Messenger,Teams,M365 phase4
+    class Phase3,SAP,Collaboration,SAP_ERP,SAP_HR,Groupware,Messenger,Teams,M365 phase3
     class SAP_ERP,SAP_HR sap
+    class Groupware,Messenger,Teams,M365 collab
         </div>
         
         <div class="legend">
             <h3>📋 시스템 구성 요소 설명</h3>
             
             <div class="legend-section">
-                <h4>📅 1-6개월: 인프라 기반 구축</h4>
-                <ul>
-                    <li>
-                        <strong>DNS Server <span class="period period-1-6">1-6개월</span></strong>
-                        도메인 이름을 IP 주소로 변환하는 핵심 인프라 서비스
-                    </li>
-                    <li>
-                        <strong>NTP Server <span class="period period-1-6">1-6개월</span></strong>
-                        모든 시스템의 시간을 동기화하여 로그 및 보안 이벤트 추적의 정확성 보장
-                    </li>
-                    <li>
-                        <strong>SMTP Server <span class="period period-1-6">1-6개월</span></strong>
-                        이메일 전송 서비스, 그룹웨어 및 M365와 연동
-                    </li>
-                    <li>
-                        <strong>Active Directory <span class="period period-1-6">1-6개월</span></strong>
-                        중앙화된 사용자/그룹 관리, IAM 및 SSO의 기반 인프라
-                    </li>
-                    <li>
-                        <strong>WSUS <span class="period period-1-6">1-6개월</span></strong>
-                        Windows 업데이트 중앙 관리, EDR 및 백신 시스템과 연동
-                    </li>
-                </ul>
+                <h4>📅 1-12개월: 인프라 기반 구축</h4>
+                
+                <div class="subgroup">
+                    <h5>🌐 인프라 기반</h5>
+                    <ul>
+                        <li>
+                            <strong>DNS Server <span class="period period-1-12">1-12개월</span></strong>
+                            도메인 이름을 IP 주소로 변환하는 핵심 인프라 서비스
+                        </li>
+                        <li>
+                            <strong>NTP Server <span class="period period-1-12">1-12개월</span></strong>
+                            모든 시스템의 시간을 동기화하여 로그 및 보안 이벤트 추적의 정확성 보장
+                        </li>
+                        <li>
+                            <strong>SMTP Server <span class="period period-1-12">1-12개월</span></strong>
+                            이메일 전송 서비스, 그룹웨어 및 M365와 연동
+                        </li>
+                        <li>
+                            <strong>NFS 스토리지 <span class="period period-1-12">1-12개월</span></strong>
+                            네트워크 파일 시스템, CI/CD, 로그서버, 리포트서버의 공통 스토리지
+                        </li>
+                        <li>
+                            <strong>Nginx 공통웹서버 (DMZ용) <span class="period period-1-12">1-12개월</span></strong>
+                            DMZ 영역의 웹 서버, 외부 접근 프록시 및 로드 밸런싱
+                        </li>
+                        <li>
+                            <strong>Nginx 공통웹서버 (내부서버용) <span class="period period-1-12">1-12개월</span></strong>
+                            내부 네트워크의 웹 서버, 내부 애플리케이션 프록시
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="subgroup">
+                    <h5>📁 디렉토리/인증</h5>
+                    <ul>
+                        <li>
+                            <strong>Active Directory <span class="period period-1-12">1-12개월</span></strong>
+                            중앙화된 사용자/그룹 관리, IAM 및 SSO의 기반 인프라
+                        </li>
+                        <li>
+                            <strong>WSUS <span class="period period-1-12">1-12개월</span></strong>
+                            Windows 업데이트 중앙 관리, EDR 및 백신 시스템과 연동
+                        </li>
+                        <li>
+                            <strong>통합계정권한(IAM) <span class="period period-1-12">1-12개월</span></strong>
+                            중앙화된 사용자 계정 및 권한 관리, 모든 시스템의 인증/인가 기반
+                        </li>
+                        <li>
+                            <strong>통합SSO <span class="period period-1-12">1-12개월</span></strong>
+                            단일 로그인으로 모든 애플리케이션 접근, SAP, M365, 그룹웨어 등과 연동
+                        </li>
+                        <li>
+                            <strong>JWT 인증서버 <span class="period period-1-12">1-12개월</span></strong>
+                            토큰 기반 인증 서버, SSO와 연동하여 웹 서버에 토큰 발급/검증
+                        </li>
+                        <li>
+                            <strong>MFA (Multi-Factor Authentication) <span class="period period-1-12">1-12개월</span></strong>
+                            다중 인증 시스템, 이메일/FIDO/OTP/Passkey/QR/텔레그램 인증 지원, IAM 및 SSO와 연동
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="subgroup">
+                    <h5>📋 IT표준화</h5>
+                    <ul>
+                        <li>
+                            <strong>프로젝트관리시스템 (PMS) <span class="period period-1-12">1-12개월</span></strong>
+                            프로젝트 관리 시스템, IT표준화 그룹의 핵심 시스템
+                        </li>
+                        <li>
+                            <strong>PDMS (프로젝트 데이터/파일 공유 시스템) <span class="period period-1-12">1-12개월</span></strong>
+                            프로젝트 데이터 및 파일 공유 시스템, PMS와 연동하여 프로젝트 파일 관리, NFS 스토리지 활용
+                        </li>
+                        <li>
+                            <strong>표준개발안내 시스템 (Frontend/Backend) <span class="period period-1-12">1-12개월</span></strong>
+                            프론트엔드/백엔드 개발 표준 안내 시스템, 데이터표준 안내시스템과 연동
+                        </li>
+                        <li>
+                            <strong>데이터표준 안내시스템 <span class="period period-1-12">1-12개월</span></strong>
+                            데이터 표준 정의 및 안내 시스템, 용어사전 및 ERD관리시스템과 연동
+                        </li>
+                        <li>
+                            <strong>용어사전 (DataDictionary) <span class="period period-1-12">1-12개월</span></strong>
+                            데이터 용어 사전, ERD관리시스템과 연동하여 데이터 표준화
+                        </li>
+                        <li>
+                            <strong>ERD관리시스템 <span class="period period-1-12">1-12개월</span></strong>
+                            데이터베이스 ERD 관리 시스템, 표준개발안내 시스템과 연동
+                        </li>
+                        <li>
+                            <strong>LLM/RAG 기반 지식플랫폼 <span class="period period-1-12">1-12개월</span></strong>
+                            Large Language Model과 Retrieval Augmented Generation 기반 지식 검색 및 제공 플랫폼, 용어사전, 데이터표준, ERD와 연동
+                        </li>
+                        <li>
+                            <strong>IT요청관리&게시판 <span class="period period-1-12">1-12개월</span></strong>
+                            IT 요청 관리 및 게시판 시스템, PMS 및 표준개발안내 시스템과 연동
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="subgroup">
+                    <h5>📨 메시징/공통 서비스</h5>
+                    <ul>
+                        <li>
+                            <strong>RabbitMQ <span class="period period-1-12">1-12개월</span></strong>
+                            메시지 브로커, SAP ERP/HR와 비동기 메시지 처리
+                        </li>
+                        <li>
+                            <strong>Kafka <span class="period period-1-12">1-12개월</span></strong>
+                            실시간 스트리밍 플랫폼, 리포트 서버 및 결재 시스템과 연동
+                        </li>
+                        <li>
+                            <strong>공통 리포트서버 <span class="period period-1-12">1-12개월</span></strong>
+                            중앙화된 리포트 생성 및 배포, SAP 시스템과 연동
+                        </li>
+                        <li>
+                            <strong>공통 암복호화 서버 <span class="period period-1-12">1-12개월</span></strong>
+                            데이터 암복호화 서비스, SAP 및 DRM과 연동
+                        </li>
+                        <li>
+                            <strong>통합결재 <span class="period period-1-12">1-12개월</span></strong>
+                            전자결재 시스템, SAP ERP/HR와 연동하여 업무 프로세스 자동화
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="subgroup">
+                    <h5>⚙️ 개발/운영 도구</h5>
+                    <ul>
+                        <li>
+                            <strong>CI/CD (Jenkins Agent, Nexus, GitLab Runner) <span class="period period-1-12">1-12개월</span></strong>
+                            지속적 통합/배포 파이프라인, Nginx 웹서버 배포 자동화
+                        </li>
+                        <li>
+                            <strong>Ansible 관리서버 <span class="period period-1-12">1-12개월</span></strong>
+                            인프라 자동화 관리 서버, SAC와 연동하여 서버 관리
+                        </li>
+                        <li>
+                            <strong>통합로그서버 (ELK) <span class="period period-1-12">1-12개월</span></strong>
+                            Elasticsearch, Logstash, Kibana 스택, 모든 시스템의 로그 수집 및 분석
+                        </li>
+                        <li>
+                            <strong>모바일관리서버 (관리자, Push서버) <span class="period period-1-12">1-12개월</span></strong>
+                            모바일 디바이스 관리 및 Push 알림 서버, 메신저와 연동
+                        </li>
+                        <li>
+                            <strong>컨테이너 이미지 레지스트리 <span class="period period-1-12">1-12개월</span></strong>
+                            컨테이너 이미지 저장 및 관리, CI/CD와 k8s 개발계 플랫폼과 연동
+                        </li>
+                        <li>
+                            <strong>k8s기반 개발계 플랫폼 <span class="period period-1-12">1-12개월</span></strong>
+                            Kubernetes 기반 개발 환경 플랫폼, 컨테이너 이미지 레지스트리와 CI/CD와 연동
+                        </li>
+                    </ul>
+                </div>
             </div>
             
             <div class="legend-section">
-                <h4>📅 7-12개월: 보안 및 인증 시스템</h4>
+                <h4>📅 13-24개월: 보안 시스템</h4>
                 <ul>
                     <li>
-                        <strong>통합계정권한(IAM) <span class="period period-7-12">7-12개월</span></strong>
-                        중앙화된 사용자 계정 및 권한 관리, 모든 시스템의 인증/인가 기반
-                    </li>
-                    <li>
-                        <strong>통합SSO <span class="period period-7-12">7-12개월</span></strong>
-                        단일 로그인으로 모든 애플리케이션 접근, SAP, M365, 그룹웨어 등과 연동
-                    </li>
-                    <li>
-                        <strong>NAC <span class="period period-7-12">7-12개월</span></strong>
+                        <strong>NAC <span class="period period-13-24">13-24개월</span></strong>
                         네트워크 접근 제어, 인증된 사용자/디바이스만 네트워크 접근 허용
                     </li>
                     <li>
-                        <strong>DAC <span class="period period-7-12">7-12개월</span></strong>
+                        <strong>DAC <span class="period period-13-24">13-24개월</span></strong>
                         데이터 접근 제어, IAM과 연동하여 데이터 접근 권한 관리
                     </li>
                     <li>
-                        <strong>DRM <span class="period period-7-12">7-12개월</span></strong>
+                        <strong>DRM <span class="period period-13-24">13-24개월</span></strong>
                         디지털 권한 관리, 문서 및 데이터 보호, 암복호화 서버와 연동
                     </li>
                     <li>
-                        <strong>EDR <span class="period period-7-12">7-12개월</span></strong>
+                        <strong>EDR <span class="period period-13-24">13-24개월</span></strong>
                         엔드포인트 탐지 및 대응, Active Directory 그룹 정책과 연동
                     </li>
                     <li>
-                        <strong>Anti Virus <span class="period period-7-12">7-12개월</span></strong>
+                        <strong>Anti Virus <span class="period period-13-24">13-24개월</span></strong>
                         백신 시스템, WSUS와 연동하여 업데이트 관리
                     </li>
-                </ul>
-            </div>
-            
-            <div class="legend-section">
-                <h4>📅 13-18개월: 메시징 및 공통 서비스</h4>
-                <ul>
                     <li>
-                        <strong>RabbitMQ <span class="period period-13-18">13-18개월</span></strong>
-                        메시지 브로커, SAP ERP/HR와 비동기 메시지 처리
-                    </li>
-                    <li>
-                        <strong>Kafka <span class="period period-13-18">13-18개월</span></strong>
-                        실시간 스트리밍 플랫폼, 리포트 서버 및 결재 시스템과 연동
-                    </li>
-                    <li>
-                        <strong>공통 리포트서버 <span class="period period-13-18">13-18개월</span></strong>
-                        중앙화된 리포트 생성 및 배포, SAP 시스템과 연동
-                    </li>
-                    <li>
-                        <strong>공통 암복호화 서버 <span class="period period-13-18">13-18개월</span></strong>
-                        데이터 암복호화 서비스, SAP 및 DRM과 연동
-                    </li>
-                    <li>
-                        <strong>통합결재 <span class="period period-13-18">13-18개월</span></strong>
-                        전자결재 시스템, SAP ERP/HR와 연동하여 업무 프로세스 자동화
+                        <strong>SAC (Server Access Control) <span class="period period-13-24">13-24개월</span></strong>
+                        서버 접근 제어, IAM과 연동하여 서버 접근 권한 관리, Ansible과 연동
                     </li>
                 </ul>
             </div>
             
             <div class="legend-section">
-                <h4>📅 19-24개월: 비즈니스 애플리케이션</h4>
+                <h4>📅 25-36개월: 비즈니스 애플리케이션</h4>
                 <ul>
                     <li>
-                        <strong>SAP ERP <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>SAP ERP <span class="period period-25-36">25-36개월</span></strong>
                         전사 자원 관리 시스템, SSO 인증, 통합결재 및 리포트 서버와 연동
                     </li>
                     <li>
-                        <strong>SAP HR <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>SAP HR <span class="period period-25-36">25-36개월</span></strong>
                         인사 관리 시스템, IAM과 연동하여 사용자 정보 동기화
                     </li>
                     <li>
-                        <strong>Groupware <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>Groupware <span class="period period-25-36">25-36개월</span></strong>
                         그룹웨어, SSO 인증 및 SMTP 서버와 연동
                     </li>
                     <li>
-                        <strong>Messenger <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>Messenger <span class="period period-25-36">25-36개월</span></strong>
                         메신저 시스템, RabbitMQ와 연동하여 메시지 처리
                     </li>
                     <li>
-                        <strong>MS Teams <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>MS Teams <span class="period period-25-36">25-36개월</span></strong>
                         팀 협업 도구, M365와 통합
                     </li>
                     <li>
-                        <strong>MS M365 <span class="period period-19-24">19-24개월</span></strong>
+                        <strong>MS M365 <span class="period period-25-36">25-36개월</span></strong>
                         Office 365, SSO 인증 및 SMTP 서버와 연동
                     </li>
                 </ul>
@@ -595,12 +830,69 @@ graph TB
             <div class="legend-section">
                 <h4>🔗 주요 연관성</h4>
                 <ul>
-                    <li><strong>인증/권한 흐름:</strong> Active Directory → IAM → SSO → 모든 애플리케이션</li>
-                    <li><strong>보안 통합:</strong> IAM → NAC/DAC → DRM → EDR/AV</li>
+                    <li><strong>인증/권한 흐름:</strong> Active Directory → IAM → SSO/JWT → 모든 애플리케이션</li>
+                    <li><strong>보안 통합:</strong> IAM → NAC/DAC/SAC → DRM → EDR/AV</li>
                     <li><strong>데이터 흐름:</strong> SAP ERP/HR → RabbitMQ/Kafka → 리포트서버/결재</li>
                     <li><strong>협업 통합:</strong> SSO → M365/Teams/Groupware → SMTP</li>
-                    <li><strong>인프라 기반:</strong> DNS/NTP/SMTP → 모든 시스템의 기반 서비스</li>
+                    <li><strong>인프라 기반:</strong> DNS/NTP/SMTP/NFS → 모든 시스템의 기반 서비스</li>
+                    <li><strong>웹 서버 연동:</strong> Nginx (DMZ/내부) → SSO/JWT → 애플리케이션 프록시</li>
+                    <li><strong>개발/운영 자동화:</strong> CI/CD → Ansible → SAC → 서버 관리</li>
+                    <li><strong>로그 통합:</strong> 모든 시스템 → Kafka → ELK → 통합 로그 분석</li>
+                    <li><strong>IT표준화 그룹 (초기 구축):</strong> PMS ↔ PDMS ↔ 표준개발안내 → 데이터표준 → 용어사전/ERD ↔ LLM/RAG ↔ IT요청관리&게시판</li>
+                    <li><strong>프로젝트 데이터 관리:</strong> PMS ↔ PDMS ↔ NFS 스토리지</li>
+                    <li><strong>다중 인증:</strong> MFA → IAM/SSO → 모든 애플리케이션 보안 강화</li>
+                    <li><strong>컨테이너 생명주기:</strong> CI/CD → 이미지 레지스트리 → k8s 개발계 플랫폼</li>
+                    <li><strong>AI 지식 플랫폼:</strong> LLM/RAG → 표준화 시스템 → 개발자 지원</li>
                 </ul>
+            </div>
+        </div>
+        
+        <div class="source-info">
+            <h3>📝 출처 정보</h3>
+            <div class="source-section">
+                <h4>프롬프트 내용</h4>
+                <div class="prompt-content">
+                    <p><strong>초기 요구사항:</strong></p>
+                    <ul>
+                        <li>Mermaid로 IT 요소기술 플랫폼 구성도 작성</li>
+                        <li>확대/축소/패닝 기능 구현</li>
+                        <li>24개월 구축 계획에 따른 구축시기별, 기능별 그룹핑</li>
+                        <li>시스템 구성: 통합계정권한(IAM), 통합SSO, SAP ERP/HR, Groupware/Messenger/MS Teams/MS M365, SMTP/DNS/NTP Server, Active Directory/WSUS, NAC/DAC/DRM/EDR/Anti Virus, 통합결재, 공통 리포트서버/공통 암복호화 서버, RabbitMQ/Kafka</li>
+                        <li>대기업 환경에 맞는 시스템 간 연관성 표현</li>
+                        <li>CSS를 활용한 깔끔한 표현</li>
+                    </ul>
+                    <p><strong>추가 요구사항 1:</strong></p>
+                    <ul>
+                        <li>SAC (Server Access Control)</li>
+                        <li>Nginx 공통웹서버 (DMZ용, 내부서버용)</li>
+                        <li>CI/CD (Jenkins Agent, Nexus, GitLab Runner)</li>
+                        <li>NFS 스토리지</li>
+                        <li>Ansible 관리서버</li>
+                        <li>통합로그서버(ELK)</li>
+                        <li>모바일관리서버(관리자, push서버)</li>
+                        <li>프로젝트관리시스템(PMS)</li>
+                        <li>JWT 인증서버</li>
+                        <li>표준개발안내 시스템(frontend, backend)</li>
+                        <li>데이터표준 안내시스템</li>
+                        <li>용어사전(DataDictionary)</li>
+                        <li>ERD관리시스템</li>
+                    </ul>
+                    <p><strong>추가 요구사항 2:</strong></p>
+                    <ul>
+                        <li>MFA (multi-factor authentication) - 이메일인증, FIDO인증, OTP인증, Passkey인증, QR인증, 텔레그램인증</li>
+                        <li>컨테이너 이미지 레지스트리</li>
+                        <li>k8s기반 개발계 플랫폼</li>
+                        <li>LLM, RAG기반 지식플랫폼</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="source-section">
+                <h4>사용된 LLM</h4>
+                <div class="llm-info">
+                    <p><strong>모델:</strong> Claude Sonnet 4.5 (Anthropic)</p>
+                    <p><strong>플랫폼:</strong> Cursor IDE</p>
+                    <p><strong>생성일:</strong> 2024년</p>
+                </div>
             </div>
         </div>
     </div>

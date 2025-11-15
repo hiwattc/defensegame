@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>완전한 인터랙티브 주기율표 - Periodic Table</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            display: flex;
+            max-width: 1400px;
+            gap: 20px;
+            width: 100%;
+        }
+        .periodic-table {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(18, 45px);
+            grid-template-rows: repeat(10, 45px);
+            gap: 1px;
+            background-color: #e0e0e0;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .element {
+            background-color: white;
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 9px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            position: relative;
+        }
+        .element:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 5;
+        }
+        .atomic-number {
+            font-size: 7px;
+            color: #666;
+        }
+        .symbol {
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+            margin: 2px 0;
+        }
+        .name {
+            font-size: 5px;
+            color: #999;
+        }
+        .empty {
+            background-color: transparent;
+            border: none;
+        }
+        /* 그룹별 색상 */
+        .group-1 { background-color: #ffebee; }
+        .group-2 { background-color: #fff3e0; }
+        .group-3-12 { background-color: #e8f5e8; }
+        .group-13-18 { background-color: #e3f2fd; }
+        .noble-gas { background-color: #f3e5f5; }
+        .lanthanides, .actinides { background-color: #fff8e1; }
+
+        /* 패널 */
+        .info-panel {
+            width: 300px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: none;
+            flex-direction: column;
+        }
+        .info-panel.active {
+            display: flex;
+        }
+        .info-header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .element-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .element-symbol {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .bohr-model {
+            width: 100%;
+            height: 150px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .bohr-model svg {
+            width: 120px;
+            height: 120px;
+        }
+        .info-details {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .detail-value {
+            color: #333;
+        }
+        .f-block {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .f-row {
+            display: flex;
+            gap: 1px;
+            background-color: #ccc;
+            padding: 5px;
+            margin: 5px 0;
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .periodic-table { grid-template-columns: repeat(18, 35px); grid-template-rows: repeat(10, 35px); }
+            .info-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; color: #333;">완전한 인터랙티브 주기율표 (118 원소)</h1>
+    <div class="container">
+        <div class="periodic-table" id="periodicTable">
+            <!-- 주기 1 -->
+            <div class="element group-1" data-element='{"number":1,"symbol":"H","name":"수소"}'>1<br>H<br>수소</div>
+            <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+            <div class="element noble-gas" data-element='{"number":2,"symbol":"He","name":"헬륨"}'>2<br>He<br>헬륨</div>
+            <div class="empty"></div>
+            
+            <!-- 주기 2 -->
+            <div class="element group-1" data-element='{"number":3,"symbol":"Li","name":"리튬"}'>3<br>Li<br>리튬</div>
+            <div class="element group-2" data-element='{"number":4,"symbol":"Be","name":"베릴륨"}'>4<br>Be<br>베릴륨</div>
+            <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+            <div class="element group-13-18" data-element='{"number":5,"symbol":"B","name":"붕소"}'>5<br>B<br>붕소</div>
+            <div class="element group-13-18" data-element='{"number":6,"symbol":"C","name":"탄소"}'>6<br>C<br>탄소</div>
+            <div class="element group-13-18" data-element='{"number":7,"symbol":"N","name":"질소"}'>7<br>N<br>질소</div>
+            <div class="element group-13-18" data-element='{"number":8,"symbol":"O","name":"산소"}'>8<br>O<br>산소</div>
+            <div class="element group-13-18" data-element='{"number":9,"symbol":"F","name":"플루오린"}'>9<br>F<br>플루오린</div>
+            <div class="element noble-gas" data-element='{"number":10,"symbol":"Ne","name":"네온"}'>10<br>Ne<br>네온</div>
+            <div class="empty"></div>
+            
+            <!-- 주기 3 -->
+            <div class="element group-1" data-element='{"number":11,"symbol":"Na","name":"나트륨"}'>11<br>Na<br>나트륨</div>
+            <div class="element group-2" data-element='{"number":12,"symbol":"Mg","name":"마그네슘"}'>12<br>Mg<br>마그네슘</div>
+            <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+            <div class="element group-13-18" data-element='{"number":13,"symbol":"Al","name":"알루미늄"}'>13<br>Al<br>알루미늄</div>
+            <div class="element group-13-18" data-element='{"number":14,"symbol":"Si","name":"규소"}'>14<br>Si<br>규소</div>
+            <div class="element group-13-18" data-element='{"number":15,"symbol":"P","name":"인"}'>15<br>P<br>인</div>
+            <div class="element group-13-18" data-element='{"number":16,"symbol":"S","name":"황"}'>16<br>S<br>황</div>
+            <div class="element group-13-18" data-element='{"number":17,"symbol":"Cl","name":"염소"}'>17<br>Cl<br>염소</div>
+            <div class="element noble-gas" data-element='{"number":18,"symbol":"Ar","name":"아르곤"}'>18<br>Ar<br>아르곤</div>
+            <div class="empty"></div>
+            
+            <!-- 주기 4 -->
+            <div class="element group-1" data-element='{"number":19,"symbol":"K","name":"칼륨"}'>19<br>K<br>칼륨</div>
+            <div class="element group-2" data-element='{"number":20,"symbol":"Ca","name":"칼슘"}'>20<br>Ca<br>칼슘</div>
+            <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+            <div class="element group-3-12" data-element='{"number":21,"symbol":"Sc","name":"스칸듐"}'>21<br>Sc<br>스칸듐</div>
+            <div class="element group-3-12" data-element='{"number":22,"symbol":"Ti","name":"티타늄"}'>22<br>Ti<br>티타늄</div>
+            <div class="element group-3-12" data-element='{"number":23,"symbol":"V","name":"바나듐"}'>23<br>V<br>바나듐</div>
+            <div class="element group-3-12" data-element='{"number":24,"symbol":"Cr","name":"크롬"}'>24<br>Cr<br>크롬</div>
+            <div class="element group-3-12" data-element='{"number":25,"symbol":"Mn","name":"망간"}'>25<br>Mn<br>망간</div>
+            <div class="element group-3-12" data-element='{"number":26,"symbol":"Fe","name":"철"}'>26<br>Fe<br>철</div>
+            <div class="element group-3-12" data-element='{"number":27,"symbol":"Co","name":"코발트"}'>27<br>Co<br>코발트</div>
+            <div class="element group-3-12" data-element='{"number":28,"symbol":"Ni","name":"니켈"}'>28<br>Ni<br>니켈</div>
+            <div class="element group-3-12" data-element='{"number":29,"symbol":"Cu","name":"구리"}'>29<br>Cu<br>구리</div>
+            <div class="element group-3-12" data-element='{"number":30,"symbol":"Zn","name":"아연"}'>30<br>Zn<br>아연</div>
+            <div class="element group-13-18" data-element='{"number":31,"symbol":"Ga","name":"갈륨"}'>31<br>Ga<br>갈륨</div>
+            <div class="element group-13-18" data-element='{"number":32,"symbol":"Ge","name":"게르마늄"}'>32<br>Ge<br>게르마늄</div>
+            <div class="element group-13-18" data-element='{"number":33,"symbol":"As","name":"비소"}'>33<br>As<br>비소</div>
+            <div class="element group-13-18" data-element='{"number":34,"symbol":"Se","name":"셀레늄"}'>34<br>Se<br>셀레늄</div>
+            <div class="element group-13-18" data-element='{"number":35,"symbol":"Br","name":"브롬"}'>35<br>Br<br>브롬</div>
+            <div class="element noble-gas" data-element='{"number":36,"symbol":"Kr","name":"크립톤"}'>36<br>Kr<br>크립톤</div>
+            
+            <!-- 주기 5 -->
+            <div class="element group-1" data-element='{"number":37,"symbol":"Rb","name":"루비듐"}'>37<br>Rb<br>루비듐</div>
+            <div class="element group-2" data-element='{"number":38,"symbol":"Sr","name":"스트론튬"}'>38<br>Sr<br>스트론튬</div>
+            <div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+            <div class="element group-3-12" data-element='{"number":39,"symbol":"Y","name":"이트륨"}'>39<br>Y<br>이트륨</div>
+            <div class="element group-3-12" data-element='{"number":40,"symbol":"Zr","name":"지르코늄"}'>40<br>Zr<br>지르코늄</div>
+            <div class="element group-3-12" data-element='{"number":41,"symbol":"Nb","name":"니오븀"}'>41<br>Nb<br>니오븀</div>
+            <div class="element group-3-12" data-element='{"number":42,"symbol":"Mo","name":"몰리브덴"}'>42<br>Mo<br>몰리브덴</div>
+            <div class="element group-3-12" data-element='{"number":43,"symbol":"Tc","name":"테크네튬"}'>43<br>Tc<br>테크네튬</div>
+            <div class="element group-3-12" data-element='{"number":44,"symbol":"Ru","name":"루테늄"}'>44<br>Ru<br>루테늄</div>
+            <div class="element group-3-12" data-element='{"number":45,"symbol":"Rh","name":"로듐"}'>45<br>Rh<br>로듐</div>
+            <div class="element group-3-12" data-element='{"number":46,"symbol":"Pd","name":"팔라듐"}'>46<br>Pd<br>팔라듐</div>
+            <div class="element group-3-12" data-element='{"number":47,"symbol":"Ag","name":"은"}'>47<br>Ag<br>은</div>
+            <div class="element group-3-12" data-element='{"number":48,"symbol":"Cd","name":"카드뮴"}'>48<br>Cd<br>카드뮴</div>
+            <div class="element group-13-18" data-element='{"number":49,"symbol":"In","name":"인듐"}'>49<br>In<br>인듐</div>
+            <div class="element group-13-18" data-element='{"number":50,"symbol":"Sn","name":"주석"}'>50<br>Sn<br>주석</div>
+            <div class="element group-13-18" data-element='{"number":51,"symbol":"Sb","name":"안티몬"}'>51<br>Sb<br>안티몬</div>
+            <div class="element group-13-18" data-element='{"number":52,"symbol":"Te","name":"텔루륨"}'>52<br>Te<br>텔루륨</div>
+            <div class="element group-13-18" data-element='{"number":53,"symbol":"I","name":"요오드"}'>53<br>I<br>요오드</div>
+            <div class="element noble-gas" data-element='{"number":54,"symbol":"Xe","name":"제논"}'>54<br>Xe<br>제논</div>
+            
+            <!-- 주기 6 -->
+            <div class="element group-1" data-element='{"number":55,"symbol":"Cs","name":"세슘"}'>55<br>Cs<br>세슘</div>
+            <div class="element group-2" data-element='{"number":56,"symbol":"Ba","name":"바륨"}'>56<br>Ba<br>바륨</div>
+            <div class="empty" style="grid-column: 3 / 5;"></div>
+            <div class="element group-3-12 lanthanides" data-element='{"number":57,"symbol":"La","name":"란타넘"}' style="grid-column: 4;">57<br>La<br>란타넘</div>
+            <div class="element group-3-12" data-element='{"number":72,"symbol":"Hf","name":"하프늄"}'>72<br>Hf<br>하프늄</div>
+            <div class="element group-3-12" data-element='{"number":73,"symbol":"Ta","name":"탄탈럼"}'>73<br>Ta<br>탄탈럼</div>
+            <div class="element group-3-12" data-element='{"number":74,"symbol":"W","name":"텅스텐"}'>74<br>W<br>텅스텐</div>
+            <div class="element group-3-12" data-element='{"number":75,"symbol":"Re","name":"레늄"}'>75<br>Re<br>레늄</div>
+            <div class="element group-3-12" data-element='{"number":76,"symbol":"Os","name":"오스뮴"}'>76<br>Os<br>오스뮴</div>
+            <div class="element group-3-12" data-element='{"number":77,"symbol":"Ir","name":"이리듐"}'>77<br>Ir<br>이리듐</div>
+            <div class="element group-3-12" data-element='{"number":78,"symbol":"Pt","name":"백금"}'>78<br>Pt<br>백금</div>
+            <div class="element group-3-12" data-element='{"number":79,"symbol":"Au","name":"금"}'>79<br>Au<br>금</div>
+            <div class="element group-3-12" data-element='{"number":80,"symbol":"Hg","name":"수은"}'>80<br>Hg<br>수은</div>
+            <div class="element group-13-18" data-element='{"number":81,"symbol":"Tl","name":"탈륨"}'>81<br>Tl<br>탈륨</div>
+            <div class="element group-13-18" data-element='{"number":82,"symbol":"Pb","name":"납"}'>82<br>Pb<br>납</div>
+            <div class="element group-13-18" data-element='{"number":83,"symbol":"Bi","name":"비스무트"}'>83<br>Bi<br>비스무트</div>
+            <div class="element group-13-18" data-element='{"number":84,"symbol":"Po","name":"폴로늄"}'>84<br>Po<br>폴로늄</div>
+            <div class="element group-13-18" data-element='{"number":85,"symbol":"At","name":"아스타틴"}'>85<br>At<br>아스타틴</div>
+            <div class="element noble-gas" data-element='{"number":86,"symbol":"Rn","name":"라돈"}'>86<br>Rn<br>라돈</div>
+            
+            <!-- 주기 7 -->
+            <div class="element group-1" data-element='{"number":87,"symbol":"Fr","name":"프란슘"}'>87<br>Fr<br>프란슘</div>
+            <div class="element group-2" data-element='{"number":88,"symbol":"Ra","name":"라듐"}'>88<br>Ra<br>라듐</div>
+            <div class="empty" style="grid-column: 3 / 5;"></div>
+            <div class="element group-3-12 actinides" data-element='{"number":89,"symbol":"Ac","name":"악티늄"}' style="grid-column: 4;">89<br>Ac<br>악티늄</div>
+            <div class="element group-3-12" data-element='{"number":104,"symbol":"Rf","name":"러더포듐"}'>104<br>Rf<br>러더포듐</div>
+            <div class="element group-3-12" data-element='{"number":105,"symbol":"Db","name":"두브늄"}'>105<br>Db<br>두브늄</div>
+            <div class="element group-3-12" data-element='{"number":106,"symbol":"Sg","name":"씨보그"}'>106<br>Sg<br>씨보그</div>
+            <div class="element group-3-12" data-element='{"number":107,"symbol":"Bh","name":"보륨"}'>107<br>Bh<br>보륨</div>
+            <div class="element group-3-12" data-element='{"number":108,"symbol":"Hs","name":"하스슘"}'>108<br>Hs<br>하스슘</div>
+            <div class="element group-3-12" data-element='{"number":109,"symbol":"Mt","name":"미트너륨"}'>109<br>Mt<br>미트너륨</div>
+            <div class="element group-3-12" data-element='{"number":110,"symbol":"Ds","name":"다름슈타트륨"}'>110<br>Ds<br>다름슈타트륨</div>
+            <div class="element group-3-12" data-element='{"number":111,"symbol":"Rg","name":"레벤토륨"}'>111<br>Rg<br>레벤토륨</div>
+            <div class="element group-3-12" data-element='{"number":112,"symbol":"Cn","name":"코페르니슘"}'>112<br>Cn<br>코페르니슘</div>
+            <div class="element group-13-18" data-element='{"number":113,"symbol":"Nh","name":"니호늄"}'>113<br>Nh<br>니호늄</div>
+            <div class="element group-13-18" data-element='{"number":114,"symbol":"Fl","name":"플레로븀"}'>114<br>Fl<br>플레로븀</div>
+            <div class="element group-13-18" data-element='{"number":115,"symbol":"Mc","name":"모스코븀"}'>115<br>Mc<br>모스코븀</div>
+            <div class="element group-13-18" data-element='{"number":116,"symbol":"Lv","name":"리베륨"}'>116<br>Lv<br>리베륨</div>
+            <div class="element group-13-18" data-element='{"number":117,"symbol":"Ts","name":"테네신"}'>117<br>Ts<br>테네신</div>
+            <div class="element noble-gas" data-element='{"number":118,"symbol":"Og","name":"오가네손"}'>118<br>Og<br>오가네손</div>
+        </div>
+
+        <div class="info-panel" id="infoPanel">
+            <div class="info-header">
+                <div class="element-name" id="elementName"></div>
+                <div class="element-symbol" id="elementSymbol"></div>
+            </div>
+            <div class="bohr-model" id="bohrModel"></div>
+            <div class="info-details">
+                <div class="detail-row">
+                    <span class="detail-label">원자 질량:</span>
+                    <span class="detail-value" id="atomicMass"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">밀도:</span>
+                    <span class="detail-value" id="density"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">녹는점:</span>
+                    <span class="detail-value" id="meltingPoint"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">끓는점:</span>
+                    <span class="detail-value" id="boilingPoint"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">발견 연도:</span>
+                    <span class="detail-value" id="discoveryYear"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">전자 배치:</span>
+                    <span class="detail-value" id="electronConfig"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 란타넘족 -->
+    <div class="f-block">
+        <h3>란타넘족 (Lanthanides)</h3>
+        <div class="f-row">
+            <div class="element lanthanides" data-element='{"number":58,"symbol":"Ce","name":"세륨"}' style="width:35px;height:35px;font-size:8px;">58<br>Ce<br>세륨</div>
+            <div class="element lanthanides" data-element='{"number":59,"symbol":"Pr","name":"프라세오디뮴"}' style="width:35px;height:35px;font-size:8px;">59<br>Pr<br>프라세오디뮴</div>
+            <div class="element lanthanides" data-element='{"number":60,"symbol":"Nd","name":"네오디뮴"}' style="width:35px;height:35px;font-size:8px;">60<br>Nd<br>네오디뮴</div>
+            <div class="element lanthanides" data-element='{"number":61,"symbol":"Pm","name":"프로메튬"}' style="width:35px;height:35px;font-size:8px;">61<br>Pm<br>프로메튬</div>
+            <div class="element lanthanides" data-element='{"number":62,"symbol":"Sm","name":"사마륨"}' style="width:35px;height:35px;font-size:8px;">62<br>Sm<br>사마륨</div>
+            <div class="element lanthanides" data-element='{"number":63,"symbol":"Eu","name":"유로퓸"}' style="width:35px;height:35px;font-size:8px;">63<br>Eu<br>유로퓸</div>
+            <div class="element lanthanides" data-element='{"number":64,"symbol":"Gd","name":"가돌리늄"}' style="width:35px;height:35px;font-size:8px;">64<br>Gd<br>가돌리늄</div>
+            <div class="element lanthanides" data-element='{"number":65,"symbol":"Tb","name":"테르븀"}' style="width:35px;height:35px;font-size:8px;">65<br>Tb<br>테르븀</div>
+            <div class="element lanthanides" data-element='{"number":66,"symbol":"Dy","name":"디스프로슘"}' style="width:35px;height:35px;font-size:8px;">66<br>Dy<br>디스프로슘</div>
+            <div class="element lanthanides" data-element='{"number":67,"symbol":"Ho","name":"홀뮴"}' style="width:35px;height:35px;font-size:8px;">67<br>Ho<br>홀뮴</div>
+            <div class="element lanthanides" data-element='{"number":68,"symbol":"Er","name":"에르븀"}' style="width:35px;height:35px;font-size:8px;">68<br>Er<br>에르븀</div>
+            <div class="element lanthanides" data-element='{"number":69,"symbol":"Tm","name":"튤륨"}' style="width:35px;height:35px;font-size:8px;">69<br>Tm<br>튤륨</div>
+            <div class="element lanthanides" data-element='{"number":70,"symbol":"Yb","name":"이터븀"}' style="width:35px;height:35px;font-size:8px;">70<br>Yb<br>이터븀</div>
+            <div class="element lanthanides" data-element='{"number":71,"symbol":"Lu","name":"루테튬"}' style="width:35px;height:35px;font-size:8px;">71<br>Lu<br>루테튬</div>
+        </div>
+    </div>
+
+    <!-- 악티늄족 -->
+    <div class="f-block">
+        <h3>악티늄족 (Actinides)</h3>
+        <div class="f-row">
+            <div class="element actinides" data-element='{"number":90,"symbol":"Th","name":"토륨"}' style="width:35px;height:35px;font-size:8px;">90<br>Th<br>토륨</div>
+            <div class="element actinides" data-element='{"number":91,"symbol":"Pa","name":"프로탁티늄"}' style="width:35px;height:35px;font-size:8px;">91<br>Pa<br>프로탁티늄</div>
+            <div class="element actinides" data-element='{"number":92,"symbol":"U","name":"우라늄"}' style="width:35px;height:35px;font-size:8px;">92<br>U<br>우라늄</div>
+            <div class="element actinides" data-element='{"number":93,"symbol":"Np","name":"넵투늄"}' style="width:35px;height:35px;font-size:8px;">93<br>Np<br>넵투늄</div>
+            <div class="element actinides" data-element='{"number":94,"symbol":"Pu","name":"플루토늄"}' style="width:35px;height:35px;font-size:8px;">94<br>Pu<br>플루토늄</div>
+            <div class="element actinides" data-element='{"number":95,"symbol":"Am","name":"아메리슘"}' style="width:35px;height:35px;font-size:8px;">95<br>Am<br>아메리슘</div>
+            <div class="element actinides" data-element='{"number":96,"symbol":"Cm","name":"커륨"}' style="width:35px;height:35px;font-size:8px;">96<br>Cm<br>커륨</div>
+            <div class="element actinides" data-element='{"number":97,"symbol":"Bk","name":"버클륨"}' style="width:35px;height:35px;font-size:8px;">97<br>Bk<br>버클륨</div>
+            <div class="element actinides" data-element='{"number":98,"symbol":"Cf","name":"캘리포늄"}' style="width:35px;height:35px;font-size:8px;">98<br>Cf<br>캘리포늄</div>
+            <div class="element actinides" data-element='{"number":99,"symbol":"Es","name":"아인슈타인"}' style="width:35px;height:35px;font-size:8px;">99<br>Es<br>아인슈타인</div>
+            <div class="element actinides" data-element='{"number":100,"symbol":"Fm","name":"퍼륨"}' style="width:35px;height:35px;font-size:8px;">100<br>Fm<br>퍼륨</div>
+            <div class="element actinides" data-element='{"number":101,"symbol":"Md","name":"멘델레븀"}' style="width:35px;height:35px;font-size:8px;">101<br>Md<br>멘델레븀</div>
+            <div class="element actinides" data-element='{"number":102,"symbol":"No","name":"노벨륨"}' style="width:35px;height:35px;font-size:8px;">102<br>No<br>노벨륨</div>
+            <div class="element actinides" data-element='{"number":103,"symbol":"Lr","name":"로렌슘"}' style="width:35px;height:35px;font-size:8px;">103<br>Lr<br>로렌슘</div>
+        </div>
+    </div>
+
+    <script>
+        // 전체 118개 원소 상세 데이터 (표준 값 기반)
+        const elements = {
+            1: {number:1, symbol:'H', name:'수소', atomicMass:'1.008', density:'0.08988 g/L', melting:'-259.16°C', boiling:'-252.88°C', year:1766, electrons:'1s1'},
+            2: {number:2, symbol:'He', name:'헬륨', atomicMass:'4.0026', density:'0.1785 g/L', melting:'-272.20°C', boiling:'-268.93°C', year:1868, electrons:'1s2'},
+            3: {number:3, symbol:'Li', name:'리튬', atomicMass:'6.941', density:'0.534 g/cm³', melting:'180.54°C', boiling:'1342°C', year:1817, electrons:'[He] 2s1'},
+            4: {number:4, symbol:'Be', name:'베릴륨', atomicMass:'9.0122', density:'1.85 g/cm³', melting:'1287°C', boiling:'2470°C', year:1797, electrons:'[He] 2s2'},
+            5: {number:5, symbol:'B', name:'붕소', atomicMass:'10.81', density:'2.34 g/cm³', melting:'2076°C', boiling:'3927°C', year:1808, electrons:'[He] 2s2 2p1'},
+            6: {number:6, symbol:'C', name:'탄소', atomicMass:'12.011', density:'2.267 g/cm³', melting:'3550°C (subl)', boiling:'4827°C', year: 'ancient', electrons:'[He] 2s2 2p2'},
+            7: {number:7, symbol:'N', name:'질소', atomicMass:'14.007', density:'0.0012506 g/cm³', melting:'-210°C', boiling:'-195.8°C', year:1772, electrons:'[He] 2s2 2p3'},
+            8: {number:8, symbol:'O', name:'산소', atomicMass:'15.999', density:'0.001429 g/cm³', melting:'-218.79°C', boiling:'-183°C', year:1774, electrons:'[He] 2s2 2p4'},
+            9: {number:9, symbol:'F', name:'플루오린', atomicMass:'18.998', density:'0.001696 g/cm³', melting:'-219.67°C', boiling:'-188.12°C', year:1886, electrons:'[He] 2s2 2p5'},
+            10: {number:10, symbol:'Ne', name:'네온', atomicMass:'20.180', density:'0.0009002 g/cm³', melting:'-248.59°C', boiling:'-246.08°C', year:1898, electrons:'[He] 2s2 2p6'},
+            11: {number:11, symbol:'Na', name:'나트륨', atomicMass:'22.990', density:'0.968 g/cm³', melting:'97.72°C', boiling:'883°C', year:1807, electrons:'[Ne] 3s1'},
+            12: {number:12, symbol:'Mg', name:'마그네슘', atomicMass:'24.305', density:'1.738 g/cm³', melting:'650°C', boiling:'1090°C', year:1808, electrons:'[Ne] 3s2'},
+            13: {number:13, symbol:'Al', name:'알루미늄', atomicMass:'26.982', density:'2.70 g/cm³', melting:'660.32°C', boiling:'2519°C', year:1825, electrons:'[Ne] 3s2 3p1'},
+            14: {number:14, symbol:'Si', name:'규소', atomicMass:'28.085', density:'2.329 g/cm³', melting:'1414°C', boiling:'3265°C', year:1824, electrons:'[Ne] 3s2 3p2'},
+            15: {number:15, symbol:'P', name:'인', atomicMass:'30.974', density:'1.82 g/cm³', melting:'44.15°C', boiling:'280°C', year:1669, electrons:'[Ne] 3s2 3p3'},
+            16: {number:16, symbol:'S', name:'황', atomicMass:'32.06', density:'2.07 g/cm³', melting:'115.21°C', boiling:'444.6°C', year: 'ancient', electrons:'[Ne] 3s2 3p4'},
+            17: {number:17, symbol:'Cl', name:'염소', atomicMass:'35.45', density:'0.0032 g/cm³', melting:'-101.5°C', boiling:'-34.04°C', year:1774, electrons:'[Ne] 3s2 3p5'},
+            18: {number:18, symbol:'Ar', name:'아르곤', atomicMass:'39.95', density:'0.001784 g/cm³', melting:'-189.34°C', boiling:'-185.85°C', year:1894, electrons:'[Ne] 3s2 3p6'},
+            19: {number:19, symbol:'K', name:'칼륨', atomicMass:'39.098', density:'0.862 g/cm³', melting:'63.5°C', boiling:'759°C', year:1807, electrons:'[Ar] 4s1'},
+            20: {number:20, symbol:'Ca', name:'칼슘', atomicMass:'40.078', density:'1.55 g/cm³', melting:'842°C', boiling:'1484°C', year:1808, electrons:'[Ar] 4s2'},
+            21: {number:21, symbol:'Sc', name:'스칸듐', atomicMass:'44.956', density:'2.985 g/cm³', melting:'1541°C', boiling:'2836°C', year:1879, electrons:'[Ar] 3d1 4s2'},
+            22: {number:22, symbol:'Ti', name:'티타늄', atomicMass:'47.867', density:'4.506 g/cm³', melting:'1668°C', boiling:'3287°C', year:1791, electrons:'[Ar] 3d2 4s2'},
+            23: {number:23, symbol:'V', name:'바나듐', atomicMass:'50.942', density:'6.0 g/cm³', melting:'1910°C', boiling:'3407°C', year:1801, electrons:'[Ar] 3d3 4s2'},
+            24: {number:24, symbol:'Cr', name:'크롬', atomicMass:'51.996', density:'7.19 g/cm³', melting:'1907°C', boiling:'2671°C', year:1797, electrons:'[Ar] 3d5 4s1'},
+            25: {number:25, symbol:'Mn', name:'망간', atomicMass:'54.938', density:'7.21 g/cm³', melting:'1246°C', boiling:'2061°C', year:1774, electrons:'[Ar] 3d5 4s2'},
+            26: {number:26, symbol:'Fe', name:'철', atomicMass:'55.845', density:'7.874 g/cm³', melting:'1538°C', boiling:'2862°C', year: 'ancient', electrons:'[Ar] 3d6 4s2'},
+            27: {number:27, symbol:'Co', name:'코발트', atomicMass:'58.933', density:'8.86 g/cm³', melting:'1495°C', boiling:'2927°C', year:1735, electrons:'[Ar] 3d7 4s2'},
+            28: {number:28, symbol:'Ni', name:'니켈', atomicMass:'58.693', density:'8.908 g/cm³', melting:'1455°C', boiling:'2913°C', year:1751, electrons:'[Ar] 3d8 4s2'},
+            29: {number:29, symbol:'Cu', name:'구리', atomicMass:'63.546', density:'8.96 g/cm³', melting:'1084.62°C', boiling:'2562°C', year: 'ancient', electrons:'[Ar] 3d10 4s1'},
+            30: {number:30, symbol:'Zn', name:'아연', atomicMass:'65.38', density:'7.14 g/cm³', melting:'419.53°C', boiling:'907°C', year: 'ancient', electrons:'[Ar] 3d10 4s2'},
+            31: {number:31, symbol:'Ga', name:'갈륨', atomicMass:'69.723', density:'5.91 g/cm³', melting:'29.76°C', boiling:'2204°C', year:1875, electrons:'[Ar] 3d10 4s2 4p1'},
+            32: {number:32, symbol:'Ge', name:'게르마늄', atomicMass:'72.630', density:'5.323 g/cm³', melting:'938.25°C', boiling:'2833°C', year:1886, electrons:'[Ar] 3d10 4s2 4p2'},
+            33: {number:33, symbol:'As', name:'비소', atomicMass:'74.922', density:'5.727 g/cm³', melting:'817°C (grey)', boiling:'614°C (subl)', year: 'ancient', electrons:'[Ar] 3d10 4s2 4p3'},
+            34: {number:34, symbol:'Se', name:'셀레늄', atomicMass:'78.971', density:'4.81 g/cm³', melting:'221°C', boiling:'685°C', year:1817, electrons:'[Ar] 3d10 4s2 4p4'},
+            35: {number:35, symbol:'Br', name:'브롬', atomicMass:'79.904', density:'3.1028 g/cm³', melting:'-7.2°C', boiling:'58.8°C', year:1826, electrons:'[Ar] 3d10 4s2 4p5'},
+            36: {number:36, symbol:'Kr', name:'크립톤', atomicMass:'83.798', density:'0.003733 g/cm³', melting:'-157.36°C', boiling:'-153.22°C', year:1898, electrons:'[Ar] 3d10 4s2 4p6'},
+            37: {number:37, symbol:'Rb', name:'루비듐', atomicMass:'85.468', density:'1.532 g/cm³', melting:'39.31°C', boiling:'688°C', year:1861, electrons:'[Kr] 5s1'},
+            38: {number:38, symbol:'Sr', name:'스트론튬', atomicMass:'87.62', density:'2.64 g/cm³', melting:'777°C', boiling:'1382°C', year:1790, electrons:'[Kr] 5s2'},
+            39: {number:39, symbol:'Y', name:'이트륨', atomicMass:'88.906', density:'4.472 g/cm³', melting:'1522°C', boiling:'3345°C', year:1794, electrons:'[Kr] 4d1 5s2'},
+            40: {number:40, symbol:'Zr', name:'지르코늄', atomicMass:'91.224', density:'6.52 g/cm³', melting:'1855°C', boiling:'4409°C', year:1789, electrons:'[Kr] 4d2 5s2'},
+            41: {number:41, symbol:'Nb', name:'니오븀', atomicMass:'92.906', density:'8.57 g/cm³', melting:'2477°C', boiling:'4744°C', year:1801, electrons:'[Kr] 4d4 5s1'},
+            42: {number:42, symbol:'Mo', name:'몰리브덴', atomicMass:'95.95', density:'10.28 g/cm³', melting:'2623°C', boiling:'4639°C', year:1778, electrons:'[Kr] 4d5 5s1'},
+            43: {number:43, symbol:'Tc', name:'테크네튬', atomicMass:'98', density:'11.5 g/cm³', melting:'2157°C', boiling:'4265°C', year:1937, electrons:'[Kr] 4d5 5s2'},
+            44: {number:44, symbol:'Ru', name:'루테늄', atomicMass:'101.07', density:'12.45 g/cm³', melting:'2334°C', boiling:'4150°C', year:1844, electrons:'[Kr] 4d7 5s1'},
+            45: {number:45, symbol:'Rh', name:'로듐', atomicMass:'102.91', density:'12.41 g/cm³', melting:'1964°C', boiling:'3695°C', year:1803, electrons:'[Kr] 4d8 5s1'},
+            46: {number:46, symbol:'Pd', name:'팔라듐', atomicMass:'106.42', density:'12.023 g/cm³', melting:'1555°C', boiling:'2963°C', year:1803, electrons:'[Kr] 4d10'},
+            47: {number:47, symbol:'Ag', name:'은', atomicMass:'107.87', density:'10.49 g/cm³', melting:'961.78°C', boiling:'2162°C', year: 'ancient', electrons:'[Kr] 4d10 5s1'},
+            48: {number:48, symbol:'Cd', name:'카드뮴', atomicMass:'112.41', density:'8.65 g/cm³', melting:'321.07°C', boiling:'767°C', year:1817, electrons:'[Kr] 4d10 5s2'},
+            49: {number:49, symbol:'In', name:'인듐', atomicMass:'114.82', density:'7.31 g/cm³', melting:'156.6°C', boiling:'2072°C', year:1863, electrons:'[Kr] 4d10 5s2 5p1'},
+            50: {number:50, symbol:'Sn', name:'주석', atomicMass:'118.71', density:'7.365 g/cm³', melting:'231.93°C', boiling:'2602°C', year: 'ancient', electrons:'[Kr] 4d10 5s2 5p2'},
+            51: {number:51, symbol:'Sb', name:'안티몬', atomicMass:'121.76', density:'6.697 g/cm³', melting:'630.63°C', boiling:'1587°C', year: 'ancient', electrons:'[Kr] 4d10 5s2 5p3'},
+            52: {number:52, symbol:'Te', name:'텔루륨', atomicMass:'127.60', density:'6.24 g/cm³', melting:'449.51°C', boiling:'988°C', year:1782, electrons:'[Kr] 4d10 5s2 5p4'},
+            53: {number:53, symbol:'I', name:'요오드', atomicMass:'126.90', density:'4.933 g/cm³', melting:'113.7°C', boiling:'184.3°C', year:1811, electrons:'[Kr] 4d10 5s2 5p5'},
+            54: {number:54, symbol:'Xe', name:'제논', atomicMass:'131.29', density:'0.005887 g/cm³', melting:'-111.75°C', boiling:'-108.12°C', year:1898, electrons:'[Kr] 4d10 5s2 5p6'},
+            55: {number:55, symbol:'Cs', name:'세슘', atomicMass:'132.91', density:'1.93 g/cm³', melting:'28.44°C', boiling:'671°C', year:1860, electrons:'[Xe] 6s1'},
+            56: {number:56, symbol:'Ba', name:'바륨', atomicMass:'137.33', density:'3.51 g/cm³', melting:'727°C', boiling:'1870°C', year:1774, electrons:'[Xe] 6s2'},
+            57: {number:57, symbol:'La', name:'란타넘', atomicMass:'138.91', density:'6.162 g/cm³', melting:'920°C', boiling:'3464°C', year:1839, electrons:'[Xe] 5d1 6s2'},
+            58: {number:58, symbol:'Ce', name:'세륨', atomicMass:'140.12', density:'6.770 g/cm³', melting:'798°C', boiling:'3443°C', year:1803, electrons:'[Xe] 4f1 5d1 6s2'},
+            59: {number:59, symbol:'Pr', name:'프라세오디뮴', atomicMass:'140.91', density:'6.77 g/cm³', melting:'931°C', boiling:'3520°C', year:1885, electrons:'[Xe] 4f3 6s2'},
+            60: {number:60, symbol:'Nd', name:'네오디뮴', atomicMass:'144.24', density:'7.01 g/cm³', melting:'1021°C', boiling:'3074°C', year:1885, electrons:'[Xe] 4f4 6s2'},
+            61: {number:61, symbol:'Pm', name:'프로메튬', atomicMass:'145', density:'7.26 g/cm³', melting:'1042°C', boiling:'3000°C', year:1945, electrons:'[Xe] 4f5 6s2'},
+            62: {number:62, symbol:'Sm', name:'사마륨', atomicMass:'150.36', density:'7.520 g/cm³', melting:'1072°C', boiling:'1794°C', year:1879, electrons:'[Xe] 4f6 6s2'},
+            63: {number:63, symbol:'Eu', name:'유로퓸', atomicMass:'151.96', density:'5.244 g/cm³', melting:'822°C', boiling:'1597°C', year:1901, electrons:'[Xe] 4f7 6s2'},
+            64: {number:64, symbol:'Gd', name:'가돌리늄', atomicMass:'157.25', density:'7.90 g/cm³', melting:'1313°C', boiling:'3273°C', year:1880, electrons:'[Xe] 4f7 5d1 6s2'},
+            65: {number:65, symbol:'Tb', name:'테르븀', atomicMass:'158.93', density:'8.23 g/cm³', melting:'1356°C', boiling:'3230°C', year:1843, electrons:'[Xe] 4f9 6s2'},
+            66: {number:66, symbol:'Dy', name:'디스프로슘', atomicMass:'162.50', density:'8.55 g/cm³', melting:'1412°C', boiling:'2567°C', year:1886, electrons:'[Xe] 4f10 6s2'},
+            67: {number:67, symbol:'Ho', name:'홀뮴', atomicMass:'164.93', density:'8.79 g/cm³', melting:'1474°C', boiling:'2700°C', year:1878, electrons:'[Xe] 4f11 6s2'},
+            68: {number:68, symbol:'Er', name:'에르븀', atomicMass:'167.26', density:'9.066 g/cm³', melting:'1529°C', boiling:'2868°C', year:1843, electrons:'[Xe] 4f12 6s2'},
+            69: {number:69, symbol:'Tm', name:'튤륨', atomicMass:'168.93', density:'9.32 g/cm³', melting:'1545°C', boiling:'1950°C', year:1879, electrons:'[Xe] 4f13 6s2'},
+            70: {number:70, symbol:'Yb', name:'이터븀', atomicMass:'173.05', density:'6.90 g/cm³', melting:'824°C', boiling:'1196°C', year:1878, electrons:'[Xe] 4f14 6s2'},
+            71: {number:71, symbol:'Lu', name:'루테튬', atomicMass:'174.97', density:'9.841 g/cm³', melting:'1663°C', boiling:'3402°C', year:1907, electrons:'[Xe] 4f14 5d1 6s2'},
+            72: {number:72, symbol:'Hf', name:'하프늄', atomicMass:'178.49', density:'13.31 g/cm³', melting:'2233°C', boiling:'4602°C', year:1923, electrons:'[Xe] 4f14 5d2 6s2'},
+            73: {number:73, symbol:'Ta', name:'탄탈럼', atomicMass:'180.95', density:'16.69 g/cm³', melting:'3017°C', boiling:'5458°C', year:1802, electrons:'[Xe] 4f14 5d3 6s2'},
+            74: {number:74, symbol:'W', name:'텅스텐', atomicMass:'183.84', density:'19.25 g/cm³', melting:'3422°C', boiling:'5555°C', year:1783, electrons:'[Xe] 4f14 5d4 6s2'},
+            75: {number:75, symbol:'Re', name:'레늄', atomicMass:'186.21', density:'21.02 g/cm³', melting:'3186°C', boiling:'5596°C', year:1925, electrons:'[Xe] 4f14 5d5 6s2'},
+            76: {number:76, symbol:'Os', name:'오스뮴', atomicMass:'190.23', density:'22.59 g/cm³', melting:'3033°C', boiling:'5012°C', year:1803, electrons:'[Xe] 4f14 5d6 6s2'},
+            77: {number:77, symbol:'Ir', name:'이리듐', atomicMass:'192.22', density:'22.56 g/cm³', melting:'2446°C', boiling:'4428°C', year:1803, electrons:'[Xe] 4f14 5d7 6s2'},
+            78: {number:78, symbol:'Pt', name:'백금', atomicMass:'195.08', density:'21.45 g/cm³', melting:'1768.3°C', boiling:'4200°C', year: 'ancient', electrons:'[Xe] 4f14 5d9 6s1'},
+            79: {number:79, symbol:'Au', name:'금', atomicMass:'196.97', density:'19.3 g/cm³', melting:'1064°C', boiling:'2856°C', year: 'ancient', electrons:'[Xe] 4f14 5d10 6s1'},
+            80: {number:80, symbol:'Hg', name:'수은', atomicMass:'200.59', density:'13.534 g/cm³', melting:'-38.83°C', boiling:'356.73°C', year: 'ancient', electrons:'[Xe] 4f14 5d10 6s2'},
+            81: {number:81, symbol:'Tl', name:'탈륨', atomicMass:'204.38', density:'11.85 g/cm³', melting:'304°C', boiling:'1473°C', year:1861, electrons:'[Xe] 4f14 5d10 6s2 6p1'},
+            82: {number:82, symbol:'Pb', name:'납', atomicMass:'207.2', density:'11.34 g/cm³', melting:'327.5°C', boiling:'1749°C', year: 'ancient', electrons:'[Xe] 4f14 5d10 6s2 6p2'},
+            83: {number:83, symbol:'Bi', name:'비스무트', atomicMass:'208.98', density:'9.78 g/cm³', melting:'271.4°C', boiling:'1564°C', year:1753, electrons:'[Xe] 4f14 5d10 6s2 6p3'},
+            84: {number:84, symbol:'Po', name:'폴로늄', atomicMass:'209', density:'9.32 g/cm³', melting:'254°C', boiling:'962°C', year:1898, electrons:'[Xe] 4f14 5d10 6s2 6p4'},
+            85: {number:85, symbol:'At', name:'아스타틴', atomicMass:'210', density:'N/A', melting:'302°C', boiling:'337°C', year:1940, electrons:'[Xe] 4f14 5d10 6s2 6p5'},
+            86: {number:86, symbol:'Rn', name:'라돈', atomicMass:'222', density:'0.00973 g/cm³', melting:'-71°C', boiling:'-61.7°C', year:1900, electrons:'[Xe] 4f14 5d10 6s2 6p6'},
+            87: {number:87, symbol:'Fr', name:'프란슘', atomicMass:'223', density:'1.87 g/cm³', melting:'27°C', boiling:'677°C', year:1939, electrons:'[Rn] 7s1'},
+            88: {number:88, symbol:'Ra', name:'라듐', atomicMass:'226', density:'5.5 g/cm³', melting:'700°C', boiling:'1737°C', year:1898, electrons:'[Rn] 7s2'},
+            89: {number:89, symbol:'Ac', name:'악티늄', atomicMass:'227', density:'10.07 g/cm³', melting:'1051°C', boiling:'3198°C', year:1899, electrons:'[Rn] 6d1 7s2'},
+            90: {number:90, symbol:'Th', name:'토륨', atomicMass:'232.04', density:'11.72 g/cm³', melting:'1750°C', boiling:'4788°C', year:1828, electrons:'[Rn] 6d2 7s2'},
+            91: {number:91, symbol:'Pa', name:'프로탁티늄', atomicMass:'231.04', density:'15.37 g/cm³', melting:'1572°C', boiling:'4027°C', year:1913, electrons:'[Rn] 5f2 6d1 7s2'},
+            92: {number:92, symbol:'U', name:'우라늄', atomicMass:'238.03', density:'19.1 g/cm³', melting:'1132°C', boiling:'4131°C', year:1789, electrons:'[Rn] 5f3 6d1 7s2'},
+            93: {number:93, symbol:'Np', name:'넵투늄', atomicMass:'237', density:'20.45 g/cm³', melting:'644°C', boiling:'4174°C', year:1940, electrons:'[Rn] 5f4 6d1 7s2'},
+            94: {number:94, symbol:'Pu', name:'플루토늄', atomicMass:'244', density:'19.81 g/cm³', melting:'640°C', boiling:'3228°C', year:1940, electrons:'[Rn] 5f6 7s2'},
+            95: {number:95, symbol:'Am', name:'아메리슘', atomicMass:'243', density:'12 g/cm³', melting:'994°C', boiling:'2607°C', year:1944, electrons:'[Rn] 5f7 7s2'},
+            96: {number:96, symbol:'Cm', name:'커륨', atomicMass:'247', density:'13.51 g/cm³', melting:'1343°C', boiling:'3100°C', year:1944, electrons:'[Rn] 5f7 6d1 7s2'},
+            97: {number:97, symbol:'Bk', name:'버클륨', atomicMass:'247', density:'14.78 g/cm³', melting:'986°C', boiling:'2227°C', year:1949, electrons:'[Rn] 5f9 7s2'},
+            98: {number:98, symbol:'Cf', name:'캘리포늄', atomicMass:'251', density:'15.1 g/cm³', melting:'900°C', boiling:'1470°C', year:1950, electrons:'[Rn] 5f10 7s2'},
+            99: {number:99, symbol:'Es', name:'아인슈타인', atomicMass:'252', density:'N/A', melting:'860°C', boiling:'N/A', year:1952, electrons:'[Rn] 5f11 7s2'},
+            100: {number:100, symbol:'Fm', name:'퍼륨', atomicMass:'257', density:'N/A', melting:'1527°C', boiling:'N/A', year:1952, electrons:'[Rn] 5f12 7s2'},
+            101: {number:101, symbol:'Md', name:'멘델레븀', atomicMass:'258', density:'N/A', melting:'N/A', boiling:'N/A', year:1955, electrons:'[Rn] 5f13 7s2'},
+            102: {number:102, symbol:'No', name:'노벨륨', atomicMass:'259', density:'N/A', melting:'N/A', boiling:'N/A', year:1958, electrons:'[Rn] 5f14 7s2'},
+            103: {number:103, symbol:'Lr', name:'로렌슘', atomicMass:'266', density:'N/A', melting:'N/A', boiling:'N/A', year:1961, electrons:'[Rn] 5f14 6d1 7s2'},
+            104: {number:104, symbol:'Rf', name:'러더포듐', atomicMass:'267', density:'N/A', melting:'N/A', boiling:'N/A', year:1964, electrons:'[Rn] 5f14 6d2 7s2'},
+            105: {number:105, symbol:'Db', name:'두브늄', atomicMass:'268', density:'N/A', melting:'N/A', boiling:'N/A', year:1967, electrons:'[Rn] 5f14 6d3 7s2'},
+            106: {number:106, symbol:'Sg', name:'씨보그', atomicMass:'269', density:'N/A', melting:'N/A', boiling:'N/A', year:1974, electrons:'[Rn] 5f14 6d4 7s2'},
+            107: {number:107, symbol:'Bh', name:'보륨', atomicMass:'270', density:'N/A', melting:'N/A', boiling:'N/A', year:1981, electrons:'[Rn] 5f14 6d5 7s2'},
+            108: {number:108, symbol:'Hs', name:'하스슘', atomicMass:'277', density:'N/A', melting:'N/A', boiling:'N/A', year:1984, electrons:'[Rn] 5f14 6d6 7s2'},
+            109: {number:109, symbol:'Mt', name:'미트너륨', atomicMass:'278', density:'N/A', melting:'N/A', boiling:'N/A', year:1982, electrons:'[Rn] 5f14 6d7 7s2'},
+            110: {number:110, symbol:'Ds', name:'다름슈타트륨', atomicMass:'281', density:'N/A', melting:'N/A', boiling:'N/A', year:1994, electrons:'[Rn] 5f14 6d8 7s2'},
+            111: {number:111, symbol:'Rg', name:'레벤토륨', atomicMass:'282', density:'N/A', melting:'N/A', boiling:'N/A', year:1994, electrons:'[Rn] 5f14 6d9 7s2'},
+            112: {number:112, symbol:'Cn', name:'코페르니슘', atomicMass:'285', density:'N/A', melting:'N/A', boiling:'N/A', year:1996, electrons:'[Rn] 5f14 6d10 7s2'},
+            113: {number:113, symbol:'Nh', name:'니호늄', atomicMass:'286', density:'N/A', melting:'N/A', boiling:'N/A', year:2004, electrons:'[Rn] 5f14 6d10 7s2 7p1'},
+            114: {number:114, symbol:'Fl', name:'플레로븀', atomicMass:'289', density:'N/A', melting:'N/A', boiling:'N/A', year:1999, electrons:'[Rn] 5f14 6d10 7s2 7p2'},
+            115: {number:115, symbol:'Mc', name:'모스코븀', atomicMass:'290', density:'N/A', melting:'N/A', boiling:'N/A', year:2003, electrons:'[Rn] 5f14 6d10 7s2 7p3'},
+            116: {number:116, symbol:'Lv', name:'리베륨', atomicMass:'293', density:'N/A', melting:'N/A', boiling:'N/A', year:2000, electrons:'[Rn] 5f14 6d10 7s2 7p4'},
+            117: {number:117, symbol:'Ts', name:'테네신', atomicMass:'294', density:'N/A', melting:'N/A', boiling:'N/A', year:2010, electrons:'[Rn] 5f14 6d10 7s2 7p5'},
+            118: {number:118, symbol:'Og', name:'오가네손', atomicMass:'294', density:'N/A', melting:'N/A', boiling:'N/A', year:2006, electrons:'[Rn] 5f14 6d10 7s2 7p6'}
+        };
+
+        // 이벤트 리스너
+        document.addEventListener('DOMContentLoaded', () => {
+            const allElements = document.querySelectorAll('.element');
+            const panel = document.getElementById('infoPanel');
+            const table = document.getElementById('periodicTable');
+
+            allElements.forEach(el => {
+                el.addEventListener('click', (e) => {
+                    const data = JSON.parse(e.currentTarget.dataset.element || '{}');
+                    if (data.number && elements[data.number]) {
+                        const info = elements[data.number];
+                        document.getElementById('elementName').textContent = info.name;
+                        document.getElementById('elementSymbol').textContent = info.symbol;
+                        document.getElementById('atomicMass').textContent = info.atomicMass;
+                        document.getElementById('density').textContent = info.density;
+                        document.getElementById('meltingPoint').textContent = info.melting;
+                        document.getElementById('boilingPoint').textContent = info.boiling;
+                        document.getElementById('discoveryYear').textContent = info.year;
+                        document.getElementById('electronConfig').textContent = info.electrons;
+
+                        // 보어 모델 (간단 SVG, 전자 수 기반)
+                        const numElectrons = info.number;
+                        const bohr = document.getElementById('bohrModel');
+                        let orbits = '';
+                        let eCount = 0;
+                        for (let shell = 1; eCount < numElectrons && shell <= 7; shell++) {
+                            const maxInShell = Math.min(2 * shell * shell, numElectrons - eCount);
+                            for (let i = 0; i < maxInShell; i++) {
+                                const angle = (i / maxInShell) * 2 * Math.PI;
+                                const r = 10 + shell * 15;
+                                const x = 60 + r * Math.cos(angle);
+                                const y = 60 + r * Math.sin(angle);
+                                orbits += `<circle cx="${x}" cy="${y}" r="2" fill="#2196f3"/>`;
+                            }
+                            eCount += maxInShell;
+                        }
+                        bohr.innerHTML = `
+                            <svg viewBox="0 0 120 120">
+                                <circle cx="60" cy="60" r="5" fill="#ff5722"/> <!-- 핵 -->
+                                <text x="60" y="65" text-anchor="middle" fill="white" font-size="8">Z=${info.number}</text>
+                                ${orbits}
+                            </svg>
+                        `;
+                        panel.classList.add('active');
+                    }
+                });
+            });
+
+            // 패널 닫기
+            document.addEventListener('click', (e) => {
+                if (!panel.contains(e.target) && !table.contains(e.target) && !e.target.closest('.f-block')) {
+                    panel.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

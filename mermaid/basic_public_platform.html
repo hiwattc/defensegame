@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT 요소기술 플랫폼 구성도</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+        
+        // Mermaid 렌더링 후 panzoom 적용
+        document.addEventListener('DOMContentLoaded', async () => {
+            const mermaidElement = document.querySelector('.mermaid');
+            if (mermaidElement) {
+                await mermaid.run();
+                
+                // SVG 요소 찾기
+                const svg = mermaidElement.querySelector('svg');
+                if (svg) {
+                    // SVG를 감싸는 컨테이너 생성
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'mermaid-wrapper';
+                    wrapper.style.cssText = 'overflow: hidden; position: relative; width: 100%; height: 800px; cursor: move;';
+                    
+                    // SVG를 감싸는 내부 컨테이너 생성 (변환 적용용)
+                    const inner = document.createElement('div');
+                    inner.style.cssText = 'transform-origin: 0 0; transition: transform 0.2s ease-out;';
+                    
+                    // DOM 구조 설정
+                    svg.parentNode.insertBefore(wrapper, svg);
+                    wrapper.appendChild(inner);
+                    inner.appendChild(svg);
+                    
+                    // SVG 스타일 조정
+                    svg.style.display = 'block';
+                    svg.style.width = '100%';
+                    svg.style.height = 'auto';
+                    
+                    // 줌 정보 표시 요소 생성
+                    const zoomInfo = document.createElement('div');
+                    zoomInfo.className = 'zoom-info';
+                    zoomInfo.textContent = '🔍 마우스 드래그: 이동 | 휠: 확대/축소 | 더블클릭: 리셋';
+                    wrapper.appendChild(zoomInfo);
+                    
+                    // 컨트롤 버튼 생성
+                    const controls = document.createElement('div');
+                    controls.className = 'zoom-controls';
+                    controls.innerHTML = `
+                        <button class="zoom-btn" id="zoom-in" title="확대">+</button>
+                        <button class="zoom-btn" id="zoom-out" title="축소">−</button>
+                        <button class="zoom-btn" id="zoom-reset" title="리셋">⌂</button>
+                    `;
+                    wrapper.appendChild(controls);
+                    
+                    // Pan & Zoom 상태
+                    let scale = 1;
+                    let panX = 0;
+                    let panY = 0;
+                    let isDragging = false;
+                    let startX = 0;
+                    let startY = 0;
+                    let startPanX = 0;
+                    let startPanY = 0;
+                    
+                    const minScale = 0.3;
+                    const maxScale = 5;
+                    const step = 0.1;
+                    
+                    // 변환 적용 함수
+                    const applyTransform = () => {
+                        inner.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                        zoomInfo.textContent = `🔍 줌: ${(scale * 100).toFixed(0)}% | 드래그: 이동 | 휠: 확대/축소 | 더블클릭: 리셋`;
+                    };
+                    
+                    // 줌 함수
+                    const zoom = (delta, centerX = null, centerY = null) => {
+                        const oldScale = scale;
+                        scale = Math.max(minScale, Math.min(maxScale, scale + delta));
+                        
+                        if (centerX !== null && centerY !== null) {
+                            // 마우스 위치를 중심으로 줌
+                            const rect = wrapper.getBoundingClientRect();
+                            const x = centerX - rect.left;
+                            const y = centerY - rect.top;
+                            
+                            panX = x - (x - panX) * (scale / oldScale);
+                            panY = y - (y - panY) * (scale / oldScale);
+                        }
+                        
+                        applyTransform();
+                    };
+                    
+                    // 리셋 함수
+                    const reset = () => {
+                        scale = 1;
+                        panX = 0;
+                        panY = 0;
+                        applyTransform();
+                    };
+                    
+                    // 마우스 드래그 시작
+                    wrapper.addEventListener('mousedown', (e) => {
+                        if (e.button === 0) { // 왼쪽 버튼만
+                            isDragging = true;
+                            startX = e.clientX;
+                            startY = e.clientY;
+                            startPanX = panX;
+                            startPanY = panY;
+                            wrapper.style.cursor = 'grabbing';
+                        }
+                    });
+                    
+                    // 마우스 드래그 중
+                    document.addEventListener('mousemove', (e) => {
+                        if (isDragging) {
+                            panX = startPanX + (e.clientX - startX);
+                            panY = startPanY + (e.clientY - startY);
+                            applyTransform();
+                        }
+                    });
+                    
+                    // 마우스 드래그 종료
+                    document.addEventListener('mouseup', () => {
+                        if (isDragging) {
+                            isDragging = false;
+                            wrapper.style.cursor = 'move';
+                        }
+                    });
+                    
+                    // 마우스 휠로 확대/축소
+                    wrapper.addEventListener('wheel', (e) => {
+                        e.preventDefault();
+                        const delta = e.deltaY > 0 ? -step : step;
+                        zoom(delta, e.clientX, e.clientY);
+                    });
+                    
+                    // 더블클릭으로 리셋
+                    wrapper.addEventListener('dblclick', (e) => {
+                        e.preventDefault();
+                        reset();
+                    });
+                    
+                    // 컨트롤 버튼 이벤트
+                    document.getElementById('zoom-in').addEventListener('click', () => {
+                        const rect = wrapper.getBoundingClientRect();
+                        zoom(step, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                    });
+                    
+                    document.getElementById('zoom-out').addEventListener('click', () => {
+                        const rect = wrapper.getBoundingClientRect();
+                        zoom(-step, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                    });
+                    
+                    document.getElementById('zoom-reset').addEventListener('click', () => {
+                        reset();
+                    });
+                    
+                    // 초기 변환 적용
+                    applyTransform();
+                }
+            }
+        });
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .mermaid {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            position: relative;
+        }
+        .mermaid-wrapper {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+        }
+        .zoom-controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 10;
+        }
+        .zoom-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        .zoom-btn:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .zoom-btn:active {
+            transform: scale(0.95);
+        }
+        .zoom-info {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .legend {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        .legend-section {
+            margin-bottom: 25px;
+        }
+        .legend-section:last-child {
+            margin-bottom: 0;
+        }
+        .legend-section h4 {
+            color: #667eea;
+            font-size: 16px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+        .legend ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .legend li {
+            padding: 10px 0;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            align-items: flex-start;
+        }
+        .legend li:last-child {
+            border-bottom: none;
+        }
+        .legend strong {
+            color: #495057;
+            display: inline-block;
+            min-width: 200px;
+            font-weight: 600;
+        }
+        .legend .period {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .period-1-6 {
+            background: #d4edda;
+            color: #155724;
+        }
+        .period-7-12 {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .period-13-18 {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .period-19-24 {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏢 IT 요소기술 플랫폼 구성도</h1>
+        <p class="subtitle">대기업 IT 인프라 통합 플랫폼 | 24개월 구축 계획</p>
+        
+        <div class="mermaid">
+graph TB
+    subgraph Phase1["📅 1-6개월: 인프라 기반 구축"]
+        direction TB
+        subgraph Infra["🌐 인프라 서비스"]
+            DNS["DNS Server<br/>도메인 이름 해석"]
+            NTP["NTP Server<br/>시간 동기화"]
+            SMTP["SMTP Server<br/>이메일 전송"]
+        end
+        subgraph Directory["📁 디렉토리 서비스"]
+            AD["Active Directory<br/>사용자/그룹 관리"]
+            WSUS["WSUS<br/>Windows 업데이트"]
+        end
+    end
+    
+    subgraph Phase2["📅 7-12개월: 보안 및 인증 시스템"]
+        direction TB
+        subgraph Auth["🔐 인증/권한 관리"]
+            IAM["통합계정권한<br/>IAM<br/>Identity & Access Management"]
+            SSO["통합SSO<br/>Single Sign-On"]
+        end
+        subgraph Security["🛡️ 보안 시스템"]
+            NAC["NAC<br/>Network Access Control"]
+            DAC["DAC<br/>Data Access Control"]
+            DRM["DRM<br/>Digital Rights Management"]
+            EDR["EDR<br/>Endpoint Detection & Response"]
+            AV["Anti Virus<br/>백신 시스템"]
+        end
+    end
+    
+    subgraph Phase3["📅 13-18개월: 메시징 및 공통 서비스"]
+        direction TB
+        subgraph Messaging["📨 메시징 큐"]
+            RabbitMQ["RabbitMQ<br/>메시지 브로커"]
+            Kafka["Kafka<br/>스트리밍 플랫폼"]
+        end
+        subgraph Common["🔧 공통 서비스"]
+            Report["공통 리포트서버<br/>리포트 생성/배포"]
+            Crypto["공통 암복호화 서버<br/>데이터 보호"]
+            Approval["통합결재<br/>전자결재 시스템"]
+        end
+    end
+    
+    subgraph Phase4["📅 19-24개월: 비즈니스 애플리케이션"]
+        direction TB
+        subgraph SAP["💼 SAP 시스템"]
+            SAP_ERP["SAP ERP<br/>전사 자원 관리"]
+            SAP_HR["SAP HR<br/>인사 관리"]
+        end
+        subgraph Collaboration["👥 협업 도구"]
+            Groupware["Groupware<br/>그룹웨어"]
+            Messenger["Messenger<br/>메신저"]
+            Teams["MS Teams<br/>팀 협업"]
+            M365["MS M365<br/>Office 365"]
+        end
+    end
+    
+    %% 인프라 기반 연결
+    AD -->|인증| IAM
+    AD -->|사용자 정보| SSO
+    DNS -->|도메인 해석| IAM
+    DNS -->|도메인 해석| SSO
+    NTP -->|시간 동기화| AD
+    NTP -->|시간 동기화| IAM
+    
+    %% 보안 시스템 연결
+    IAM -->|권한 정보| NAC
+    IAM -->|접근 제어| DAC
+    SSO -->|인증 토큰| SAP_ERP
+    SSO -->|인증 토큰| SAP_HR
+    SSO -->|인증 토큰| Groupware
+    SSO -->|인증 토큰| M365
+    SSO -->|인증 토큰| Teams
+    AD -->|그룹 정책| EDR
+    AD -->|그룹 정책| AV
+    WSUS -->|업데이트| EDR
+    WSUS -->|업데이트| AV
+    
+    %% 메시징 및 공통 서비스 연결
+    RabbitMQ -->|비동기 메시지| SAP_ERP
+    RabbitMQ -->|비동기 메시지| SAP_HR
+    Kafka -->|실시간 스트림| Report
+    Kafka -->|이벤트 스트림| Approval
+    Crypto -->|암복호화| SAP_ERP
+    Crypto -->|암복호화| SAP_HR
+    Crypto -->|암복호화| DRM
+    Report -->|리포트| SAP_ERP
+    Report -->|리포트| SAP_HR
+    Report -->|리포트| Approval
+    
+    %% 비즈니스 애플리케이션 연결
+    SAP_ERP -->|데이터 연동| SAP_HR
+    SAP_ERP -->|결재 연동| Approval
+    SAP_HR -->|인사 정보| IAM
+    SAP_HR -->|결재 연동| Approval
+    Groupware -->|이메일| SMTP
+    Messenger -->|메시지| RabbitMQ
+    Teams -->|통합| M365
+    M365 -->|이메일| SMTP
+    M365 -->|인증| SSO
+    
+    %% 보안 통합 연결
+    NAC -->|네트워크 제어| DAC
+    DAC -->|데이터 보호| DRM
+    EDR -->|위협 정보| AV
+    DRM -->|권한 관리| IAM
+    
+    %% 스타일 정의
+    classDef phase1 fill:#d4edda,stroke:#28a745,stroke-width:3px,color:#000
+    classDef phase2 fill:#fff3cd,stroke:#ffc107,stroke-width:3px,color:#000
+    classDef phase3 fill:#d1ecf1,stroke:#17a2b8,stroke-width:3px,color:#000
+    classDef phase4 fill:#f8d7da,stroke:#dc3545,stroke-width:3px,color:#000
+    classDef infra fill:#e7f3ff,stroke:#0066cc,stroke-width:2px
+    classDef auth fill:#fff4e6,stroke:#ff9900,stroke-width:2px
+    classDef security fill:#ffe6e6,stroke:#cc0000,stroke-width:2px
+    classDef messaging fill:#e6f3ff,stroke:#0066ff,stroke-width:2px
+    classDef common fill:#f0e6ff,stroke:#9933ff,stroke-width:2px
+    classDef sap fill:#e6ffe6,stroke:#009900,stroke-width:2px
+    classDef collab fill:#ffe6f0,stroke:#ff0066,stroke-width:2px
+    
+    %% Phase 1 스타일 적용
+    class Phase1,Infra,Directory,DNS,NTP,SMTP,AD,WSUS phase1
+    class DNS,NTP,SMTP infra
+    class AD,WSUS infra
+    
+    %% Phase 2 스타일 적용
+    class Phase2,Auth,Security,IAM,SSO,NAC,DAC,DRM,EDR,AV phase2
+    class IAM,SSO auth
+    class NAC,DAC,DRM,EDR,AV security
+    
+    %% Phase 3 스타일 적용
+    class Phase3,Messaging,Common,RabbitMQ,Kafka,Report,Crypto,Approval phase3
+    class RabbitMQ,Kafka messaging
+    class Report,Crypto,Approval common
+    
+    %% Phase 4 스타일 적용
+    class Phase4,SAP,Collaboration,SAP_ERP,SAP_HR,Groupware,Messenger,Teams,M365 phase4
+    class SAP_ERP,SAP_HR sap
+        </div>
+        
+        <div class="legend">
+            <h3>📋 시스템 구성 요소 설명</h3>
+            
+            <div class="legend-section">
+                <h4>📅 1-6개월: 인프라 기반 구축</h4>
+                <ul>
+                    <li>
+                        <strong>DNS Server <span class="period period-1-6">1-6개월</span></strong>
+                        도메인 이름을 IP 주소로 변환하는 핵심 인프라 서비스
+                    </li>
+                    <li>
+                        <strong>NTP Server <span class="period period-1-6">1-6개월</span></strong>
+                        모든 시스템의 시간을 동기화하여 로그 및 보안 이벤트 추적의 정확성 보장
+                    </li>
+                    <li>
+                        <strong>SMTP Server <span class="period period-1-6">1-6개월</span></strong>
+                        이메일 전송 서비스, 그룹웨어 및 M365와 연동
+                    </li>
+                    <li>
+                        <strong>Active Directory <span class="period period-1-6">1-6개월</span></strong>
+                        중앙화된 사용자/그룹 관리, IAM 및 SSO의 기반 인프라
+                    </li>
+                    <li>
+                        <strong>WSUS <span class="period period-1-6">1-6개월</span></strong>
+                        Windows 업데이트 중앙 관리, EDR 및 백신 시스템과 연동
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="legend-section">
+                <h4>📅 7-12개월: 보안 및 인증 시스템</h4>
+                <ul>
+                    <li>
+                        <strong>통합계정권한(IAM) <span class="period period-7-12">7-12개월</span></strong>
+                        중앙화된 사용자 계정 및 권한 관리, 모든 시스템의 인증/인가 기반
+                    </li>
+                    <li>
+                        <strong>통합SSO <span class="period period-7-12">7-12개월</span></strong>
+                        단일 로그인으로 모든 애플리케이션 접근, SAP, M365, 그룹웨어 등과 연동
+                    </li>
+                    <li>
+                        <strong>NAC <span class="period period-7-12">7-12개월</span></strong>
+                        네트워크 접근 제어, 인증된 사용자/디바이스만 네트워크 접근 허용
+                    </li>
+                    <li>
+                        <strong>DAC <span class="period period-7-12">7-12개월</span></strong>
+                        데이터 접근 제어, IAM과 연동하여 데이터 접근 권한 관리
+                    </li>
+                    <li>
+                        <strong>DRM <span class="period period-7-12">7-12개월</span></strong>
+                        디지털 권한 관리, 문서 및 데이터 보호, 암복호화 서버와 연동
+                    </li>
+                    <li>
+                        <strong>EDR <span class="period period-7-12">7-12개월</span></strong>
+                        엔드포인트 탐지 및 대응, Active Directory 그룹 정책과 연동
+                    </li>
+                    <li>
+                        <strong>Anti Virus <span class="period period-7-12">7-12개월</span></strong>
+                        백신 시스템, WSUS와 연동하여 업데이트 관리
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="legend-section">
+                <h4>📅 13-18개월: 메시징 및 공통 서비스</h4>
+                <ul>
+                    <li>
+                        <strong>RabbitMQ <span class="period period-13-18">13-18개월</span></strong>
+                        메시지 브로커, SAP ERP/HR와 비동기 메시지 처리
+                    </li>
+                    <li>
+                        <strong>Kafka <span class="period period-13-18">13-18개월</span></strong>
+                        실시간 스트리밍 플랫폼, 리포트 서버 및 결재 시스템과 연동
+                    </li>
+                    <li>
+                        <strong>공통 리포트서버 <span class="period period-13-18">13-18개월</span></strong>
+                        중앙화된 리포트 생성 및 배포, SAP 시스템과 연동
+                    </li>
+                    <li>
+                        <strong>공통 암복호화 서버 <span class="period period-13-18">13-18개월</span></strong>
+                        데이터 암복호화 서비스, SAP 및 DRM과 연동
+                    </li>
+                    <li>
+                        <strong>통합결재 <span class="period period-13-18">13-18개월</span></strong>
+                        전자결재 시스템, SAP ERP/HR와 연동하여 업무 프로세스 자동화
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="legend-section">
+                <h4>📅 19-24개월: 비즈니스 애플리케이션</h4>
+                <ul>
+                    <li>
+                        <strong>SAP ERP <span class="period period-19-24">19-24개월</span></strong>
+                        전사 자원 관리 시스템, SSO 인증, 통합결재 및 리포트 서버와 연동
+                    </li>
+                    <li>
+                        <strong>SAP HR <span class="period period-19-24">19-24개월</span></strong>
+                        인사 관리 시스템, IAM과 연동하여 사용자 정보 동기화
+                    </li>
+                    <li>
+                        <strong>Groupware <span class="period period-19-24">19-24개월</span></strong>
+                        그룹웨어, SSO 인증 및 SMTP 서버와 연동
+                    </li>
+                    <li>
+                        <strong>Messenger <span class="period period-19-24">19-24개월</span></strong>
+                        메신저 시스템, RabbitMQ와 연동하여 메시지 처리
+                    </li>
+                    <li>
+                        <strong>MS Teams <span class="period period-19-24">19-24개월</span></strong>
+                        팀 협업 도구, M365와 통합
+                    </li>
+                    <li>
+                        <strong>MS M365 <span class="period period-19-24">19-24개월</span></strong>
+                        Office 365, SSO 인증 및 SMTP 서버와 연동
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="legend-section">
+                <h4>🔗 주요 연관성</h4>
+                <ul>
+                    <li><strong>인증/권한 흐름:</strong> Active Directory → IAM → SSO → 모든 애플리케이션</li>
+                    <li><strong>보안 통합:</strong> IAM → NAC/DAC → DRM → EDR/AV</li>
+                    <li><strong>데이터 흐름:</strong> SAP ERP/HR → RabbitMQ/Kafka → 리포트서버/결재</li>
+                    <li><strong>협업 통합:</strong> SSO → M365/Teams/Groupware → SMTP</li>
+                    <li><strong>인프라 기반:</strong> DNS/NTP/SMTP → 모든 시스템의 기반 서비스</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

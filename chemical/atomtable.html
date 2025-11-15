@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원소 주기율표</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(1000px 600px at 20% 10%, #90a6ff22 0%, transparent 60%),
+                        radial-gradient(900px 700px at 90% 20%, #ff7bd622 0%, transparent 60%),
+                        linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 24px;
+            color: #2d2d2d;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+
+        .title-icon {
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #7aa2ff, #a68cff);
+            display: grid; place-items: center;
+            color: white; font-weight: 900; font-size: 22px;
+            box-shadow: 0 8px 24px rgba(118,75,162,0.35);
+        }
+
+        h1 { font-size: 28px; letter-spacing: 0.5px; }
+
+        .toolbar {
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+            margin: 14px 0 18px;
+        }
+        .input {
+            padding: 10px 12px; border: 1px solid #e3e6ef; border-radius: 10px;
+            min-width: 240px; outline: none;
+            background: #fafbff; color: #333;
+        }
+        .input:focus { border-color: #8fa2ff; box-shadow: 0 0 0 3px #8fa2ff33; }
+
+        .periodic-wrapper { width: 100%; overflow-x: auto; padding-bottom: 10px; }
+
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 82px);
+            grid-auto-rows: 82px;
+            gap: 5px;
+            width: max-content;
+            margin: 0 auto;
+        }
+
+        .element {
+            position: relative;
+            border-radius: 10px;
+            border: 2px solid #e6e6e6;
+            background: #ffffff;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform .18s ease, box-shadow .18s ease;
+            user-select: none;
+        }
+        .element:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.18); z-index: 2; }
+
+        .atomic-number { position: absolute; top: 4px; left: 6px; font-size: 11px; font-weight: 700; color: #4a4a4a; }
+        .symbol { font-size: 22px; font-weight: 900; margin-top: 6px; }
+        .name { font-size: 11px; color: #333; margin-top: 2px; text-align: center; }
+        .atomic-mass { position: absolute; bottom: 4px; right: 6px; font-size: 10px; color: #5b5b5b; }
+
+        /* type colors */
+        .alkali { background: #ff6b6b; color: #fff; }
+        .alkaline { background: #ffa07a; color: #fff; }
+        .transition { background: #ffb6c1; }
+        .metal { background: #b0c4de; }
+        .metalloid { background: #daa520; }
+        .nonmetal { background: #ffd700; }
+        .halogen { background: #98fb98; }
+        .noble-gas { background: #c0ffff; }
+        .lanthanide { background: #ffcc99; }
+        .actinide { background: #ffc0cb; }
+
+        /* ghost cell for empty slots */
+        .empty { background: repeating-linear-gradient(45deg, #f7f7f9, #f7f7f9 8px, #f0f2f6 8px, #f0f2f6 16px); border: 1px dashed #e6e8f0; }
+
+        .legend { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 14px; }
+        .legend-item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #333; }
+        .legend-color { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #d9dbe6; }
+
+        .info-panel { margin-top: 18px; background: #f8faff; border: 1px solid #e4e8ff; border-radius: 12px; padding: 14px; display: none; }
+        .info-panel.active { display: block; animation: fadeIn .25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px);} to { opacity: 1; transform: translateY(0);} }
+
+        .muted { color: #666; font-size: 12px; }
+        .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #eef1ff; color: #4a57d7; border: 1px solid #dfe5ff; }
+
+        @media (max-width: 600px) {
+            .periodic-table { grid-template-columns: repeat(18, 64px); grid-auto-rows: 64px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">
+            <div class="title-icon">⚛</div>
+            <h1>원소 주기율표</h1>
+        </div>
+
+        <div class="toolbar">
+            <input id="search" class="input" type="text" placeholder="이름/기호/번호로 검색 (예: H, 수소, 1)">
+            <span class="muted">클릭하면 상세 정보가 표시됩니다.</span>
+        </div>
+
+        <div class="periodic-wrapper">
+            <div id="periodicTable" class="periodic-table"></div>
+        </div>
+
+        <div id="infoPanel" class="info-panel">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <h2 id="elementTitle" style="margin-right:auto;font-size:20px;">원소 정보</h2>
+                <span id="typePill" class="pill">-</span>
+            </div>
+            <div id="elementDetails" class="muted" style="margin-top:6px;"></div>
+        </div>
+
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <script>
+        // ES5 호환 코드. file:// 에서 동작하도록 외부 의존성 없음
+        var TYPE_NAMES = {
+            'alkali': '알칼리 금속',
+            'alkaline': '알칼리 토금속',
+            'transition': '전이 금속',
+            'metal': '전이후 금속',
+            'metalloid': '준금속',
+            'nonmetal': '비금속',
+            'halogen': '할로겐',
+            'noble-gas': '비활성 기체',
+            'lanthanide': '란타넘족',
+            'actinide': '악티늄족'
+        };
+
+        // 핵심 데이터: 필요한 필드만 포함 (번호, 기호, 이름, 질량, 유형, 족, 주기)
+        var ELEMENTS = [
+            {num:1,symbol:'H',name:'수소',mass:'1.008',type:'nonmetal',group:1,period:1,desc:'가장 가벼운 원소. 연료전지 및 우주에서 풍부'},
+            {num:2,symbol:'He',name:'헬륨',mass:'4.003',type:'noble-gas',group:18,period:1,desc:'비활성 기체, 기구와 냉각재에 사용'},
+            {num:3,symbol:'Li',name:'리튬',mass:'6.941',type:'alkali',group:1,period:2,desc:'2차전지의 핵심 원소'},
+            {num:4,symbol:'Be',name:'베릴륨',mass:'9.012',type:'alkaline',group:2,period:2,desc:'가볍고 단단한 금속'},
+            {num:5,symbol:'B',name:'붕소',mass:'10.81',type:'metalloid',group:13,period:2,desc:'준금속, 내열 유리'},
+            {num:6,symbol:'C',name:'탄소',mass:'12.01',type:'nonmetal',group:14,period:2,desc:'생명체의 근간, 다이아몬드/흑연'},
+            {num:7,symbol:'N',name:'질소',mass:'14.01',type:'nonmetal',group:15,period:2,desc:'대기의 주성분'},
+            {num:8,symbol:'O',name:'산소',mass:'16.00',type:'nonmetal',group:16,period:2,desc:'호흡과 연소에 필수'},
+            {num:9,symbol:'F',name:'플루오린',mass:'19.00',type:'halogen',group:17,period:2,desc:'가장 반응성 높은 비금속'},
+            {num:10,symbol:'Ne',name:'네온',mass:'20.18',type:'noble-gas',group:18,period:2,desc:'네온사인 조명'},
+            {num:11,symbol:'Na',name:'나트륨',mass:'22.99',type:'alkali',group:1,period:3,desc:'염(소금)의 구성'},
+            {num:12,symbol:'Mg',name:'마그네슘',mass:'24.31',type:'alkaline',group:2,period:3,desc:'가볍고 강한 합금'},
+            {num:13,symbol:'Al',name:'알루미늄',mass:'26.98',type:'metal',group:13,period:3,desc:'가볍고 부식에 강함'},
+            {num:14,symbol:'Si',name:'규소',mass:'28.09',type:'metalloid',group:14,period:3,desc:'반도체 핵심'},
+            {num:15,symbol:'P',name:'인',mass:'30.97',type:'nonmetal',group:15,period:3,desc:'DNA/ATP 구성'},
+            {num:16,symbol:'S',name:'황',mass:'32.07',type:'nonmetal',group:16,period:3,desc:'비료/고무가황'},
+            {num:17,symbol:'Cl',name:'염소',mass:'35.45',type:'halogen',group:17,period:3,desc:'소독제'},
+            {num:18,symbol:'Ar',name:'아르곤',mass:'39.95',type:'noble-gas',group:18,period:3,desc:'비활성 기체'},
+            {num:19,symbol:'K',name:'칼륨',mass:'39.10',type:'alkali',group:1,period:4,desc:'세포 기능에 중요'},
+            {num:20,symbol:'Ca',name:'칼슘',mass:'40.08',type:'alkaline',group:2,period:4,desc:'뼈/치아 구성'},
+            // 전이금속 일부 샘플 + 가시성 위해 주요 원소만 우선 배치
+            {num:26,symbol:'Fe',name:'철',mass:'55.85',type:'transition',group:8,period:4,desc:'구조 재료 핵심'},
+            {num:28,symbol:'Ni',name:'니켈',mass:'58.69',type:'transition',group:10,period:4,desc:'합금/배터리'},
+            {num:29,symbol:'Cu',name:'구리',mass:'63.55',type:'transition',group:11,period:4,desc:'전도도 우수'},
+            {num:30,symbol:'Zn',name:'아연',mass:'65.38',type:'transition',group:12,period:4,desc:'도금'},
+            {num:35,symbol:'Br',name:'브로민',mass:'79.90',type:'halogen',group:17,period:4,desc:'상온 액체 비금속'},
+            {num:36,symbol:'Kr',name:'크립톤',mass:'83.80',type:'noble-gas',group:18,period:4,desc:'비활성 기체'},
+            {num:47,symbol:'Ag',name:'은',mass:'107.9',type:'transition',group:11,period:5,desc:'전도도 최고'},
+            {num:50,symbol:'Sn',name:'주석',mass:'118.7',type:'metal',group:14,period:5,desc:'납땜'},
+            {num:53,symbol:'I',name:'아이오딘',mass:'126.9',type:'halogen',group:17,period:5,desc:'갑상선 호르몬'},
+            {num:54,symbol:'Xe',name:'제논',mass:'131.3',type:'noble-gas',group:18,period:5,desc:'램프'},
+            {num:55,symbol:'Cs',name:'세슘',mass:'132.9',type:'alkali',group:1,period:6,desc:'원자시계'},
+            {num:56,symbol:'Ba',name:'바륨',mass:'137.3',type:'alkaline',group:2,period:6,desc:'조영제'},
+            {num:79,symbol:'Au',name:'금',mass:'197.0',type:'transition',group:11,period:6,desc:'귀금속'},
+            {num:80,symbol:'Hg',name:'수은',mass:'200.6',type:'transition',group:12,period:6,desc:'상온 액체 금속'},
+            {num:82,symbol:'Pb',name:'납',mass:'207.2',type:'metal',group:14,period:6,desc:'무거운 금속'},
+            {num:86,symbol:'Rn',name:'라돈',mass:'222',type:'noble-gas',group:18,period:6,desc:'방사성 기체'},
+            {num:92,symbol:'U',name:'우라늄',mass:'238.0',type:'actinide',group:3,period:7,desc:'핵연료'},
+            {num:118,symbol:'Og',name:'오가네손',mass:'294',type:'noble-gas',group:18,period:7,desc:'인공 원소'}
+        ];
+
+        // 란타넘/악티늄족 줄 데이터
+        var LANTHANIDES = [
+            {num:58,symbol:'Ce',name:'세륨',mass:'140.1',type:'lanthanide'},
+            {num:59,symbol:'Pr',name:'프라세오디뮴',mass:'140.9',type:'lanthanide'},
+            {num:60,symbol:'Nd',name:'네오디뮴',mass:'144.2',type:'lanthanide'},
+            {num:61,symbol:'Pm',name:'프로메튬',mass:'145',type:'lanthanide'},
+            {num:62,symbol:'Sm',name:'사마륨',mass:'150.4',type:'lanthanide'},
+            {num:63,symbol:'Eu',name:'유로퓸',mass:'152.0',type:'lanthanide'},
+            {num:64,symbol:'Gd',name:'가돌리늄',mass:'157.3',type:'lanthanide'},
+            {num:65,symbol:'Tb',name:'터븀',mass:'158.9',type:'lanthanide'},
+            {num:66,symbol:'Dy',name:'디스프로슘',mass:'162.5',type:'lanthanide'},
+            {num:67,symbol:'Ho',name:'홀뮴',mass:'164.9',type:'lanthanide'},
+            {num:68,symbol:'Er',name:'어븀',mass:'167.3',type:'lanthanide'},
+            {num:69,symbol:'Tm',name:'툴륨',mass:'168.9',type:'lanthanide'},
+            {num:70,symbol:'Yb',name:'이터븀',mass:'173.1',type:'lanthanide'},
+            {num:71,symbol:'Lu',name:'루테튬',mass:'175.0',type:'lanthanide'}
+        ];
+
+        var ACTINIDES = [
+            {num:90,symbol:'Th',name:'토륨',mass:'232.0',type:'actinide'},
+            {num:91,symbol:'Pa',name:'프로트악티늄',mass:'231.0',type:'actinide'},
+            {num:92,symbol:'U',name:'우라늄',mass:'238.0',type:'actinide'},
+            {num:93,symbol:'Np',name:'넵투늄',mass:'237',type:'actinide'},
+            {num:94,symbol:'Pu',name:'플루토늄',mass:'244',type:'actinide'},
+            {num:95,symbol:'Am',name:'아메리슘',mass:'243',type:'actinide'},
+            {num:96,symbol:'Cm',name:'퀴륨',mass:'247',type:'actinide'},
+            {num:97,symbol:'Bk',name:'버클륨',mass:'247',type:'actinide'},
+            {num:98,symbol:'Cf',name:'캘리포늄',mass:'251',type:'actinide'},
+            {num:99,symbol:'Es',name:'아인슈타이늄',mass:'252',type:'actinide'},
+            {num:100,symbol:'Fm',name:'페르뮴',mass:'257',type:'actinide'},
+            {num:101,symbol:'Md',name:'멘델레븀',mass:'258',type:'actinide'},
+            {num:102,symbol:'No',name:'노벨륨',mass:'259',type:'actinide'},
+            {num:103,symbol:'Lr',name:'로렌슘',mass:'262',type:'actinide'}
+        ];
+
+        function renderLegend() {
+            var legend = document.getElementById('legend');
+            var order = ['alkali','alkaline','transition','metal','metalloid','nonmetal','halogen','noble-gas','lanthanide','actinide'];
+            for (var i=0;i<order.length;i++){
+                var t = order[i];
+                var item = document.createElement('div');
+                item.className = 'legend-item';
+                var chip = document.createElement('div'); chip.className = 'legend-color ' + t; item.appendChild(chip);
+                var span = document.createElement('span'); span.textContent = TYPE_NAMES[t]; item.appendChild(span);
+                legend.appendChild(item);
+            }
+        }
+
+        function createGrid() {
+            var table = document.getElementById('periodicTable');
+            if (!table) return;
+            table.innerHTML = '';
+
+            // 10행 x 18열 그리드 생성
+            var grid = [];
+            var r,c; for (r=0;r<10;r++){ var row=[]; for(c=0;c<18;c++){ row.push(null);} grid.push(row); }
+
+            // 메인 배치
+            for (var i=0;i<ELEMENTS.length;i++){
+                var el = ELEMENTS[i];
+                if (el.period<=7) grid[el.period-1][el.group-1] = el;
+            }
+            // 란타넘/악티늄 라인
+            for (i=0;i<LANTHANIDES.length;i++){ grid[8][i+3] = LANTHANIDES[i]; }
+            for (i=0;i<ACTINIDES.length;i++){ grid[9][i+3] = ACTINIDES[i]; }
+
+            // 렌더
+            for (r=0;r<10;r++){
+                for(c=0;c<18;c++){
+                    var cell = grid[r][c];
+                    var div = document.createElement('div');
+                    if (cell){
+                        div.className = 'element ' + (cell.type || '');
+                        div.innerHTML = ''+
+                          '<div class="atomic-number">'+cell.num+'</div>'+
+                          '<div class="symbol">'+cell.symbol+'</div>'+
+                          '<div class="name">'+cell.name+'</div>'+
+                          '<div class="atomic-mass">'+cell.mass+'</div>';
+                        (function(data){
+                            div.onclick = function(){ showInfo(data); };
+                        })(cell);
+                    } else {
+                        div.className = 'element empty';
+                    }
+                    table.appendChild(div);
+                }
+            }
+            var wrap = document.querySelector('.periodic-wrapper');
+            if (wrap) wrap.scrollLeft = 0;
+        }
+
+        function showInfo(el){
+            var panel = document.getElementById('infoPanel');
+            var title = document.getElementById('elementTitle');
+            var details = document.getElementById('elementDetails');
+            var pill = document.getElementById('typePill');
+
+            title.textContent = el.num + '. ' + el.name + ' (' + el.symbol + ')';
+            details.innerHTML = ''+
+                '<strong>원자 질량:</strong> ' + el.mass + '<br>'+
+                '<strong>분류:</strong> ' + (TYPE_NAMES[el.type] || el.type) + '<br>'+
+                (el.desc ? '<strong>특징:</strong> ' + el.desc : '');
+            pill.textContent = TYPE_NAMES[el.type] || '-';
+            panel.className = 'info-panel active';
+        }
+
+        function filterElements(query){
+            var q = (query||'').toLowerCase().trim();
+            var cells = document.getElementsByClassName('element');
+            if (!q){ for (var i=0;i<cells.length;i++){ cells[i].style.outline=''; cells[i].style.opacity=''; } return; }
+
+            for (var i=0;i<cells.length;i++){ cells[i].style.outline=''; cells[i].style.opacity='0.25'; }
+            // 간단 검색: 기호/이름/번호 포함
+            var table = document.getElementById('periodicTable');
+            var children = table.children;
+            for (i=0;i<children.length;i++){
+                var div = children[i];
+                if (div.className.indexOf('empty')>-1) continue;
+                var num = div.querySelector('.atomic-number');
+                var sym = div.querySelector('.symbol');
+                var name = div.querySelector('.name');
+                var hay = (num.textContent+' '+sym.textContent+' '+name.textContent).toLowerCase();
+                if (hay.indexOf(q)>-1){ div.style.outline='3px solid #5a6bff'; div.style.opacity='1'; }
+            }
+        }
+
+        function boot(){
+            renderLegend();
+            createGrid();
+            var search = document.getElementById('search');
+            if (search){
+                search.addEventListener('input', function(){ filterElements(search.value); });
+            }
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나만의 주식 투자 대시보드 v1.0</title>
+    <!-- Tailwind CSS CDN (다크모드 지원) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome 아이콘 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <!-- Chart.js CDN (원형 차트용) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- dayjs CDN (날짜/시간 처리용) -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/localizedFormat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/locale/ko.js"></script>
+    <!-- SortableJS CDN (아이디어 보드 드래그 앤 드롭용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+
+    <script>
+        // dayjs 한국어 로케일 설정 및 포맷 플러그인 사용
+        dayjs.locale('ko');
+        dayjs.extend(dayjs.plugin.localizedFormat);
+
+        // Tailwind CSS 설정 (커스터마이징 및 다크모드 설정)
+        tailwind.config = {
+            darkMode: 'class', // 클래스를 기준으로 다크모드 활성화
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5', // Indigo-600
+                        'secondary': '#1f2937', // Gray-800
+                        'card-bg': 'var(--card-bg-color)',
+                        'text-color': 'var(--text-color)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 기본 다크모드 스타일 변수 설정 */
+        :root {
+            --bg-color: #0f172a; /* Slate-900 */
+            --header-bg-color: #1e293b; /* Slate-800 */
+            --sidebar-bg-color: #1e293b; /* Slate-800 */
+            --card-bg-color: #1f2937; /* Gray-800 */
+            --text-color: #f8fafc; /* Slate-50 */
+            --border-color: #334155; /* Slate-700 */
+            --positive-color: #10b981; /* Emerald-500 */
+            --negative-color: #ef4444; /* Red-500 */
+        }
+        /* 라이트모드 스타일 변수 설정 (body.light 클래스에 의해 오버라이드) */
+        .light {
+            --bg-color: #f1f5f9; /* Slate-100 */
+            --header-bg-color: #ffffff;
+            --sidebar-bg-color: #ffffff;
+            --card-bg-color: #ffffff;
+            --text-color: #1e293b; /* Slate-800 */
+            --border-color: #e2e8f0; /* Slate-200 */
+            --positive-color: #059669; /* Emerald-600 */
+            --negative-color: #dc2626; /* Red-600 */
+        }
+
+        /* 공통 스타일 적용 */
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .header {
+            background-color: var(--header-bg-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar {
+            background-color: var(--sidebar-bg-color);
+            border-right: 1px solid var(--border-color);
+        }
+        .card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s;
+        }
+        .text-positive { color: var(--positive-color); }
+        .text-negative { color: var(--negative-color); }
+
+        /* 스크롤바 숨기기 (선택 사항) */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 모바일에서 사이드바 숨기기 */
+        .sidebar-hidden { transform: translateX(-100%); }
+    </style>
+</head>
+<body class="dark min-h-screen flex flex-col">
+
+    <!-- Firestore 및 Canvas 환경 변수 초기화 (localStorage 사용으로 실질적으로 사용되지는 않지만, 환경 요구사항 준수를 위해 유지) -->
+    <script type="module">
+        // Canvas 환경 변수 정의
+        const __app_id = 'stock-dashboard-v1';
+        const __firebase_config = '{}';
+        const __initial_auth_token = undefined;
+    </script>
+
+
+    <!-- 헤더 (상단 고정) -->
+    <header id="header" class="header sticky top-0 z-20 shadow-lg p-4 flex items-center justify-between text-text-color transition-colors duration-300">
+        <div class="flex items-center space-x-4">
+            <!-- 햄버거 메뉴 (모바일 전용) -->
+            <button id="menu-toggle" class="lg:hidden text-2xl p-2 rounded-lg hover:bg-gray-700/50">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1 class="text-xl sm:text-2xl font-bold text-primary">나만의 주식 투자 대시보드 v1.0</h1>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <!-- 현재 날짜/시간 실시간 표시 -->
+            <span id="current-datetime" class="text-sm font-medium hidden sm:block"></span>
+
+            <!-- 다크/라이트 모드 토글 버튼 -->
+            <button id="theme-toggle" class="p-2 rounded-full bg-gray-700/50 hover:bg-gray-600/70 transition-colors duration-200">
+                <i id="theme-icon" class="fas fa-sun text-yellow-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 메인 레이아웃 -->
+    <main class="flex flex-1 overflow-hidden pt-4">
+
+        <!-- 사이드바 (즐겨찾기 종목 리스트) -->
+        <aside id="sidebar" class="sidebar fixed inset-y-0 left-0 z-10 w-64 p-4 lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out sidebar-hidden flex flex-col shadow-xl lg:shadow-none">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2 border-border-color">
+                <i class="fas fa-star mr-2 text-yellow-400"></i>즐겨찾기 종목
+            </h2>
+            <p class="text-xs text-gray-400 mb-2">드래그하여 순서 변경 (최대 10개)</p>
+            <ul id="favorite-list" class="flex-1 space-y-2 overflow-y-auto hide-scrollbar">
+                <!-- 종목 리스트가 여기에 로드됨 -->
+            </ul>
+            <div class="mt-4 border-t pt-4 border-border-color">
+                <button id="add-favorite-btn" class="w-full bg-primary text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                    <i class="fas fa-plus mr-1"></i> 종목 추가
+                </button>
+            </div>
+        </aside>
+
+        <!-- 메인 콘텐츠 영역 (8개 카드 섹션) -->
+        <div class="flex-1 p-4 overflow-y-auto hide-scrollbar">
+            <!-- Grid Layout for 8 Sections -->
+            <div id="main-dashboard" class="grid gap-6">
+                <!-- 데스크탑: 4x2 그리드, 태블릿: 2x4 그리드, 모바일: 1x8 그리드 -->
+                <!-- col-span-2: 폭을 2칸 차지 -->
+                <!-- 1. 시장 전반 요약 (Market Overview) -->
+                <section id="market-overview" class="lg:col-span-2 card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-chart-line mr-2"></i>시장 전반 요약</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm" id="market-data">
+                        <!-- 데이터는 JS로 채워짐 -->
+                    </div>
+                </section>
+
+                <!-- 2. 나의 관심종목 실시간 시세 (Watchlist Table) -->
+                <section id="watchlist-table-card" class="lg:col-span-2 card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-eye mr-2"></i>나의 관심종목 실시간 시세</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-border-color text-sm">
+                            <thead class="bg-gray-700/50">
+                                <tr>
+                                    <th class="py-2 px-2 text-left">종목명</th>
+                                    <th class="py-2 px-2 text-right">현재가</th>
+                                    <th class="py-2 px-2 text-right">전일비(%)</th>
+                                    <th class="py-2 px-2 text-right">거래량</th>
+                                    <th class="py-2 px-2 text-right hidden sm:table-cell">PER</th>
+                                    <th class="py-2 px-2 text-right hidden md:table-cell">배당률</th>
+                                    <th class="py-2 px-2 text-center"></th> <!-- 삭제 버튼 -->
+                                </tr>
+                            </thead>
+                            <tbody id="watchlist-table-body" class="divide-y divide-border-color">
+                                <!-- 데이터는 JS로 채워짐 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 3. 경제 캘린더 (이번주 주요 지표 발표 일정) -->
+                <section id="economic-calendar" class="card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-calendar-alt mr-2"></i>이번주 주요 경제 일정</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <ul id="calendar-list" class="space-y-3 text-sm">
+                        <!-- 데이터는 JS로 채워짐 -->
+                    </ul>
+                </section>
+
+                <!-- 4. 기술적 분석 주요 지표 대시보드 (차트 없이 숫자만) -->
+                <section id="technical-analysis" class="card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-tachometer-alt mr-2"></i>기술적 분석 지표 (<span id="ta-symbol">삼성전자</span>)</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div id="ta-metrics" class="space-y-3 text-sm">
+                        <!-- 데이터는 JS로 채워짐 -->
+                    </div>
+                </section>
+
+                <!-- 5. 밸류에이션 히트맵 (Sector Valuation Heatmap) -->
+                <section id="valuation-heatmap" class="card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-fire mr-2"></i>업종별 밸류에이션 (PER)</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div id="heatmap-grid" class="grid grid-cols-3 gap-2">
+                        <!-- 데이터는 JS로 채워짐 -->
+                    </div>
+                    <p class="mt-4 text-xs text-center text-gray-400">
+                        <span class="text-green-400">초록(저평가)</span> &lt;-&gt; <span class="text-red-400">빨강(고평가)</span>
+                    </p>
+                </section>
+
+                <!-- 6. 주요 뉴스 & 핫이슈 -->
+                <section id="news-hot-issues" class="card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-newspaper mr-2"></i>주요 뉴스 & 핫이슈</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div id="news-list" class="space-y-3 text-sm overflow-y-auto max-h-64 hide-scrollbar">
+                        <!-- 데이터는 JS로 채워짐 -->
+                    </div>
+                </section>
+
+                <!-- 7. 포트폴리오 현황 (My Portfolio) -->
+                <section id="portfolio-status" class="card p-5 rounded-xl shadow-lg lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-wallet mr-2"></i>나의 포트폴리오 현황</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- 자산군 비중 차트 -->
+                        <div class="md:col-span-1 flex flex-col items-center">
+                            <h3 class="text-lg font-semibold mb-2">자산군 비중</h3>
+                            <div class="w-full max-w-xs h-48">
+                                <canvas id="asset-chart"></canvas>
+                            </div>
+                            <div id="portfolio-summary" class="mt-4 text-center space-y-1">
+                                <!-- 총 자산금액, 손익금액, 수익률 표시 -->
+                            </div>
+                        </div>
+
+                        <!-- 개별 종목 보유 현황 테이블 -->
+                        <div class="md:col-span-2 overflow-x-auto">
+                            <h3 class="text-lg font-semibold mb-2">개별 종목 보유 현황</h3>
+                            <table class="min-w-full divide-y divide-border-color text-sm">
+                                <thead class="bg-gray-700/50">
+                                    <tr>
+                                        <th class="py-2 px-2 text-left">종목명</th>
+                                        <th class="py-2 px-2 text-right">보유수량</th>
+                                        <th class="py-2 px-2 text-right hidden sm:table-cell">평균단가</th>
+                                        <th class="py-2 px-2 text-right">현재가</th>
+                                        <th class="py-2 px-2 text-right">손익(%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portfolio-holdings-table" class="divide-y divide-border-color">
+                                    <!-- 데이터는 JS로 채워짐 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 8. 투자 아이디어 보드 (Idea Board) -->
+                <section id="idea-board" class="lg:col-span-2 card p-5 rounded-xl shadow-lg">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold"><i class="fas fa-lightbulb mr-2"></i>투자 아이디어 보드 (Kanban)</h2>
+                        <button onclick="refreshData()" class="text-gray-400 hover:text-primary"><i class="fas fa-sync"></i></button>
+                    </div>
+                    <div id="kanban-board" class="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-x-auto">
+                        <!-- 칸반 열 (Column) -->
+                        <div class="kanban-column space-y-3 bg-gray-700/30 p-3 rounded-lg min-w-48" data-status="관심">
+                            <h3 class="text-center font-semibold text-primary">관심 (Interest)</h3>
+                            <div class="kanban-list space-y-2 min-h-12" id="list-관심">
+                                <!-- 카드 로드 위치 -->
+                            </div>
+                            <button class="add-card-btn w-full text-xs text-gray-400 hover:text-primary transition-colors duration-200" data-status="관심">
+                                <i class="fas fa-plus mr-1"></i> 아이디어 추가
+                            </button>
+                        </div>
+
+                        <div class="kanban-column space-y-3 bg-gray-700/30 p-3 rounded-lg min-w-48" data-status="검토중">
+                            <h3 class="text-center font-semibold text-yellow-500">검토중 (Review)</h3>
+                            <div class="kanban-list space-y-2 min-h-12" id="list-검토중"></div>
+                            <button class="add-card-btn w-full text-xs text-gray-400 hover:text-primary transition-colors duration-200" data-status="검토중">
+                                <i class="fas fa-plus mr-1"></i> 아이디어 추가
+                            </button>
+                        </div>
+
+                        <div class="kanban-column space-y-3 bg-gray-700/30 p-3 rounded-lg min-w-48" data-status="매수완료">
+                            <h3 class="text-center font-semibold text-green-500">매수완료 (Purchased)</h3>
+                            <div class="kanban-list space-y-2 min-h-12" id="list-매수완료"></div>
+                            <button class="add-card-btn w-full text-xs text-gray-400 hover:text-primary transition-colors duration-200" data-status="매수완료">
+                                <i class="fas fa-plus mr-1"></i> 아이디어 추가
+                            </button>
+                        </div>
+
+                        <div class="kanban-column space-y-3 bg-gray-700/30 p-3 rounded-lg min-w-48" data-status="보류">
+                            <h3 class="text-center font-semibold text-red-500">보류 (Hold)</h3>
+                            <div class="kanban-list space-y-2 min-h-12" id="list-보류"></div>
+                            <button class="add-card-btn w-full text-xs text-gray-400 hover:text-primary transition-colors duration-200" data-status="보류">
+                                <i class="fas fas-plus mr-1"></i> 아이디어 추가
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- 커스텀 모달 (대화상자 대체) -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 items-center justify-center hidden" onclick="closeModal(event)">
+        <div class="bg-card-bg p-6 rounded-xl shadow-2xl w-full max-w-sm mx-4 transform transition-all duration-300" onclick="event.stopPropagation()">
+            <h3 id="modal-title" class="text-xl font-bold mb-4"></h3>
+            <div id="modal-content" class="mb-6"></div>
+            <div id="modal-actions" class="flex justify-end space-x-3">
+                <button onclick="closeModal()" class="px-4 py-2 bg-gray-600 rounded-lg hover:bg-gray-500 transition-colors">닫기</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // 전역 변수 설정
+        const STORAGE_KEY_WATCHLIST = 'stockDashboardWatchlist';
+        const STORAGE_KEY_PORTFOLIO = 'stockDashboardPortfolio';
+        const STORAGE_KEY_IDEAS = 'stockDashboardIdeas';
+        const STORAGE_KEY_THEME = 'stockDashboardTheme';
+        let assetChart;
+        let isDarkMode = true;
+
+        // --- 초기 데이터 정의 (더미 데이터) ---
+        const initialWatchlist = [
+            { id: 1, name: '삼성전자', symbol: '005930', price: 72500, change: 1.25, volume: 15400000, '52W_H': 85000, '52W_L': 60000, per: 15.2, pbr: 1.5, div_yield: 2.1 },
+            { id: 2, name: 'SK하이닉스', symbol: '000660', price: 185500, change: -0.75, volume: 5500000, '52W_H': 195000, '52W_L': 110000, per: 22.8, pbr: 2.3, div_yield: 0.9 },
+            { id: 3, name: 'NAVER', symbol: '035420', price: 168000, change: 3.40, volume: 2100000, '52W_H': 250000, '52W_L': 150000, per: 35.1, pbr: 3.1, div_yield: 0.5 },
+            { id: 4, name: '현대차', symbol: '005380', price: 245000, change: -1.90, volume: 1800000, '52W_H': 260000, '52W_L': 170000, per: 8.5, pbr: 0.8, div_yield: 3.5 },
+            { id: 5, name: '삼성바이오로직스', symbol: '207940', price: 789000, change: 0.10, volume: 300000, '52W_H': 900000, '52W_L': 700000, per: 55.0, pbr: 6.2, div_yield: 0.2 },
+        ];
+
+        const initialPortfolioHoldings = [
+            { name: '삼성전자', symbol: '005930', quantity: 100, avg_price: 65000, current_price: 72500 },
+            { name: '테슬라 (TSLA)', symbol: 'TSLA', quantity: 50, avg_price: 180, current_price: 195.50 },
+            { name: '채권 (TLT)', symbol: 'TLT', quantity: 200, avg_price: 90, current_price: 88.20 },
+        ];
+
+        const initialIdeas = [
+            { id: crypto.randomUUID(), title: 'AI 반도체 후공정 밸류체인 분석', status: '관심', date: dayjs().format('YYYY-MM-DD') },
+            { id: crypto.randomUUID(), title: '미국 기준금리 인하 시점 예측 정리', status: '검토중', date: dayjs().format('YYYY-MM-DD') },
+            { id: crypto.randomUUID(), title: '배터리 리사이클링 업체의 사업성 평가', status: '보류', date: dayjs().format('YYYY-MM-DD') },
+        ];
+
+        const marketOverviewData = {
+            KOSPI: { value: 2750.32, change_percent: 1.12, is_positive: true },
+            KOSDAQ: { value: 875.45, change_percent: 0.88, is_positive: true },
+            S_P500: { value: 5250.78, change_percent: -0.45, is_positive: false },
+            NASDAQ: { value: 16500.12, change_percent: 0.15, is_positive: true },
+            DOW: { value: 39500.23, change_percent: -0.90, is_positive: false },
+            USD_KRW: { value: 1350.50, change_percent: 0.20, is_positive: true },
+            JPY_KRW: { value: 890.15, change_percent: -0.10, is_positive: false },
+            US_10Y: { value: 4.52, change_percent: 0.05, is_positive: true },
+            KR_3Y: { value: 3.35, change_percent: -0.02, is_positive: false },
+            F_G_Index: { value: 68, label: 'Greed' },
+        };
+
+        const taMetricsData = {
+            RSI: { value: 62.5, status: '매수 우위', color: 'text-primary' },
+            MACD_Signal: { value: 0.52, status: '골든 크로스 임박', color: 'text-yellow-500' },
+            BB_Status: { value: '밴드 내', status: '중앙선 지지 확인', color: 'text-gray-400' },
+            MA_Arrangement: { value: '정배열 시작', status: '20>60>120 (초기 정배열)', color: 'text-primary' },
+        };
+
+        const valuationHeatmapData = [
+            { sector: '반도체', per: 18.5, color: 'bg-red-700' }, // 고평가
+            { sector: '2차전지', per: 45.2, color: 'bg-red-800' }, // 고평가
+            { sector: '자동차', per: 7.8, color: 'bg-green-600' }, // 저평가
+            { sector: '바이오/제약', per: 55.0, color: 'bg-red-500' }, // 보통
+            { sector: '인터넷/플랫폼', per: 25.1, color: 'bg-yellow-600' }, // 보통
+            { sector: '철강/금속', per: 6.5, color: 'bg-green-700' }, // 저평가
+            { sector: '은행/금융', per: 5.2, color: 'bg-green-800' }, // 저평가
+            { sector: '건설', per: 10.1, color: 'bg-yellow-700' }, // 보통
+            { sector: '게임/엔터', per: 32.7, color: 'bg-red-600' }, // 고평가
+            { sector: '화학', per: 12.0, color: 'bg-yellow-500' }, // 보통
+            { sector: '기계', per: 15.5, color: 'bg-yellow-700' }, // 보통
+            { sector: '유틸리티', per: 14.8, color: 'bg-yellow-500' }, // 보통
+        ];
+
+        const newsData = [
+            { title: '글로벌 AI 경쟁 심화, K-반도체 다시 주목', source: '한국경제', time: '5분 전', link: '#' },
+            { title: '금통위, 기준금리 동결 배경과 향후 전망 분석', source: '매일경제', time: '20분 전', link: '#' },
+            { title: '미국 인플레이션 지표 예상치 상회, 시장 일시적 조정', source: 'Reuters', time: '1시간 전', link: '#' },
+            { title: '친환경 모빌리티 관련주, 유럽 시장 진출 가속화', source: '서울경제', time: '2시간 전', link: '#' },
+            { title: '해외 투자 전문가 "지금은 장기 채권 매수 기회"', source: 'CNBC', time: '3시간 전', link: '#' },
+            { title: '증권가, 2차전지 소재 업체 목표주가 하향 조정', source: '연합뉴스', time: '4시간 전', link: '#' },
+        ];
+
+        const economicCalendarData = [
+            { date: '금', country: '미국', indicator: '비농업 고용 변화', actual: '250K', forecast: '200K', previous: '180K' },
+            { date: '목', country: '유로존', indicator: '소비자 물가 지수 (CPI)', actual: '2.8%', forecast: '2.9%', previous: '3.0%' },
+            { date: '수', country: '한국', indicator: '수출입 동향', actual: '수출 +1.5%', forecast: '수출 +1.0%', previous: '수출 -2.0%' },
+            { date: '화', country: '일본', indicator: '소매 판매', actual: '-0.1%', forecast: '0.2%', previous: '0.5%' },
+            { date: '월', country: '중국', indicator: '산업 생산', actual: '5.5%', forecast: '5.0%', previous: '5.2%' },
+        ];
+
+
+        // --- 유틸리티 함수 ---
+
+        /** 숫자를 한국식 통화 포맷으로 변환 */
+        const formatCurrency = (num) => {
+            if (typeof num !== 'number') return num;
+            return Math.round(num).toLocaleString('ko-KR');
+        };
+
+        /** 숫자를 퍼센트 포맷으로 변환하고 색상 클래스를 반환 */
+        const formatPercent = (num, showSign = true) => {
+            if (typeof num !== 'number') return num;
+            const sign = num > 0 ? '+' : '';
+            const colorClass = num > 0 ? 'text-positive' : (num < 0 ? 'text-negative' : 'text-gray-400');
+            const formatted = num.toFixed(2) + '%';
+            return `<span class="${colorClass}">${showSign ? sign : ''}${formatted}</span>`;
+        };
+
+        /** 랜덤으로 시세 변동을 시뮬레이션 (30초 갱신용) */
+        const simulatePriceChange = (currentPrice) => {
+            // 최대 +/- 1% 변동
+            const changePercent = (Math.random() * 2 - 1) * 0.01;
+            const newPrice = currentPrice * (1 + changePercent);
+            return {
+                newPrice: parseFloat(newPrice.toFixed(2)),
+                change: changePercent * 100, // % 변화량
+            };
+        };
+
+        // --- localStorage 관리 함수 ---
+
+        const getStorage = (key, initialData) => {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : initialData;
+            } catch (error) {
+                console.error('Error loading data from localStorage:', key, error);
+                return initialData;
+            }
+        };
+
+        const setStorage = (key, data) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (error) {
+                console.error('Error saving data to localStorage:', key, error);
+            }
+        };
+
+        // --- 1. 시장 전반 요약 렌더링 ---
+        const renderMarketOverview = () => {
+            const container = document.getElementById('market-data');
+            if (!container) return;
+
+            // 시세 시뮬레이션 (30초마다 갱신되므로 랜덤값 부여)
+            const simulatedData = { ...marketOverviewData };
+            Object.keys(simulatedData).forEach(key => {
+                if (key !== 'F_G_Index') {
+                    const sim = simulatePriceChange(simulatedData[key].value);
+                    simulatedData[key].value = parseFloat(sim.newPrice.toFixed(key.includes('Y') ? 2 : 2));
+                    simulatedData[key].change_percent = parseFloat(sim.change.toFixed(2));
+                    simulatedData[key].is_positive = sim.change > 0;
+                }
+            });
+
+            container.innerHTML = `
+                ${renderMetric('KOSPI', simulatedData.KOSPI.value, simulatedData.KOSPI.change_percent, 'point')}
+                ${renderMetric('KOSDAQ', simulatedData.KOSDAQ.value, simulatedData.KOSDAQ.change_percent, 'point')}
+                ${renderMetric('S&P500', simulatedData.S_P500.value, simulatedData.S_P500.change_percent, 'point')}
+                ${renderMetric('NASDAQ', simulatedData.NASDAQ.value, simulatedData.NASDAQ.change_percent, 'point')}
+                ${renderMetric('원/달러', simulatedData.USD_KRW.value, simulatedData.USD_KRW.change_percent, 'currency')}
+                ${renderMetric('원/엔(100엔)', simulatedData.JPY_KRW.value, simulatedData.JPY_KRW.change_percent, 'currency')}
+                ${renderMetric('美 10년물', simulatedData.US_10Y.value, simulatedData.US_10Y.change_percent, 'rate')}
+                ${renderMetric('韓 3년물', simulatedData.KR_3Y.value, simulatedData.KR_3Y.change_percent, 'rate')}
+                <div class="p-3 rounded-lg bg-gray-700/50 col-span-2 md:col-span-4 flex items-center justify-between">
+                    <span class="font-medium">공포 탐욕 지수</span>
+                    <span class="text-xl font-bold ${simulatedData.F_G_Index.value > 50 ? 'text-positive' : 'text-negative'}">
+                        ${simulatedData.F_G_Index.value} (${simulatedData.F_G_Index.label})
+                    </span>
+                </div>
+            `;
+        };
+
+        const renderMetric = (label, value, change, type) => {
+            const formattedValue = type === 'currency' ? formatCurrency(value) : value.toFixed(2);
+            return `
+                <div class="p-3 rounded-lg bg-gray-700/50">
+                    <div class="font-medium text-gray-400">${label}</div>
+                    <div class="text-xl font-bold">${formattedValue}${type === 'rate' ? '%' : ''}</div>
+                    ${formatPercent(change)}
+                </div>
+            `;
+        };
+
+        // --- 2. 나의 관심종목 실시간 시세 렌더링 및 즐겨찾기 관리 ---
+        const renderWatchlist = () => {
+            let watchlist = getStorage(STORAGE_KEY_WATCHLIST, initialWatchlist);
+            const tableBody = document.getElementById('watchlist-table-body');
+            const favoriteList = document.getElementById('favorite-list');
+            if (!tableBody || !favoriteList) return;
+
+            // 30초 갱신을 위한 시세 시뮬레이션
+            watchlist = watchlist.map(item => {
+                const sim = simulatePriceChange(item.price);
+                return {
+                    ...item,
+                    price: Math.round(sim.newPrice / 100) * 100, // 주식 시세 단위 맞춤 (100원 단위)
+                    change: sim.change,
+                };
+            });
+            setStorage(STORAGE_KEY_WATCHLIST, watchlist);
+
+            // 테이블 렌더링
+            tableBody.innerHTML = watchlist.map(item => {
+                const formattedPrice = formatCurrency(item.price);
+                const formattedChange = formatPercent(item.change);
+                const formattedDivYield = item.div_yield.toFixed(1) + '%';
+                return `
+                    <tr class="hover:bg-gray-700/50 transition-colors duration-150">
+                        <td class="py-2 px-2 font-semibold">${item.name} <span class="text-xs text-gray-500 hidden sm:inline">(${item.symbol})</span></td>
+                        <td class="py-2 px-2 text-right">${formattedPrice}</td>
+                        <td class="py-2 px-2 text-right">${formattedChange}</td>
+                        <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(item.volume)}</td>
+                        <td class="py-2 px-2 text-right hidden sm:table-cell">${item.per.toFixed(1)}</td>
+                        <td class="py-2 px-2 text-right hidden md:table-cell">${formattedDivYield}</td>
+                        <td class="py-2 px-2 text-center">
+                            <button onclick="removeWatchlistItem('${item.id}')" class="text-red-500 hover:text-red-400 text-sm">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 사이드바 즐겨찾기 렌더링 (드래그 가능한 리스트)
+            favoriteList.innerHTML = watchlist.map(item => {
+                const colorClass = item.change > 0 ? 'text-positive' : (item.change < 0 ? 'text-negative' : 'text-gray-400');
+                const formattedChange = item.change > 0 ? `+${item.change.toFixed(2)}%` : `${item.change.toFixed(2)}%`;
+                return `
+                    <li data-id="${item.id}" class="favorite-item bg-card-bg p-3 rounded-lg flex justify-between items-center shadow-md cursor-grab hover:shadow-lg transition-shadow duration-200">
+                        <div class="flex flex-col">
+                            <span class="font-medium">${item.name}</span>
+                            <span class="text-xs text-gray-500">${formatCurrency(item.price)}원</span>
+                        </div>
+                        <span class="text-sm font-semibold ${colorClass}">${formattedChange}</span>
+                    </li>
+                `;
+            }).join('');
+
+            // SortableJS 초기화 (즐겨찾기 순서 변경)
+            Sortable.create(favoriteList, {
+                animation: 150,
+                handle: '.favorite-item',
+                onEnd: function (evt) {
+                    const newOrder = Array.from(evt.to.children).map(li => parseInt(li.dataset.id));
+                    updateWatchlistOrder(newOrder);
+                }
+            });
+
+            // '종목 추가' 버튼 이벤트 리스너 (모달 사용)
+            document.getElementById('add-favorite-btn').onclick = showAddFavoriteModal;
+        };
+
+        const updateWatchlistOrder = (newOrder) => {
+            let watchlist = getStorage(STORAGE_KEY_WATCHLIST, initialWatchlist);
+            const orderedWatchlist = newOrder.map(id => watchlist.find(item => item.id == id)).filter(Boolean);
+            setStorage(STORAGE_KEY_WATCHLIST, orderedWatchlist);
+            // 순서만 바뀐 것이므로 다시 렌더링할 필요는 없음 (onEnd에서 DOM이 이미 변경됨)
+        };
+
+        const showAddFavoriteModal = () => {
+            const currentWatchlist = getStorage(STORAGE_KEY_WATCHLIST, initialWatchlist);
+            if (currentWatchlist.length >= 10) {
+                showModal('추가 불가', '즐겨찾기 종목은 최대 10개까지만 등록할 수 있습니다.', [{ text: '확인', action: closeModal }]);
+                return;
+            }
+
+            const inputId = 'new-symbol-input';
+            showModal(
+                '관심 종목 추가',
+                `<p class="mb-3">추가할 종목명 또는 코드를 입력하세요. (더미 데이터로 테스트)</p><input type="text" id="${inputId}" placeholder="예: LG에너지솔루션" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 focus:ring-primary focus:border-primary">`,
+                [
+                    { text: '취소', action: closeModal, className: 'bg-gray-600 hover:bg-gray-500' },
+                    {
+                        text: '추가',
+                        action: () => {
+                            const newSymbolName = document.getElementById(inputId).value.trim();
+                            if (newSymbolName) {
+                                addWatchlistItem(newSymbolName);
+                                closeModal();
+                            }
+                        },
+                        className: 'bg-primary hover:bg-indigo-700'
+                    }
+                ]
+            );
+        };
+
+        const addWatchlistItem = (name) => {
+            let watchlist = getStorage(STORAGE_KEY_WATCHLIST, initialWatchlist);
+            const newId = watchlist.length > 0 ? Math.max(...watchlist.map(i => i.id)) + 1 : 1;
+
+            // 더미 데이터 생성
+            const newPrice = Math.floor(Math.random() * (100000 - 10000 + 1) + 10000);
+            const newItem = {
+                id: newId,
+                name: name,
+                symbol: `NEW${newId}`,
+                price: newPrice,
+                change: parseFloat((Math.random() * 5 - 2.5).toFixed(2)),
+                volume: Math.floor(Math.random() * 5000000) + 100000,
+                '52W_H': newPrice * 1.2,
+                '52W_L': newPrice * 0.8,
+                per: parseFloat((Math.random() * 40 + 10).toFixed(1)),
+                pbr: parseFloat((Math.random() * 5 + 0.5).toFixed(1)),
+                div_yield: parseFloat((Math.random() * 3 + 0.1).toFixed(1)),
+            };
+
+            watchlist.push(newItem);
+            setStorage(STORAGE_KEY_WATCHLIST, watchlist);
+            renderWatchlist(); // 목록 업데이트
+        };
+
+        const removeWatchlistItem = (idToRemove) => {
+            const confirmation = confirm(`정말로 이 종목을 삭제하시겠습니까? (ID: ${idToRemove})`);
+            if (confirmation) {
+                let watchlist = getStorage(STORAGE_KEY_WATCHLIST, initialWatchlist);
+                const updatedWatchlist = watchlist.filter(item => item.id != idToRemove);
+                setStorage(STORAGE_KEY_WATCHLIST, updatedWatchlist);
+                renderWatchlist();
+            }
+        };
+
+        // --- 3. 경제 캘린더 렌더링 ---
+        const renderEconomicCalendar = () => {
+            const container = document.getElementById('calendar-list');
+            if (!container) return;
+
+            container.innerHTML = economicCalendarData.map(item => `
+                <li class="p-3 bg-gray-700/50 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div class="flex items-center space-x-3 mb-1 sm:mb-0">
+                        <span class="font-bold text-primary">${item.date}</span>
+                        <span class="text-sm font-medium">${item.indicator} (${item.country})</span>
+                    </div>
+                    <div class="flex space-x-4 text-xs sm:text-sm">
+                        <span>실제: <span class="font-semibold text-positive">${item.actual}</span></span>
+                        <span>예상: <span class="text-gray-400">${item.forecast}</span></span>
+                        <span>이전: <span class="text-gray-400">${item.previous}</span></span>
+                    </div>
+                </li>
+            `).join('');
+        };
+
+        // --- 4. 기술적 분석 주요 지표 렌더링 ---
+        const renderTechnicalAnalysis = () => {
+            const container = document.getElementById('ta-metrics');
+            if (!container) return;
+
+            // 시뮬레이션: RSI 값을 30초마다 약간 변경
+            const newRSI = parseFloat((taMetricsData.RSI.value + (Math.random() * 4 - 2)).toFixed(2));
+            taMetricsData.RSI.value = Math.max(0, Math.min(100, newRSI));
+            taMetricsData.RSI.status = taMetricsData.RSI.value > 70 ? '과열' : (taMetricsData.RSI.value < 30 ? '침체' : '중립/매수 우위');
+
+            container.innerHTML = `
+                ${renderTAMetric('RSI(14)', taMetricsData.RSI.value.toFixed(2), taMetricsData.RSI.status, taMetricsData.RSI.color)}
+                ${renderTAMetric('MACD Signal', taMetricsData.MACD_Signal.value.toFixed(2), taMetricsData.MACD_Signal.status, taMetricsData.MACD_Signal.color)}
+                ${renderTAMetric('볼린저밴드', taMetricsData.BB_Status.value, taMetricsData.BB_Status.status, taMetricsData.BB_Status.color)}
+                ${renderTAMetric('이동평균선 배열', taMetricsData.MA_Arrangement.value, taMetricsData.MA_Arrangement.status, taMetricsData.MA_Arrangement.color)}
+            `;
+        };
+
+        const renderTAMetric = (label, value, status, colorClass) => {
+            return `
+                <div class="flex justify-between items-center p-2 rounded-lg bg-gray-700/50">
+                    <span class="font-medium text-gray-400">${label}</span>
+                    <div class="text-right">
+                        <div class="font-bold text-lg">${value}</div>
+                        <div class="text-xs ${colorClass}">${status}</div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // --- 5. 밸류에이션 히트맵 렌더링 ---
+        const renderValuationHeatmap = () => {
+            const container = document.getElementById('heatmap-grid');
+            if (!container) return;
+
+            // PER 값에 따라 배경 색상 결정 (색상 범위: 5(초록) ~ 50(빨강))
+            const getHeatmapColor = (per) => {
+                let color;
+                if (per <= 8) color = 'bg-green-600';
+                else if (per <= 15) color = 'bg-yellow-600';
+                else if (per <= 25) color = 'bg-red-600';
+                else color = 'bg-red-700';
+                return color;
+            };
+
+            container.innerHTML = valuationHeatmapData.map(item => `
+                <div class="p-2 rounded-lg text-center shadow-md ${getHeatmapColor(item.per)} text-white transform hover:scale-105 transition-transform duration-200">
+                    <div class="text-sm font-medium">${item.sector}</div>
+                    <div class="text-lg font-bold">${item.per.toFixed(1)}</div>
+                </div>
+            `).join('');
+        };
+
+        // --- 6. 주요 뉴스 & 핫이슈 렌더링 ---
+        const renderNews = () => {
+            const container = document.getElementById('news-list');
+            if (!container) return;
+
+            container.innerHTML = newsData.map(item => `
+                <a href="${item.link}" target="_blank" class="block p-3 bg-gray-700/50 rounded-lg hover:bg-gray-600/50 transition-colors duration-150">
+                    <p class="font-medium truncate">${item.title}</p>
+                    <div class="flex justify-between text-xs mt-1 text-gray-400">
+                        <span>${item.source}</span>
+                        <span>${item.time}</span>
+                    </div>
+                </a>
+            `).join('');
+        };
+
+        // --- 7. 포트폴리오 현황 렌더링 (Chart.js 포함) ---
+        const renderPortfolio = () => {
+            let holdings = getStorage(STORAGE_KEY_PORTFOLIO, initialPortfolioHoldings);
+            const holdingsTable = document.getElementById('portfolio-holdings-table');
+            const summaryDiv = document.getElementById('portfolio-summary');
+
+            // 30초 갱신을 위한 시세 시뮬레이션
+            holdings = holdings.map(item => {
+                const sim = simulatePriceChange(item.current_price);
+                return {
+                    ...item,
+                    current_price: parseFloat(sim.newPrice.toFixed(2)),
+                };
+            });
+            setStorage(STORAGE_KEY_PORTFOLIO, holdings);
+
+            let totalAssets = 0;
+            let totalProfitLoss = 0;
+            let totalCost = 0;
+
+            // 개별 종목 테이블 렌더링
+            holdingsTable.innerHTML = holdings.map(item => {
+                const cost = item.quantity * item.avg_price;
+                const currentValue = item.quantity * item.current_price;
+                const profitLoss = currentValue - cost;
+                const profitLossRate = (profitLoss / cost) * 100;
+
+                totalAssets += currentValue;
+                totalProfitLoss += profitLoss;
+                totalCost += cost;
+
+                const formattedProfitLoss = formatPercent(profitLossRate, false);
+
+                return `
+                    <tr class="hover:bg-gray-700/50 transition-colors duration-150">
+                        <td class="py-2 px-2 font-semibold">${item.name}</td>
+                        <td class="py-2 px-2 text-right">${formatCurrency(item.quantity)}</td>
+                        <td class="py-2 px-2 text-right hidden sm:table-cell">${formatCurrency(item.avg_price)}</td>
+                        <td class="py-2 px-2 text-right">${formatCurrency(item.current_price)}</td>
+                        <td class="py-2 px-2 text-right">${formattedProfitLoss}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const overallReturnRate = totalCost > 0 ? (totalProfitLoss / totalCost) * 100 : 0;
+            const overallReturnClass = overallReturnRate > 0 ? 'text-positive' : (overallReturnRate < 0 ? 'text-negative' : 'text-gray-400');
+            const overallReturnSign = overallReturnRate > 0 ? '+' : '';
+
+            // 포트폴리오 요약 렌더링
+            summaryDiv.innerHTML = `
+                <p class="text-lg font-bold">총 자산: ${formatCurrency(totalAssets)}원</p>
+                <p class="text-sm font-medium">총 손익: <span class="${overallReturnClass}">${overallReturnSign}${formatCurrency(totalProfitLoss)}원</span></p>
+                <p class="text-2xl font-extrabold ${overallReturnClass}">${overallReturnSign}${overallReturnRate.toFixed(2)}%</p>
+            `;
+
+            // 자산군 비중 차트 렌더링
+            const assetWeights = {
+                '국내주식': holdings.filter(h => h.symbol.length === 6).reduce((sum, h) => sum + (h.quantity * h.current_price), 0),
+                '미국주식': holdings.filter(h => h.symbol.length < 6).reduce((sum, h) => sum + (h.quantity * h.current_price), 0),
+                '채권': holdings.filter(h => h.symbol.includes('TLT')).reduce((sum, h) => sum + (h.quantity * h.current_price), 0),
+                '현금': totalAssets * 0.15, // 더미 현금 비중 15%
+            };
+
+            const labels = Object.keys(assetWeights).filter(k => assetWeights[k] > 0);
+            const data = Object.values(assetWeights).filter(v => v > 0);
+            const total = data.reduce((a, b) => a + b, 0);
+
+            // 퍼센트 라벨 생성
+            const percentLabels = labels.map((label, index) => {
+                const percent = ((data[index] / total) * 100).toFixed(1);
+                return `${label} (${percent}%)`;
+            });
+
+            const backgroundColors = ['#4f46e5', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']; // Primary, Blue, Green, Amber, Red
+
+            const chartData = {
+                labels: percentLabels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    hoverOffset: 10,
+                }]
+            };
+
+            const chartConfig = {
+                type: 'doughnut',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%', // 도넛 모양
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: isDarkMode ? '#f8fafc' : '#1e293b', // 텍스트 색상
+                                font: { size: 12 },
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    return label + formatCurrency(context.parsed) + '원';
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // 차트 재생성 또는 업데이트
+            const ctx = document.getElementById('asset-chart').getContext('2d');
+            if (assetChart) {
+                assetChart.destroy();
+            }
+            assetChart = new Chart(ctx, chartConfig);
+        };
+
+        // --- 8. 투자 아이디어 보드 렌더링 (Kanban + SortableJS) ---
+        const renderIdeaBoard = () => {
+            const ideaData = getStorage(STORAGE_KEY_IDEAS, initialIdeas);
+            const statuses = ['관심', '검토중', '매수완료', '보류'];
+
+            // 리스트 초기화
+            statuses.forEach(status => {
+                const list = document.getElementById(`list-${status}`);
+                if (list) list.innerHTML = '';
+            });
+
+            // 카드 렌더링
+            ideaData.forEach(item => {
+                const list = document.getElementById(`list-${item.status}`);
+                if (list) {
+                    list.innerHTML += `
+                        <div data-id="${item.id}" class="kanban-card bg-card-bg p-3 rounded-lg shadow-md border-t-4 border-${getStatusColor(item.status)} cursor-move hover:shadow-xl transition-shadow duration-200">
+                            <p class="font-medium text-sm">${item.title}</p>
+                            <div class="flex justify-between items-center text-xs mt-2 text-gray-400">
+                                <span>${item.date}</span>
+                                <button onclick="deleteIdea('${item.id}', event)" class="text-red-500 hover:text-red-400 ml-2"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            // SortableJS 초기화 및 카드 추가 버튼 리스너
+            statuses.forEach(status => {
+                const list = document.getElementById(`list-${status}`);
+                if (list) {
+                    Sortable.create(list, {
+                        group: 'ideas',
+                        animation: 150,
+                        onEnd: function (evt) {
+                            const itemId = evt.item.dataset.id;
+                            const newStatus = evt.to.closest('.kanban-column').dataset.status;
+                            updateIdeaStatus(itemId, newStatus);
+                        }
+                    });
+                }
+            });
+
+            document.querySelectorAll('.add-card-btn').forEach(button => {
+                button.onclick = (e) => showAddIdeaModal(e.currentTarget.dataset.status);
+            });
+        };
+
+        const getStatusColor = (status) => {
+            switch (status) {
+                case '관심': return 'primary';
+                case '검토중': return 'yellow-500';
+                case '매수완료': return 'green-500';
+                case '보류': return 'red-500';
+                default: return 'gray-500';
+            }
+        };
+
+        const updateIdeaStatus = (id, newStatus) => {
+            let ideaData = getStorage(STORAGE_KEY_IDEAS, initialIdeas);
+            const ideaIndex = ideaData.findIndex(item => item.id === id);
+            if (ideaIndex > -1) {
+                ideaData[ideaIndex].status = newStatus;
+                setStorage(STORAGE_KEY_IDEAS, ideaData);
+            }
+        };
+
+        const showAddIdeaModal = (status) => {
+            const inputId = 'new-idea-input';
+            showModal(
+                `${status} 아이디어 추가`,
+                `<p class="mb-3">아이디어 제목을 입력하세요:</p><input type="text" id="${inputId}" placeholder="예: 성장률 둔화에 따른 저가 매수" class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 focus:ring-primary focus:border-primary">`,
+                [
+                    { text: '취소', action: closeModal, className: 'bg-gray-600 hover:bg-gray-500' },
+                    {
+                        text: '추가',
+                        action: () => {
+                            const title = document.getElementById(inputId).value.trim();
+                            if (title) {
+                                addIdea(title, status);
+                                closeModal();
+                            }
+                        },
+                        className: 'bg-primary hover:bg-indigo-700'
+                    }
+                ]
+            );
+        };
+
+        const addIdea = (title, status) => {
+            let ideaData = getStorage(STORAGE_KEY_IDEAS, initialIdeas);
+            const newItem = {
+                id: crypto.randomUUID(),
+                title: title,
+                status: status,
+                date: dayjs().format('YYYY-MM-DD'),
+            };
+            ideaData.push(newItem);
+            setStorage(STORAGE_KEY_IDEAS, ideaData);
+            renderIdeaBoard();
+        };
+
+        const deleteIdea = (id, event) => {
+            event.stopPropagation(); // 카드 이동 방지
+            const confirmation = confirm(`'${id.substring(0, 8)}...' 아이디어를 삭제하시겠습니까?`);
+            if (confirmation) {
+                let ideaData = getStorage(STORAGE_KEY_IDEAS, initialIdeas);
+                const updatedIdeaData = ideaData.filter(item => item.id !== id);
+                setStorage(STORAGE_KEY_IDEAS, updatedIdeaData);
+                renderIdeaBoard();
+            }
+        };
+
+
+        // --- 모달 (Alert/Confirm 대체) 함수 ---
+
+        const showModal = (title, content, actions) => {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-content').innerHTML = content;
+
+            const actionsDiv = document.getElementById('modal-actions');
+            actionsDiv.innerHTML = ''; // 기존 버튼 삭제
+
+            actions.forEach(action => {
+                const button = document.createElement('button');
+                button.className = `px-4 py-2 rounded-lg transition-colors ${action.className || 'bg-gray-600 hover:bg-gray-500'}`;
+                button.innerText = action.text;
+                button.onclick = action.action;
+                actionsDiv.appendChild(button);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        const closeModal = (event) => {
+            const modal = document.getElementById('custom-modal');
+            if (!event || event.target === modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+
+        // --- 전체 데이터 갱신 및 렌더링 함수 ---
+
+        const refreshData = () => {
+            console.log('데이터 갱신 중...');
+            updateClock();
+            renderMarketOverview(); // 1. 시장 요약 (시세 시뮬레이션)
+            renderWatchlist(); // 2. 관심 종목 테이블 (시세 시뮬레이션 및 순서 저장)
+            renderEconomicCalendar(); // 3. 경제 캘린더
+            renderTechnicalAnalysis(); // 4. 기술적 분석 (RSI 시뮬레이션)
+            renderValuationHeatmap(); // 5. 밸류에이션 히트맵
+            renderNews(); // 6. 뉴스
+            renderPortfolio(); // 7. 포트폴리오 (시세 시뮬레이션 및 차트 업데이트)
+            renderIdeaBoard(); // 8. 아이디어 보드 (상태 저장)
+            console.log('데이터 갱신 완료.');
+        };
+
+        // --- 헤더 기능 함수 ---
+
+        // 현재 날짜/시간 실시간 업데이트
+        const updateClock = () => {
+            const now = dayjs();
+            document.getElementById('current-datetime').innerText = now.format('YYYY년 MM월 DD일 ddd A hh:mm:ss');
+        };
+
+        // 다크/라이트 모드 토글
+        const toggleTheme = () => {
+            const body = document.body;
+            isDarkMode = !body.classList.contains('dark');
+            body.classList.toggle('dark', isDarkMode);
+            body.classList.toggle('light', !isDarkMode);
+
+            const icon = document.getElementById('theme-icon');
+            if (isDarkMode) {
+                icon.classList.remove('fa-moon', 'text-gray-200');
+                icon.classList.add('fa-sun', 'text-yellow-400');
+            } else {
+                icon.classList.remove('fa-sun', 'text-yellow-400');
+                icon.classList.add('fa-moon', 'text-gray-200');
+            }
+
+            setStorage(STORAGE_KEY_THEME, isDarkMode ? 'dark' : 'light');
+
+            // 차트 색상 업데이트
+            if (assetChart) {
+                assetChart.options.plugins.legend.labels.color = isDarkMode ? '#f8fafc' : '#1e293b';
+                assetChart.update();
+            }
+        };
+
+        // 모바일 햄버거 메뉴 토글
+        const toggleSidebar = () => {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('sidebar-hidden');
+            sidebar.classList.toggle('shadow-xl'); // 그림자 토글
+        };
+
+
+        // --- 초기화 함수 ---
+
+        const initializeDashboard = () => {
+            // 1. 테마 설정 로드 및 적용
+            const savedTheme = localStorage.getItem(STORAGE_KEY_THEME);
+            if (savedTheme === 'light') {
+                document.body.classList.remove('dark');
+                document.body.classList.add('light');
+                isDarkMode = false;
+            } else {
+                document.body.classList.add('dark');
+                isDarkMode = true;
+            }
+            toggleTheme(); // 초기 상태에 맞춰 아이콘 및 차트 색상 업데이트
+
+            // 2. 이벤트 리스너 설정
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
+
+            // 3. 초기 데이터 렌더링
+            refreshData();
+
+            // 4. 30초마다 데이터 자동 갱신 설정
+            setInterval(refreshData, 30000); // 30초
+            setInterval(updateClock, 1000); // 1초마다 시계 갱신
+
+            // 5. 모바일 환경에서 바깥 클릭 시 사이드바 닫기
+            document.getElementById('main-dashboard').addEventListener('click', () => {
+                const sidebar = document.getElementById('sidebar');
+                // 모바일 환경이고 (lg:hidden), 사이드바가 열려 있을 때만 닫기
+                if (window.innerWidth < 1024 && !sidebar.classList.contains('sidebar-hidden')) {
+                    toggleSidebar();
+                }
+            });
+        };
+
+        // window load 시 초기화
+        window.onload = initializeDashboard;
+    </script>
+</body>
+</html>

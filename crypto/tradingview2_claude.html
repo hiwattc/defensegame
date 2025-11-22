@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>김치프리미엄 실시간 차트</title>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .formula-info {
+            font-size: 0.9em;
+            opacity: 0.8;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .coin-selector {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .coin-btn {
+            padding: 12px 24px;
+            border: 2px solid white;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            font-size: 1em;
+        }
+
+        .coin-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .coin-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-subvalue {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .positive {
+            color: #10b981;
+        }
+
+        .negative {
+            color: #ef4444;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            min-height: 1000px;
+        }
+
+        .chart-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .premium-badge {
+            font-size: 0.6em;
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tradingview-widget-container {
+            height: 900px;
+            min-height: 900px;
+        }
+
+        .info-banner {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 25px;
+        }
+
+        .info-banner h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .info-banner ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-banner li {
+            margin: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .info-banner li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 700px;
+        }
+
+        .comparison-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .exchange-badge {
+            font-size: 0.7em;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .badge-upbit {
+            background: #003c7c;
+            color: white;
+        }
+
+        .badge-binance {
+            background: #f0b90b;
+            color: #000;
+        }
+
+        .tradingview-widget-container-small {
+            height: 600px;
+            min-height: 600px;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 1200px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+                    @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .tradingview-widget-container {
+                height: 500px;
+                min-height: 500px;
+            }
+
+            .tradingview-widget-container-small {
+                height: 400px;
+                min-height: 400px;
+            }
+
+            .chart-card {
+                min-height: 600px;
+            }
+
+            .comparison-card {
+                min-height: 500px;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .coin-btn {
+                padding: 10px 18px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🇰🇷 김치프리미엄 실시간 차트</h1>
+            <p class="subtitle">TradingView 스프레드 차트로 직접 계산</p>
+            <p class="formula-info">📊 (업비트KRW - 바이낸스USDT × FX_IDC:USDKRW) ÷ (바이낸스USDT × FX_IDC:USDKRW) × 100</p>
+        </header>
+
+        <div class="coin-selector" id="coinSelector">
+            <button class="coin-btn active" data-coin="BTC" data-upbit="UPBIT:BTCKRW" data-binance="BINANCE:BTCUSDT" data-binance-base="BINANCE:BTCUSD">비트코인 (BTC)</button>
+            <button class="coin-btn" data-coin="ETH" data-upbit="UPBIT:ETHKRW" data-binance="BINANCE:ETHUSDT" data-binance-base="BINANCE:ETHUSD">이더리움 (ETH)</button>
+            <button class="coin-btn" data-coin="XRP" data-upbit="UPBIT:XRPKRW" data-binance="BINANCE:XRPUSDT" data-binance-base="BINANCE:XRPUSD">리플 (XRP)</button>
+            <button class="coin-btn" data-coin="SOL" data-upbit="UPBIT:SOLKRW" data-binance="BINANCE:SOLUSDT" data-binance-base="BINANCE:SOLUSD">솔라나 (SOL)</button>
+            <button class="coin-btn" data-coin="ADA" data-upbit="UPBIT:ADAKRW" data-binance="BINANCE:ADAUSDT" data-binance-base="BINANCE:ADAUSD">에이다 (ADA)</button>
+            <button class="coin-btn" data-coin="DOGE" data-upbit="UPBIT:DOGEKRW" data-binance="BINANCE:DOGEUSDT" data-binance-base="BINANCE:DOGEUSD">도지코인 (DOGE)</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">현재 김치프리미엄</div>
+                <div class="stat-value" id="currentPremium">계산 중...</div>
+                <div class="stat-subvalue" id="premiumStatus">데이터 로딩 중</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">업비트 가격 (KRW)</div>
+                <div class="stat-value" id="upbitPrice">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">바이낸스 가격 (USD)</div>
+                <div class="stat-value" id="binancePrice">--</div>
+                <div class="stat-subvalue" id="binancePriceKRW">환율 적용: --</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">환율 (USD/KRW)</div>
+                <div class="stat-value" id="exchangeRate">--</div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-title">
+                <span>김치프리미엄 일봉 차트</span>
+                <span class="premium-badge">PREMIUM %</span>
+            </div>
+            <div class="tradingview-widget-container" id="premiumChart">
+                <div class="tradingview-widget-container__widget"></div>
+            </div>
+        </div>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <span>업비트 (KRW)</span>
+                    <span class="exchange-badge badge-upbit">UPBIT</span>
+                </div>
+                <div class="tradingview-widget-container-small" id="upbitChart">
+                    <div class="tradingview-widget-container__widget"></div>
+                </div>
+            </div>
+
+            <div class="comparison-card">
+                <div class="comparison-title">
+                    <span>바이낸스 (USDT)</span>
+                    <span class="exchange-badge badge-binance">BINANCE</span>
+                </div>
+                <div class="tradingview-widget-container-small" id="binanceChart">
+                    <div class="tradingview-widget-container__widget"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>TradingView 스프레드 차트 | 실시간 데이터 업데이트 | 투자 판단의 참고용으로만 사용하세요</p>
+        </footer>
+    </div>
+
+    <script>
+        let currentCoin = {
+            symbol: 'BTC',
+            upbit: 'UPBIT:BTCKRW',
+            binance: 'BINANCE:BTCUSDT',
+            binanceBase: 'BINANCE:BTCUSD'
+        };
+        let premiumWidget, upbitWidget, binanceWidget;
+
+        // 김치프리미엄 계산 심볼 생성
+        // 공식: (업비트KRW - 바이낸스USDT * FX_IDC:USDKRW) / (바이낸스USDT * FX_IDC:USDKRW) * 100
+        function getPremiumSymbol(upbit, binanceUsdt) {
+            return `(${upbit}-${binanceUsdt}*FX_IDC:USDKRW)/(${binanceUsdt}*FX_IDC:USDKRW)*100`;
+        }
+
+        // 김치프리미엄 차트 생성
+        function createPremiumChart() {
+            if (premiumWidget) {
+                document.getElementById('premiumChart').innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+            }
+
+            const premiumSymbol = getPremiumSymbol(currentCoin.upbit, currentCoin.binance);
+            
+            premiumWidget = new TradingView.widget({
+                "width": "100%",
+                "height": "100%",
+                "symbol": premiumSymbol,
+                "interval": "D",
+                "timezone": "Asia/Seoul",
+                "theme": "light",
+                "style": "1",
+                "locale": "kr",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": false,
+                "container_id": "premiumChart",
+                "studies": [
+                    "MASimple@tv-basicstudies",
+                    "BB@tv-basicstudies"
+                ],
+                "show_popup_button": true,
+                "popup_width": "1000",
+                "popup_height": "650"
+            });
+        }
+
+        // 업비트 차트 생성
+        function createUpbitChart() {
+            if (upbitWidget) {
+                document.getElementById('upbitChart').innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+            }
+            
+            upbitWidget = new TradingView.widget({
+                "width": "100%",
+                "height": "100%",
+                "symbol": currentCoin.upbit,
+                "interval": "D",
+                "timezone": "Asia/Seoul",
+                "theme": "light",
+                "style": "1",
+                "locale": "kr",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": false,
+                "container_id": "upbitChart",
+                "studies": [
+                    "MASimple@tv-basicstudies"
+                ]
+            });
+        }
+
+        // 바이낸스 차트 생성
+        function createBinanceChart() {
+            if (binanceWidget) {
+                document.getElementById('binanceChart').innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+            }
+
+            binanceWidget = new TradingView.widget({
+                "width": "100%",
+                "height": "100%",
+                "symbol": currentCoin.binance,
+                "interval": "D",
+                "timezone": "Asia/Seoul",
+                "theme": "light",
+                "style": "1",
+                "locale": "kr",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": false,
+                "container_id": "binanceChart",
+                "studies": [
+                    "MASimple@tv-basicstudies"
+                ]
+            });
+        }
+
+        // 모든 차트 생성
+        function createAllCharts() {
+            createPremiumChart();
+            createUpbitChart();
+            createBinanceChart();
+        }
+
+        // 실시간 가격 데이터 가져오기
+        async function fetchPriceData() {
+            try {
+                // 업비트 데이터
+                const upbitRes = await fetch(`https://api.upbit.com/v1/ticker?markets=KRW-${currentCoin.symbol}`);
+                const upbitData = await upbitRes.json();
+                const upbitPrice = upbitData[0].trade_price;
+
+                // 바이낸스 데이터
+                const binanceSymbol = `${currentCoin.symbol}USDT`;
+                const binanceRes = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
+                const binanceData = await binanceRes.json();
+                const binancePrice = parseFloat(binanceData.price);
+
+                // 실시간 환율
+                let exchangeRate = 1400;
+                try {
+                    const exchangeRes = await fetch('https://open.er-api.com/v6/latest/USD');
+                    const exchangeData = await exchangeRes.json();
+                    exchangeRate = exchangeData.rates.KRW;
+                } catch (error) {
+                    console.log('환율 API 사용 불가, 기본값 사용');
+                }
+
+                // 김치프리미엄 계산
+                const binancePriceKRW = binancePrice * exchangeRate;
+                const premium = ((upbitPrice - binancePriceKRW) / binancePriceKRW * 100);
+
+                // UI 업데이트
+                updateStats(upbitPrice, binancePrice, binancePriceKRW, premium, exchangeRate);
+
+            } catch (error) {
+                console.error('가격 데이터 조회 실패:', error);
+            }
+        }
+
+        // 통계 업데이트
+        function updateStats(upbitPrice, binancePrice, binancePriceKRW, premium, exchangeRate) {
+            const premiumEl = document.getElementById('currentPremium');
+            premiumEl.textContent = premium.toFixed(2) + '%';
+            premiumEl.className = 'stat-value ' + (premium > 0 ? 'positive' : 'negative');
+
+            const statusEl = document.getElementById('premiumStatus');
+            if (premium > 5) {
+                statusEl.textContent = '🔥 매우 높은 프리미엄';
+                statusEl.className = 'stat-subvalue positive';
+            } else if (premium > 2) {
+                statusEl.textContent = '📈 높은 프리미엄';
+                statusEl.className = 'stat-subvalue positive';
+            } else if (premium < -3) {
+                statusEl.textContent = '❄️ 마이너스 프리미엄';
+                statusEl.className = 'stat-subvalue negative';
+            } else if (premium < 0) {
+                statusEl.textContent = '📉 낮은 프리미엄';
+                statusEl.className = 'stat-subvalue negative';
+            } else {
+                statusEl.textContent = '📊 보통 수준';
+                statusEl.className = 'stat-subvalue';
+                statusEl.style.color = '#888';
+            }
+
+            document.getElementById('upbitPrice').textContent = '₩' + upbitPrice.toLocaleString('ko-KR', {maximumFractionDigits: 0});
+            document.getElementById('binancePrice').textContent = '$' + binancePrice.toLocaleString('en-US', {maximumFractionDigits: 2});
+            document.getElementById('binancePriceKRW').textContent = '환율 적용: ₩' + binancePriceKRW.toLocaleString('ko-KR', {maximumFractionDigits: 0});
+            document.getElementById('exchangeRate').textContent = '₩' + exchangeRate.toLocaleString('ko-KR', {maximumFractionDigits: 2});
+        }
+
+        // 코인 선택
+        document.querySelectorAll('.coin-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.coin-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                currentCoin = {
+                    symbol: e.target.dataset.coin,
+                    upbit: e.target.dataset.upbit,
+                    binance: e.target.dataset.binance,
+                    binanceBase: e.target.dataset.binanceBase
+                };
+
+                createAllCharts();
+                fetchPriceData();
+            });
+        });
+
+        // 초기화
+        createAllCharts();
+        fetchPriceData();
+        
+        // 30초마다 가격 업데이트
+        setInterval(fetchPriceData, 30000);
+    </script>
+</body>
+</html>

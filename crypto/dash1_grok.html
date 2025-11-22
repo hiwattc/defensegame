@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>나만의 주식 투자 대시보드 v1.0</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Pretendard"', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SortableJS (드래그 앤 드롭) -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <!-- Luxon -->
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+  <!-- 헤더 -->
+  <header class="fixed top-0 left-0 right-0 bg-gray-800 border-b border-gray-700 z-50">
+    <div class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-4">
+        <button id="menuBtn" class="lg:hidden text-2xl"><i class="fas fa-bars"></i></button>
+        <h1 class="text-xl font-bold">나만의 주식 투자 대시보드 v1.0</h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <button id="themeToggle" class="text-2xl"><i class="fas fa-moon"></i></button>
+        <div id="clock" class="font-mono text-sm"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 pt-16">
+    <!-- 사이드바 -->
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 w-64 bg-gray-800 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 z-40 pt-16 lg:pt-0">
+      <div class="p-4">
+        <h2 class="text-lg font-semibold mb-3 flex items-center justify-between">
+          즐겨찾기 종목
+          <button id="addFavoriteBtn" class="text-sm text-blue-400"><i class="fas fa-plus"></i></button>
+        </h2>
+        <ul id="favoriteList" class="space-y-2"></ul>
+      </div>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="flex-1 p-4 lg:p-6 overflow-x-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 auto-rows-min">
+        <!-- 1. 시장 전반 요약 (TradingView Market Overview Widget) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">시장 전반 요약</h2>
+            <button onclick="refreshMarket()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <!-- TradingView Market Overview Widget -->
+          <div class="tradingview-widget-container" style="height:400px; width:100%;">
+            <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px); width:100%;"></div>
+            <div class="tradingview-widget-copyright">
+              <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                <span class="blue-text">Track all markets on TradingView</span>
+              </a>
+            </div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+            {
+              "colorTheme": "dark",
+              "dateRange": "12M",
+              "showChart": true,
+              "locale": "kr",
+              "width": "100%",
+              "height": "400",
+              "largeChartUrl": "",
+              "isTransparent": false,
+              "showSymbolLogo": true,
+              "showFloatingTooltip": false,
+              "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
+              "plotLineColorFalling": "rgba(41, 98, 255, 1)",
+              "gridLineColor": "rgba(240, 243, 250, 1)",
+              "scaleFontColor": "rgba(120, 123, 134, 1)",
+              "belowLineFillColorGrowing": "rgba(41, 98, 255, 0.12)",
+              "belowLineFillColorFalling": "rgba(41, 98, 255, 0.12)",
+              "belowLineFillColorGrowingBottom": "rgba(41, 98, 255, 0)",
+              "belowLineFillColorFallingBottom": "rgba(41, 98, 255, 0)",
+              "symbolActiveColor": "rgba(41, 98, 255, 0.12)",
+              "tabs": [
+                {
+                  "title": "Indices",
+                  "title_ru": "Индексы",
+                  "title_de": "Indizes",
+                  "title_fr": "Indices",
+                  "title_it": "Indici",
+                  "title_es": "Índices",
+                  "title_pt": "Índices",
+                  "title_pl": "Indeksy",
+                  "title_uk": "Індекси",
+                  "title_ja": "指数",
+                  "title_zh": "指数",
+                  "symbols": [
+                    {
+                      "s": "INDEX:KOSPI",
+                      "d": "KOSPI"
+                    },
+                    {
+                      "s": "INDEX:KOSDAQ",
+                      "d": "KOSDAQ"
+                    },
+                    {
+                      "s": "INDEX:SPX",
+                      "d": "S&P500"
+                    },
+                    {
+                      "s": "INDEX:NASDAQ",
+                      "d": "NASDAQ"
+                    },
+                    {
+                      "s": "INDEX:DJI",
+                      "d": "Dow Jones"
+                    },
+                    {
+                      "s": "TVC:US10Y",
+                      "d": "US 10Y"
+                    },
+                    {
+                      "s": "FX_IDC:USDKRW",
+                      "d": "USD/KRW"
+                    }
+                  ]
+                }
+              ]
+            }
+            </script>
+          </div>
+        </section>
+
+        <!-- 2. 관심종목 시세 테이블 (TradingView Symbol Overview Widget) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg md:col-span-2 xl:col-span-3">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">나의 관심종목 실시간 시세</h2>
+            <button onclick="refreshWatchlist()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <!-- TradingView Symbol Overview Widget -->
+          <div class="tradingview-widget-container" style="height:500px; width:100%;">
+            <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px); width:100%;"></div>
+            <div class="tradingview-widget-copyright">
+              <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                <span class="blue-text">Track all markets on TradingView</span>
+              </a>
+            </div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js" async>
+            {
+              "symbols": [
+                [
+                  "삼성전자",
+                  "KRX:005930|1D"
+                ],
+                [
+                  "SK하이닉스",
+                  "KRX:000660|1D"
+                ],
+                [
+                  "LG에너지솔루션",
+                  "KRX:373220|1D"
+                ],
+                [
+                  "현대차",
+                  "KRX:005380|1D"
+                ],
+                [
+                  "셀트리온",
+                  "KRX:068270|1D"
+                ],
+                [
+                  "NAVER",
+                  "KRX:035420|1D"
+                ],
+                [
+                  "POSCO홀딩스",
+                  "KRX:005490|1D"
+                ]
+              ],
+              "width": "100%",
+              "height": "500",
+              "locale": "kr",
+              "colorTheme": "dark",
+              "showVolume": true,
+              "showMA": true,
+              "hideDateRanges": false,
+              "hideSymbolDescriptions": false,
+              "hideLegend": false,
+              "isTransparent": false,
+              "showChart": true
+            }
+            </script>
+          </div>
+        </section>
+
+        <!-- 3. 경제 캘린더 (Finnhub Economic Calendar API) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">경제 캘린더 (이번주)</h2>
+            <button onclick="loadEconomicCalendar()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <div id="economicCalendar" class="text-sm space-y-2 max-h-96 overflow-y-auto"></div>
+        </section>
+
+        <!-- 4. 기술적 분석 지표 (TradingView Technical Analysis Widget) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">기술적 분석 (삼성전자)</h2>
+            <button onclick="refreshTA()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <!-- TradingView Technical Analysis Widget -->
+          <div class="tradingview-widget-container" style="height:400px; width:100%;">
+            <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px); width:100%;"></div>
+            <div class="tradingview-widget-copyright">
+              <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                <span class="blue-text">Technical Analysis</span>
+              </a>
+            </div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+            {
+              "autosize": true,
+              "symbol": "KRX:005930",
+              "interval": "1D",
+              "theme": "dark",
+              "locale": "kr",
+              "width": "100%",
+              "height": "400",
+              "isTransparent": false,
+              "showSummary": true,
+              "showLegend": true,
+              "showOscillators": true,
+              "showMovingAverages": true
+            }
+            </script>
+          </div>
+        </section>
+
+        <!-- 5. 업종 밸류에이션 히트맵 (하드코딩 유지) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">업종 밸류에이션 히트맵</h2>
+            <button onclick="refreshHeatmap()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <div id="valuationHeatmap" class="grid grid-cols-3 gap-3 text-xs"></div>
+        </section>
+
+        <!-- 6. 주요 뉴스 (Finnhub Market News API) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg md:col-span-2">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">주요 뉴스 & 핫이슈</h2>
+            <button onclick="loadNews()" class="text-gray-400 hover:text-white"><i class="fas fa-sync"></i></button>
+          </div>
+          <div id="newsList" class="space-y-3 text-sm max-h-96 overflow-y-auto"></div>
+        </section>
+
+        <!-- 7. 포트폴리오 현황 (Chart.js 유지) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg md:col-span-2 xl:col-span-1">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold">포트폴리오 현황</h2>
+          </div>
+          <canvas id="portfolioChart" height="200"></canvas>
+          <div class="mt-4 text-center">
+            <div class="text-2xl font-bold">₩ 158,420,000</div>
+            <div class="text-green-400">+12.84% (+₩18,020,000)</div>
+          </div>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-xs"><tbody id="portfolioTable"></tbody></table>
+          </div>
+        </section>
+
+        <!-- 8. 투자 아이디어 보드 (유지) -->
+        <section class="bg-gray-800 rounded-xl p-5 shadow-lg md:col-span-2 xl:col-span-4">
+          <h2 class="text-lg font-semibold mb-3">투자 아이디어 보드</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-gray-700 rounded-lg p-4 min-h-64">
+              <h3 class="font-medium text-blue-400 mb-2">관심</h3>
+              <div class="kanban-column" data-status="interest"></div>
+            </div>
+            <div class="bg-gray-700 rounded-lg p-4 min-h-64">
+              <h3 class="font-medium text-yellow-400 mb-2">검토중</h3>
+              <div class="kanban-column" data-status="review"></div>
+            </div>
+            <div class="bg-gray-700 rounded-lg p-4 min-h-64">
+              <h3 class="font-medium text-green-400 mb-2">매수완료</h3>
+              <div class="kanban-column" data-status="bought"></div>
+            </div>
+            <div class="bg-gray-700 rounded-lg p-4 min-h-64">
+              <h3 class="font-medium text-red-400 mb-2">보류</h3>
+              <div class="kanban-column" data-status="hold"></div>
+            </div>
+          </div>
+          <button id="addIdeaBtn" class="mt-4 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded">+ 아이디어 추가</button>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- 오버레이 (모바일 사이드바 닫기용) -->
+  <div id="overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-30 lg:hidden"></div>
+
+<script>
+// ==================== 전역 변수 ====================
+const { DateTime } = luxon;
+
+// Finnhub API 키 (사용자는 https://finnhub.io/ 에서 무료로 발급받아 치환하세요)
+const FINNHUB_API_KEY = 'YOUR_FINNHUB_API_KEY_HERE'; // 실제 키로 교체
+
+// watchlist symbols for TradingView (KRX:SYMBOL)
+let watchlist = [
+  {symbol:"005930", name:"삼성전자", tv:"KRX:005930"},
+  {symbol:"000660", name:"SK하이닉스", tv:"KRX:000660"},
+  {symbol:"373220", name:"LG에너지솔루션", tv:"KRX:373220"},
+  {symbol:"005380", name:"현대차", tv:"KRX:005380"},
+  {symbol:"068270", name:"셀트리온", tv:"KRX:068270"},
+  {symbol:"035420", name:"NAVER", tv:"KRX:035420"},
+  {symbol:"005490", name:"POSCO홀딩스", tv:"KRX:005490"}
+];
+
+const sectors = [
+  {name:"반도체", per:24.5}, {name:"2차전지", per:42.1}, {name:"자동차", per:8.7},
+  {name:"바이오", per:35.2}, {name:"인터넷", per:28.9}, {name:"게임", per:18.4},
+  {name:"은행", per:6.3}, {name:"정유", per:9.1}, {name:"철강", per:12.4},
+  {name:"조선", per:15.8}, {name:"건설", per:11.2}, {name:"항공", per:22.7}
+];
+
+// ==================== 초기화 ====================
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  initClock();
+  initFavorites();
+  initPortfolio();
+  initIdeaBoard();
+  initKanban();
+
+  renderAll();
+
+  // 30초마다 갱신
+  setInterval(renderAll, 30000);
+});
+
+// ==================== 테마 ====================
+function initTheme() {
+  const saved = localStorage.getItem('darkMode');
+  if (saved === 'light' || (!saved && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+    document.documentElement.classList.remove('dark');
+    document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
+  }
+}
+document.getElementById('themeToggle').addEventListener('click', () => {
+  document.documentElement.classList.toggle('dark');
+  const isDark = document.documentElement.classList.contains('dark');
+  localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
+  document.getElementById('themeToggle').innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+});
+
+// ==================== 시계 ====================
+function initClock() {
+  const update = () => {
+    const now = DateTime.now().setZone('Asia/Seoul');
+    document.getElementById('clock').textContent = now.toFormat('yyyy-MM-dd HH:mm:ss');
+  };
+  update();
+  setInterval(update, 1000);
+}
+
+// ==================== 사이드바 (모바일) ====================
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('-translate-x-full');
+  document.getElementById('overlay').classList.toggle('hidden');
+});
+document.getElementById('overlay').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.add('-translate-x-full');
+  document.getElementById('overlay').classList.add('hidden');
+});
+
+// ==================== 즐겨찾기 ====================
+function initFavorites() {
+  const saved = localStorage.getItem('favorites');
+  if (saved) watchlist = JSON.parse(saved);
+  renderFavorites();
+}
+function renderFavorites() {
+  const ul = document.getElementById('favoriteList');
+  ul.innerHTML = '';
+  watchlist.forEach((stock, i) => {
+    const li = document.createElement('li');
+    li.className = 'bg-gray-700 rounded px-3 py-2 flex justify-between items-center cursor-move';
+    li.draggable = true;
+    li.dataset.index = i;
+    li.innerHTML = `
+      <span>${stock.name}</span>
+      <button onclick="removeFavorite(${i})" class="text-red-400 text-xs"><i class="fas fa-times"></i></button>
+    `;
+    ul.appendChild(li);
+  });
+  new Sortable(ul, {
+    animation: 150,
+    onEnd: () => {
+      const items = Array.from(ul.children);
+      watchlist = items.map(li => watchlist[li.dataset.index]);
+      localStorage.setItem('favorites', JSON.stringify(watchlist));
+      refreshWatchlist(); // Symbol Overview 위젯 갱신 (동적 업데이트는 TradingView에서 처리)
+    }
+  });
+}
+function removeFavorite(idx) {
+  watchlist.splice(idx, 1);
+  localStorage.setItem('favorites', JSON.stringify(watchlist));
+  renderFavorites();
+  refreshWatchlist();
+}
+document.getElementById('addFavoriteBtn').addEventListener('click', () => {
+  const name = prompt('종목명을 입력하세요 (TradingView 심볼 예: KRX:005930)');
+  if (name) {
+    watchlist.push({symbol:"", name, tv:name});
+    localStorage.setItem('favorites', JSON.stringify(watchlist));
+    renderFavorites();
+    refreshWatchlist();
+  }
+});
+
+// ==================== 전체 렌더링 ====================
+function renderAll() {
+  refreshMarket();
+  refreshWatchlist();
+  loadEconomicCalendar();
+  refreshTA();
+  refreshHeatmap();
+  loadNews();
+}
+
+// 1. 시장 전반 요약 (TradingView 위젯 자동 실시간)
+function refreshMarket() {
+  // 위젯이 자동 업데이트하므로 리로드 불필요
+}
+
+// 2. 관심종목 테이블 (TradingView 위젯 자동 실시간)
+function refreshWatchlist() {
+  // 위젯이 자동 업데이트
+}
+
+// 3. 경제 캘린더 (Finnhub API 연동)
+async function loadEconomicCalendar() {
+  const container = document.getElementById('economicCalendar');
+  try {
+    const now = DateTime.now().setZone('UTC');
+    const from = now.toFormat('yyyy-MM-dd');
+    const to = now.plus({days: 7}).toFormat('yyyy-MM-dd');
+    const url = `https://finnhub.io/api/v1/calendar/economic?from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.economicCalendar && data.economicCalendar.length > 0) {
+      container.innerHTML = data.economicCalendar.slice(0, 5).map(event => {
+        const date = DateTime.fromISO(event.date).setZone('Asia/Seoul').toFormat('yyyy-MM-dd');
+        const country = event.country || 'US';
+        const name = event.event;
+        const prev = event.previous || 'N/A';
+        const est = event.estimate || 'N/A';
+        return `
+          <div class="flex justify-between bg-gray-700 rounded px-3 py-2">
+            <div>
+              <span class="text-gray-400">${date}</span> ${country} ${name}
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-gray-400">예상 ${est}</div>
+              <div class="text-xs">이전 ${prev}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      container.innerHTML = '<div class="text-gray-400">데이터를 불러오는 중...</div>';
+    }
+  } catch (error) {
+    console.error('Economic Calendar API Error:', error);
+    container.innerHTML = '<div class="text-red-400">API 키를 확인하세요</div>';
+  }
+}
+
+// 4. 기술적 분석 (TradingView 위젯 자동 실시간)
+function refreshTA() {
+  // 위젯 자동
+}
+
+// 5. 히트맵
+function refreshHeatmap() {
+  const container = document.getElementById('valuationHeatmap');
+  container.innerHTML = sectors.map(s => {
+    const per = s.per;
+    const color = per < 12 ? 'bg-green-600' : per < 20 ? 'bg-yellow-600' : per < 30 ? 'bg-orange-600' : 'bg-red-600';
+    return `<div class="text-center p-3 rounded ${color} text-white">
+      <div class="font-medium">${s.name}</div>
+      <div class="text-xl font-bold">${per.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+}
+
+// 6. 뉴스 (Finnhub Market News API 연동, 한국 관련 뉴스 필터)
+async function loadNews() {
+  const container = document.getElementById('newsList');
+  try {
+    const url = `https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data && data.length > 0) {
+      // 한국 관련 뉴스 필터 (headline에 'Korea' 또는 'KRX' 포함)
+      const koreanNews = data.filter(n => n.headline.toLowerCase().includes('korea') || n.headline.toLowerCase().includes('kospi') || n.headline.toLowerCase().includes('kosdaq') || n.symbols?.some(s => s.startsWith('KRX:')));
+      container.innerHTML = koreanNews.slice(0, 6).map(n => `
+        <div class="bg-gray-700 rounded p-3 hover:bg-gray-600 cursor-pointer" onclick="window.open('${n.url}', '_blank')">
+          <div class="font-medium">${n.headline}</div>
+          <div class="text-xs text-gray-400 mt-1">${n.source || 'Finnhub'} · ${DateTime.fromISO(n.datetime).setZone('Asia/Seoul').toRelativeCalendar()} 전</div>
+        </div>
+      `).join('');
+    } else {
+      container.innerHTML = '<div class="text-gray-400">뉴스 데이터를 불러오는 중...</div>';
+    }
+  } catch (error) {
+    console.error('News API Error:', error);
+    container.innerHTML = '<div class="text-red-400">API 키를 확인하세요</div>';
+  }
+}
+
+// 7. 포트폴리오
+let portfolioChart;
+function initPortfolio() {
+  const ctx = document.getElementById('portfolioChart').getContext('2d');
+  portfolioChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['현금', '국내주식', '미국주식', '채권', '코인'],
+      datasets: [{
+        data: [15, 45, 25, 10, 5],
+        backgroundColor: ['#4ade80', '#3b82f6', '#f59e0b', '#ec4899', '#a78bfa']
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+
+  const tbody = document.getElementById('portfolioTable');
+  const holdings = [
+    {name:"삼성전자", qty:120, avg:68200, cur:95050},
+    {name:"SK하이닉스", qty:50, avg:152000, cur:524000},
+    {name:"TSLA", qty:30, avg:240, cur:268},
+    {name:"비트코인", qty:0.5, avg:48000, cur:63200}
+  ];
+  tbody.innerHTML = holdings.map(h => {
+    const profit = (h.cur - h.avg) * h.qty;
+    const rate = ((h.cur - h.avg)/h.avg*100).toFixed(2);
+    return `<tr class="border-b border-gray-700">
+      <td class="py-2">${h.name}</td>
+      <td class="py-2 text-right">${h.qty}주</td>
+      <td class="py-2 text-right">${h.avg.toLocaleString()}</td>
+      <td class="py-2 text-right">${h.cur.toLocaleString()}</td>
+      <td class="py-2 text-right ${profit>=0?'text-green-400':'text-red-400'}">${profit>=0?'+' : ''}${profit.toLocaleString()}</td>
+      <td class="py-2 text-right ${profit>=0?'text-green-400':'text-red-400'}">${rate}%</td>
+    </tr>`;
+  }).join('');
+}
+
+// 8. 아이디어 보드
+function initIdeaBoard() {
+  const saved = localStorage.getItem('ideaBoard');
+  if (saved) {
+    const ideas = JSON.parse(saved);
+    ideas.forEach(idea => addIdeaCard(idea.text, idea.status));
+  }
+}
+function addIdeaCard(text, status = 'interest') {
+  const column = document.querySelector(`.kanban-column[data-status="${status}"]`);
+  const div = document.createElement('div');
+  div.className = 'bg-gray-600 rounded p-3 mb-3 cursor-move text-sm';
+  div.textContent = text;
+  div.dataset.status = status;
+  column.appendChild(div);
+}
+document.getElementById('addIdeaBtn').addEventListener('click', () => {
+  const text = prompt('투자 아이디어를 입력하세요');
+  if (text) {
+    addIdeaCard(text);
+    saveIdeaBoard();
+  }
+});
+function initKanban() {
+  document.querySelectorAll('.kanban-column').forEach(col => {
+    new Sortable(col, {
+      group: 'kanban',
+      animation: 150,
+      onEnd: saveIdeaBoard
+    });
+  });
+}
+function saveIdeaBoard() {
+  const ideas = [];
+  document.querySelectorAll('.kanban-column > div').forEach(card => {
+    ideas.push({text: card.textContent, status: card.parentElement.dataset.status});
+  });
+  localStorage.setItem('ideaBoard', JSON.stringify(ideas));
+}
+</script>
+</body>
+</html>

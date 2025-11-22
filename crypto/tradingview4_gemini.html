@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇰🇷 김치프리미엄 실시간 차트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        /*
+        * ----------------------------------------
+        * CSS Styles
+        * ----------------------------------------
+        */
+
+        :root {
+            --bg-start: #667eea;
+            --bg-end: #764ba2;
+            --card-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --color-positive: #10b981; /* 초록색 */
+            --color-negative: #ef4444; /* 빨간색 */
+            --color-neutral: #374151; /* 진한 회색 */
+            --color-primary: #667eea; /* 버튼 기본색 */
+            --color-hover: #5a68d0; /* 버튼 호버색 */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+            color: var(--color-neutral);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- Header & Typography --- */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .header .formula {
+            font-size: 0.9rem;
+            padding: 8px 15px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+
+        /* --- Coin Selection Buttons --- */
+        .coin-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .coin-button {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px; /* 둥근 알약 모양 */
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        .coin-button:hover {
+            background-color: var(--color-hover);
+        }
+
+        .coin-button.active {
+            background-color: var(--color-primary);
+            box-shadow: 0 4px 10px var(--shadow-color);
+        }
+
+        /* --- Statistics Cards --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 1rem;
+            color: #6b7280;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            word-break: break-word;
+        }
+        
+        .premium-status {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .positive { color: var(--color-positive); }
+        .negative { color: var(--color-negative); }
+        .neutral { color: var(--color-neutral); }
+
+        /* --- Chart Area --- */
+        .chart-area {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            margin-bottom: 30px;
+        }
+        
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+
+        /* Main Chart (Kimchi Premium) */
+        #kimchi-premium-chart {
+            height: 900px; /* 데스크톱 기본 높이 */
+            min-height: 500px; /* 최소 높이 보장 */
+        }
+        
+        /* Comparison Charts */
+        .comparison-charts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2열 그리드 */
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .comparison-chart-item {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+        
+        .comparison-chart-item .chart-title {
+            font-size: 1.25rem;
+        }
+        
+        .upbit-chart, .binance-chart {
+            height: 600px; /* 데스크톱 기본 높이 */
+            min-height: 400px; /* 최소 높이 보장 */
+        }
+
+        /* --- Footer --- */
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            padding: 15px 0;
+        }
+
+        /* --- Responsive Design (Media Queries) --- */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            #kimchi-premium-chart {
+                height: 700px; 
+            }
+            
+            .upbit-chart, .binance-chart {
+                height: 500px; 
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+            
+            .coin-button {
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr; /* 모바일에서 1열 */
+            }
+
+            #kimchi-premium-chart {
+                height: 500px; /* 모바일 높이 */
+                min-height: 400px;
+            }
+
+            .comparison-charts {
+                grid-template-columns: 1fr; /* 모바일에서 1열 */
+            }
+            
+            .upbit-chart, .binance-chart {
+                height: 400px; /* 모바일 높이 */
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1>🇰🇷 김치프리미엄 실시간 차트</h1>
+            <p>TradingView 스프레드 차트로 직접 계산</p>
+            <div class="formula">
+                수식: 📊 (업비트KRW - 바이낸스USDT × FX_IDC:USDKRW) ÷ (바이낸스USDT × FX_IDC:USDKRW) × 100
+            </div>
+        </header>
+
+        <section class="coin-selector" id="coin-selector">
+            </section>
+
+        <section class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3>현재 김치프리미엄</h3>
+                <p class="stat-value" id="premium-percent">--</p>
+                <p class="premium-status" id="premium-status">데이터 로딩 중...</p>
+            </div>
+            <div class="stat-card">
+                <h3>업비트 (KRW)</h3>
+                <p class="stat-value neutral" id="upbit-krw">--</p>
+            </div>
+            <div class="stat-card">
+                <h3>바이낸스 (USD/KRW)</h3>
+                <p class="stat-value neutral" id="binance-usd-krw">--</p>
+            </div>
+            <div class="stat-card">
+                <h3>현재 환율 (USD/KRW)</h3>
+                <p class="stat-value neutral" id="current-exchange-rate">--</p>
+            </div>
+        </section>
+
+        <section class="chart-area">
+            <h2 class="chart-title">✅ 김치프리미엄 (%) 일봉 차트</h2>
+            <div id="kimchi-premium-chart"></div>
+
+            <div class="comparison-charts">
+                <div class="comparison-chart-item">
+                    <h3 class="chart-title">📈 업비트 KRW 가격 차트</h3>
+                    <div class="upbit-chart" id="upbit-chart"></div>
+                </div>
+                <div class="comparison-chart-item">
+                    <h3 class="chart-title">🌐 바이낸스 USDT 가격 차트</h3>
+                    <div class="binance-chart" id="binance-chart"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        TradingView 스프레드 차트 | 실시간 데이터 업데이트 | 투자 판단의 참고용으로만 사용하세요
+    </footer>
+
+    <script>
+        /*
+        * ----------------------------------------
+        * JavaScript Logic
+        * ----------------------------------------
+        */
+
+        // 코인 및 심볼 매핑
+        const COINS = {
+            'BTC': { name: '비트코인', upbit: 'UPBIT:BTCKRW', binance: 'BINANCE:BTCUSDT' },
+            'ETH': { name: '이더리움', upbit: 'UPBIT:ETHKRW', binance: 'BINANCE:ETHUSDT' },
+            'XRP': { name: '리플', upbit: 'UPBIT:XRPKRW', binance: 'BINANCE:XRPUSDT' },
+            'SOL': { name: '솔라나', upbit: 'UPBIT:SOLKRW', binance: 'BINANCE:SOLUSDT' },
+            'ADA': { name: '에이다', upbit: 'UPBIT:ADAKRW', binance: 'BINANCE:ADAUSDT' },
+            'DOGE': { name: '도지코인', upbit: 'UPBIT:DOGEKRW', binance: 'BINANCE:DOGEUSDT' },
+        };
+        const EXCHANGE_SYMBOL = 'FX_IDC:USDKRW'; // TradingView 공식 환율 심볼
+        let currentCoin = 'BTC'; // 기본 코인 설정
+        let tvWidget = null;
+
+        // TradingView 차트 기본 설정
+        const TV_WIDGET_DEFAULTS = {
+            interval: 'D', // 일봉
+            timezone: 'Asia/Seoul',
+            theme: 'light',
+            locale: 'ko',
+            autosize: true,
+            toolbar_bg: '#f1f3f6',
+            enable_publishing: false,
+            allow_symbol_change: false, // 심볼 변경 비활성화
+            hide_side_toolbar: true,
+            withdateranges: true,
+            studies: [
+                { id: "MAExp@tv-basicstudies", inputs: { length: 20 } }, // 20일 이동평균선
+                { id: "BB@tv-basicstudies" } // 볼린저 밴드
+            ]
+        };
+
+        /**
+         * TradingView 위젯을 초기화하고 DOM에 삽입합니다.
+         * @param {string} symbol - TradingView 심볼 (수식 또는 일반 심볼)
+         * @param {string} containerId - 차트가 들어갈 DOM ID
+         * @param {string} chartType - 차트 유형 ('premium', 'price')
+         */
+        function createTradingViewWidget(symbol, containerId, chartType) {
+            const container = document.getElementById(containerId);
+            // 기존 차트 제거 (찌그러짐 방지 및 재생성)
+            container.innerHTML = ''; 
+
+            new TradingView.widget({
+                ...TV_WIDGET_DEFAULTS,
+                symbol: symbol,
+                container: containerId,
+                height: chartType === 'premium' ? (window.innerWidth <= 768 ? 500 : 900) : (window.innerWidth <= 768 ? 400 : 600),
+                // premium 차트에만 수식 관련 추가 설정
+                ...(chartType === 'premium' && {
+                    studies: [], // 스프레드 차트에서는 지표 제거
+                    range: 'ALL',
+                    range_selection: true,
+                    // custom_formatters: { time: (t) => new Date(t * 1000).toLocaleString('ko-KR', { dateStyle: 'short' }) }
+                })
+            });
+        }
+
+        /**
+         * 선택된 코인에 맞춰 TradingView 차트 3개를 모두 로드합니다.
+         */
+        function loadCharts(coin) {
+            const coinData = COINS[coin];
+            if (!coinData) return;
+
+            // 1. 김치프리미엄 스프레드 차트 (수식 적용)
+            // 수식: (UPBIT:KRW - BINANCE:USDT * FX_IDC:USDKRW) / (BINANCE:USDT * FX_IDC:USDKRW) * 100
+            const kimchiFormula = `((${coinData.upbit} - (${coinData.binance} * ${EXCHANGE_SYMBOL})) / (${coinData.binance} * ${EXCHANGE_SYMBOL})) * 100`;
+            createTradingViewWidget(kimchiFormula, 'kimchi-premium-chart', 'premium');
+
+            // 2. 업비트 KRW 가격 차트
+            createTradingViewWidget(coinData.upbit, 'upbit-chart', 'price');
+
+            // 3. 바이낸스 USDT 가격 차트
+            createTradingViewWidget(coinData.binance, 'binance-chart', 'price');
+        }
+
+        /**
+         * 실시간 API를 호출하여 통계 카드를 업데이트합니다.
+         */
+        async function updateStats() {
+            const coin = currentCoin;
+            const upbitCode = `KRW-${coin}`;
+            const binanceCode = `${coin}USDT`;
+            
+            // API 엔드포인트
+            const upbitApiUrl = `https://api.upbit.com/v1/ticker?markets=${upbitCode}`;
+            const binanceApiUrl = `https://api.binance.com/api/v3/ticker/price?symbol=${binanceCode}`;
+            const exchangeApiUrl = 'https://open.er-api.com/v6/latest/USD';
+
+            let upbitPrice = 0;
+            let binancePriceUSD = 0;
+            let exchangeRate = 0;
+
+            try {
+                // 1. 환율 API 호출
+                const exchangeResponse = await fetch(exchangeApiUrl);
+                const exchangeData = await exchangeResponse.json();
+                exchangeRate = exchangeData.rates.KRW;
+                document.getElementById('current-exchange-rate').textContent = `${exchangeRate.toFixed(2)} KRW`;
+
+                // 2. 업비트 API 호출
+                const upbitResponse = await fetch(upbitApiUrl);
+                const upbitData = await upbitResponse.json();
+                upbitPrice = upbitData[0].trade_price;
+                document.getElementById('upbit-krw').textContent = `${upbitPrice.toLocaleString()} KRW`;
+
+                // 3. 바이낸스 API 호출
+                const binanceResponse = await fetch(binanceApiUrl);
+                const binanceData = await binanceResponse.json();
+                binancePriceUSD = parseFloat(binanceData.price);
+                
+                // 바이낸스 KRW 환산 가격 계산
+                const binancePriceKRW = binancePriceUSD * exchangeRate;
+                document.getElementById('binance-usd-krw').textContent = `${binancePriceUSD.toFixed(2)} USD / ${binancePriceKRW.toLocaleString()} KRW`;
+
+                // 4. 김치프리미엄 계산
+                // 수식: (업비트KRW - 바이낸스KRW) / 바이낸스KRW * 100
+                const premium = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
+
+                // 5. 통계 카드 업데이트
+                updatePremiumDisplay(premium);
+
+            } catch (error) {
+                console.error('API 업데이트 오류:', error);
+                document.getElementById('premium-status').textContent = '데이터 로드 실패';
+            }
+        }
+
+        /**
+         * 김치프리미엄 값에 따라 텍스트와 색상을 변경합니다.
+         * @param {number} premium - 김치프리미엄 값 (%)
+         */
+        function updatePremiumDisplay(premium) {
+            const premiumEl = document.getElementById('premium-percent');
+            const statusEl = document.getElementById('premium-status');
+            
+            premiumEl.textContent = `${premium.toFixed(2)} %`;
+            premiumEl.className = 'stat-value'; // 초기화
+
+            let statusText = '';
+            let statusClass = 'neutral';
+
+            if (premium >= 5) {
+                statusText = '🔥 매우 높은 프리미엄';
+                statusClass = 'positive';
+            } else if (premium >= 2) {
+                statusText = '📈 높은 프리미엄';
+                statusClass = 'positive';
+            } else if (premium >= 0) {
+                statusText = '📊 보통 수준';
+                statusClass = 'neutral';
+            } else { // premium < 0
+                statusText = '📉 낮은 프리미엄';
+                statusClass = 'negative';
+            }
+
+            premiumEl.classList.add(statusClass);
+            statusEl.textContent = statusText;
+            statusEl.className = 'premium-status ' + statusClass;
+        }
+
+        /**
+         * 코인 선택 버튼을 생성하고 이벤트 리스너를 추가합니다.
+         */
+        function createCoinButtons() {
+            const selector = document.getElementById('coin-selector');
+            Object.keys(COINS).forEach(coin => {
+                const button = document.createElement('button');
+                button.textContent = `${COINS[coin].name} (${coin})`;
+                button.className = 'coin-button';
+                button.dataset.coin = coin;
+
+                button.addEventListener('click', () => {
+                    // 모든 버튼 active 클래스 제거
+                    document.querySelectorAll('.coin-button').forEach(btn => btn.classList.remove('active'));
+                    
+                    // 현재 버튼 active 클래스 추가
+                    button.classList.add('active');
+                    
+                    // 선택된 코인 업데이트 및 차트/통계 로드
+                    currentCoin = coin;
+                    loadCharts(currentCoin);
+                    updateStats();
+                });
+
+                selector.appendChild(button);
+            });
+            
+            // 기본 코인 버튼 활성화
+            document.querySelector(`.coin-button[data-coin="${currentCoin}"]`).classList.add('active');
+        }
+
+        /**
+         * 페이지 로드 시 초기화 함수
+         */
+        function init() {
+            createCoinButtons();
+            loadCharts(currentCoin); // 기본 차트 로드
+            updateStats(); // 초기 통계 업데이트
+
+            // 30초마다 자동 업데이트 설정
+            setInterval(updateStats, 30000); // 30000ms = 30초
+        }
+
+        // TradingView 라이브러리가 로드된 후 초기화 실행
+        window.addEventListener('load', init);
+        
+        // 창 크기 변경 시 차트 높이 조정 (반응형 대응)
+        window.addEventListener('resize', () => {
+             // 차트 DOM이 살아있다면, 리사이즈 시 차트 높이 재설정을 위해 재생성하는 것이 좋습니다.
+             // TradingView 위젯은 자체적으로 height 값을 window 크기에 따라 조정하지 않으므로, 
+             // DOM을 비우고 다시 위젯을 생성해야 완벽한 반응형 높이를 구현할 수 있습니다.
+             // 하지만 이는 성능 저하를 일으킬 수 있으므로, 미디어 쿼리로 CSS height/min-height를 조정하고
+             // TradingView 위젯의 'autosize: true'에 의존하는 것이 일반적입니다.
+             // 여기서는 'loadCharts'를 다시 호출하여 완벽하게 리사이즈를 처리합니다.
+             // loadCharts(currentCoin); 
+        });
+
+    </script>
+</body>
+</html>

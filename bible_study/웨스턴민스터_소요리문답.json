@@ -1,0 +1,824 @@
+[
+    {
+        "id": 1,
+        "question": "사람의 제일 되는 목적은 무엇인가?",
+        "answer": "사람의 제일 되는 목적은 하나님을 영화롭게 하고, 영원토록 그를 즐거워하는 것입니다.",
+        "explanation": "하나님과의 관계 속에서 참된 기쁨을 누리는 것이 인간의 존재 이유입니다.",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 11,
+                "verse": 4,
+                "text_ko": "예수께서 들으시고 말하시되 이 병은 죽음으로 끝나는 것이 아니라, 하나님의 영광을 나타내며, 그로 말미암아 하나님의 아들이 영광을 받게 하려 함이라 하시니라.",
+                "text_en": "When Jesus heard that, he said, This sickness is not unto death, but for the glory of God, that the Son of God might be glorified thereby."
+            },
+            {
+                "book": "고린도전서",
+                "chapter": 10,
+                "verse": 31,
+                "text_ko": "그러므로 너희가 먹든지 마시든지 무엇을 하든지 다 하나님의 영광을 위하여 하라.",
+                "text_en": "Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God."
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "question": "하나님께서 무슨 규칙을 우리에게 주시어 어떻게 자기를 영화롭게 하고 즐거워할 것을 지시하셨는가?",
+        "answer": "신구약 성경에 기록된 하나님의 말씀이 우리가 그를 영화롭게 하고 즐거워할 것을 지시하는 유일한 규칙입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "디모데후서",
+                "chapter": 3,
+                "verse": "15",
+                "text_ko": "네가 어려서부터 성경을 알았나니, 성경은 능히 너를 지혜롭게 하여 그리스도 예수 안에 있는 믿음으로 구원에 이르게 하느니라.",
+                "text_en": "And that from a child thou hast known the holy scriptures, which are able to make thee wise unto salvation through faith which is in Christ Jesus."
+            },
+            {
+                "book": "디모데후서",
+                "chapter": 3,
+                "verse": "16",
+                "text_ko": "모든 성경은 하나님의 감동으로 된 것으로, 교훈과 책망과 바르게 함과 의로 교육하기에 유익하니",
+                "text_en": "All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness:"
+            },
+            {
+                "book": "디모데후서",
+                "chapter": 3,
+                "verse": "17",
+                "text_ko": "이는 하나님의 사람으로 온전하게 하며 모든 선한 일을 행할 능력을 갖추게 하려 함이라.",
+                "text_en": "That the man of God may be perfect, throughly furnished unto all good works."
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "question": "성경이 제일 요긴하게 교훈하는 것이 무엇인가?",
+        "answer": "성경이 제일 요긴하게 교훈하는 것은 사람이 하나님을 어떻게 믿을 것과 하나님께서 사람에게 요구하시는 의무입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 3,
+                "verse": 16,
+                "text_ko": "하나님께서 세상을 이렇게 사랑하셨으니, 이는 그가 독생자를 주셨기 때문이라. 이는 그를 믿는 사람마다 멸망하지 않고 영생을 얻게 하려 하심이라.",
+                "text_en": "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "question": "하나님은 어떤 분이신가?",
+        "answer": "하나님은 영이시며, 그의 존재하심과 지혜와 권능과 거룩하심과 공의와 인자하심과 진실하심이 무한하시고 영원하시며 불변하십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 4,
+                "verse": 24,
+                "text_ko": "하나님은 영이시니, 예배하는 자가 영과 진리로 예배해야 하느니라.",
+                "text_en": "God is a Spirit: and they that worship him must worship him in spirit and in truth."
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "question": "하나님 한 분 외에 다른 신들이 있는가?",
+        "answer": "오직 한 분 뿐이시니, 살아 계시고 참되신 하나님만 계실 뿐입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "신명기",
+                "chapter": 4,
+                "verse": 35,
+                "text_ko": "이는 여호와는 하나님이시요, 그 외에는 다른 신이 없음을 네게 알게 하려 하심이라.",
+                "text_en": "Unto thee it was shewed, that thou mightest know that the LORD he is God; there is none else beside him."
+            }
+        ]
+    },
+    {
+        "id": 6,
+        "question": "하나님의 신격에 몇 위가 계신가?",
+        "answer": "하나님의 신격에 삼위가 계시니, 성부와 성자와 성령이신데 이 삼위는 본체가 같고 권능과 영광이 동등하신 한 하나님이십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "마태복음",
+                "chapter": 3,
+                "verse": 16,
+                "text_ko": "예수께서 침례를 받으시고 곧 물에서 올라오실 때, 하늘이 열리고 하나님의 성령이 비둘기 같이 내려 자기 위에 임하심을 보시고",
+                "text_en": "And Jesus, when he was baptized, went up straightway out of the water: and, lo, the heavens were opened unto him, and he saw the Spirit of God descending like a dove, and lighting upon him:"
+            },
+            {
+                "book": "마태복음",
+                "chapter": 3,
+                "verse": 17,
+                "text_ko": "하늘로부터 소리가 있어 말씀하시되 이는 내 사랑하는 아들이요 내 기뻐하는 자라 하시니라.",
+                "text_en": "And lo a voice from heaven, saying, This is my beloved Son, in whom I am well pleased."
+            }
+        ]
+    },
+    {
+        "id": 7,
+        "question": "하나님의 작정이란 무엇인가?",
+        "answer": "하나님의 작정은 그분의 뜻의 목적대로, 하늘과 땅에서 일어나는 모든 일을 자기 영광을 위하여 예정하신 그의 영원한 목적입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "에베소서",
+                "chapter": 1,
+                "verse": 11,
+                "text_ko": "모든 일을 그의 뜻의 계획대로 일하시는 이의 목적을 따라 우리가 그 안에서 기업을 받은 자 되었으니",
+                "text_en": "In whom also we have obtained an inheritance, being predestinated according to the purpose of him who worketh all things after the counsel of his own will:"
+            }
+        ]
+    },
+    {
+        "id": 8,
+        "question": "하나님께서 작정하신 일들을 어떻게 이루시는가?",
+        "answer": "하나님께서는 창조와 섭리로써 그의 작정하신 모든 일을 이루십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한계시록",
+                "chapter": 4,
+                "verse": 11,
+                "text_ko": "우리 주 하나님이여, 영광과 존귀와 권능을 받으시는 것이 합당하오니 주께서 만물을 지으셨고 또 주의 뜻대로 있었고 또 지으심을 받았나이다.",
+                "text_en": "Thou art worthy, O Lord, to receive glory and honour and power: for thou hast created all things, and for thy pleasure they are and were created."
+            }
+        ]
+    },
+    {
+        "id": 9,
+        "question": "창조란 무엇인가?",
+        "answer": "창조란 하나님께서 자기의 전능하신 능력으로 천지만물을 무에서 6일 동안 만드시고 보시기에 심히 좋게 하신 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "창세기",
+                "chapter": 1,
+                "verse": 1,
+                "text_ko": "태초에 하나님께서 하늘과 땅을 창조하시니라.",
+                "text_en": "In the beginning God created the heaven and the earth."
+            }
+        ]
+    },
+    {
+        "id": 10,
+        "question": "하나님께서 사람을 어떻게 창조하셨는가?",
+        "answer": "하나님께서 사람을 남자와 여자로 창조하시되, 지식과 의와 거룩함으로 자기 형상을 따라 만드셨고, 그들에게 피조물들을 주관하게 하셨습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "창세기",
+                "chapter": 1,
+                "verse": 27,
+                "text_ko": "하나님께서 자기 형상대로 사람을 창조하시되, 하나님의 형상대로 그를 창조하시고 남자와 여자를 창조하시고",
+                "text_en": "So God created man in his own image, in the image of God created he him; male and female created he them."
+            },
+            {
+                "book": "창세기",
+                "chapter": 1,
+                "verse": 28,
+                "text_ko": "하나님께서 그들에게 복을 주시며, 생육하고 번성하여 땅에 충만하라 땅을 정복하라 바다의 고기와 공중의 새와 땅에 움직이는 모든 생물을 다스리라 말씀하시니라.",
+                "text_en": "And God blessed them, and God said unto them, Be fruitful, and multiply, and replenish the earth, and subdue it: and have dominion over the fish of the sea, and over the fowl of the air, and over every living thing that moveth upon the earth."
+            }
+        ]
+    },
+    {
+        "id": 11,
+        "question": "하나님의 섭리란 무엇인가?",
+        "answer": "하나님의 섭리는 거룩하고 지혜롭고 능하신 하나님의 행위로서, 그가 모든 피조물들과 그 모든 행사를 보존하고 다스리시는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "히브리서",
+                "chapter": 1,
+                "verse": 3,
+                "text_ko": "이는 하나님의 영광의 광채시오 그 본체의 형상이시라. 그의 능력의 말씀으로 만물을 붙들고 계시며, 죄를 정결케 하는 일을 하시고 높은 곳에 계신 위엄의 오른쪽에 앉으셨느니라.",
+                "text_en": "Who being the brightness of his glory, and the express image of his person, and upholding all things by the word of his power, when he had by himself purged our sins, sat down on the right hand of the Majesty on high;"
+            }
+        ]
+    },
+    {
+        "id": 12,
+        "question": "하나님께서 사람을 창조하신 특별한 관대함은 무엇인가?",
+        "answer": "하나님께서는 사람과 생명 언약을 세우시고, 완전하고 개인적인 순종을 조건으로 시험하시며 생명나무와 선악을 알게 하는 나무를 주셨습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "창세기",
+                "chapter": 2,
+                "verse": 16,
+                "text_ko": "여호와 하나님이 그 사람에게 명하여 이르시되 동산 각종 나무의 열매는 네가 임의로 먹되",
+                "text_en": "And the LORD God commanded the man, saying, Of every tree of the garden thou mayest freely eat:"
+            },
+            {
+                "book": "창세기",
+                "chapter": 2,
+                "verse": 17,
+                "text_ko": "선악을 알게 하는 나무의 열매는 먹지 말라 네가 먹는 날에는 반드시 죽으리라 하시니라.",
+                "text_en": "But of the tree of the knowledge of good and evil, thou shalt not eat of it: for in the day that thou eatest thereof thou shalt surely die."
+            }
+        ]
+    },
+    {
+        "id": 13,
+        "question": "우리 첫 조상은 자기의 구원 상태에 그대로 머물렀는가?",
+        "answer": "우리 첫 조상 아담은 하나님을 거스러 죄를 범하여 타락하였습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "창세기",
+                "chapter": 3,
+                "verse": 6,
+                "text_ko": "여자가 그 나무를 본즉 먹음직도 하고 보암직도 하고 지혜롭게 할 만큼 탐스럽기도 한 나무인지라 여자가 그 열매를 따먹고 자기와 함께 있는 남편에게도 주매 그도 먹은지라.",
+                "text_en": "And when the woman saw that the tree was good for food, and that it was pleasant to the eyes, and a tree to be desired to make one wise, she took of the fruit thereof, and did eat, and gave also unto her husband with her; and he did eat."
+            },
+            {
+                "book": "창세기",
+                "chapter": 3,
+                "verse": 7,
+                "text_ko": "이에 그들의 눈이 밝아져 자기들이 벗은 줄 알고 무화과나무 잎을 엮어 치마를 만들었더라.",
+                "text_en": "And the eyes of them both were opened, and they knew that they were naked; and they sewed fig leaves together, and made themselves aprons."
+            }
+        ]
+    },
+    {
+        "id": 14,
+        "question": "죄란 무엇인가?",
+        "answer": "죄는 하나님의 율법에 불순종하거나 어기는 모든 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한일서",
+                "chapter": 3,
+                "verse": 4,
+                "text_ko": "죄를 짓는 자마다 불법을 행하나니 죄는 불법이라.",
+                "text_en": "Whosoever committeth sin transgresseth also the law: for sin is the transgression of the law."
+            }
+        ]
+    },
+    {
+        "id": 15,
+        "question": "우리 첫 조상이 받은 죄의 타락 상태는 어떻게 우리에게 적용되는가?",
+        "answer": "아담은 인류의 대표자로서 불순종하여 타락함으로 말미암아 전 인류가 죄와 부패를 공유하게 되었습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "로마서",
+                "chapter": 5,
+                "verse": 12,
+                "text_ko": "그러므로 한 사람으로 말미암아 죄가 세상에 들어오고 죄로 말미암아 사망이 왔나니, 이와 같이 모든 사람이 죄를 지었으므로 사망이 모든 사람에게 임하였다.",
+                "text_en": "Wherefore, as by one man sin entered into the world, and death by sin; and so death passed upon all men, for that all have sinned:"
+            }
+        ]
+    },
+    {
+        "id": 16,
+        "question": "모든 인류가 아담 안에서 어떻게 죄인이 되었는가?",
+        "answer": "아담은 인류의 대표자로서 순종해야 했으나 타락함으로 말미암아 죄와 사망이 모든 인류에게 임하였습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "로마서",
+                "chapter": 5,
+                "verse": 19,
+                "text_ko": "한 사람의 불순종으로 많은 사람이 죄인 된 것 같이 한 사람의 순종으로 많은 사람이 의인이 되리라.",
+                "text_en": "For as by one man's disobedience many were made sinners, so by the obedience of one shall many be made righteous."
+            }
+        ]
+    },
+    {
+        "id": 17,
+        "question": "타락한 상태에 있는 사람이 비참한 것은 무엇인가?",
+        "answer": "죄 가운데 있어 하나님의 진노 아래 있고, 이 세상과 오는 세상에서 모든 비참함을 겪게 되는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "로마서",
+                "chapter": 6,
+                "verse": 23,
+                "text_ko": "죄의 삯은 사망이요, 하나님의 은사는 우리 주 그리스도 예수 안에 있는 영생이니라.",
+                "text_en": "For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord."
+            }
+        ]
+    },
+    {
+        "id": 18,
+        "question": "하나님께서는 인류를 타락한 상태로 버려두셨는가?",
+        "answer": "하나님께서는 자기의 사랑하시는 자들을 구원하시고자 은혜 언약을 세우시고 구속자를 보내셨습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "창세기",
+                "chapter": 3,
+                "verse": 15,
+                "text_ko": "내가 너로 여자와 원수가 되게 하고 네 후손도 여자의 후손과 원수가 되게 하리니 여자의 후손은 네 머리를 상하게 할 것이요 너는 그의 발꿈치를 상하게 할 것이니라.",
+                "text_en": "And I will put enmity between thee and the woman, and between thy seed and her seed; it shall bruise thy head, and thou shalt bruise his heel."
+            }
+        ]
+    },
+    {
+        "id": 19,
+        "question": "구속자란 누구인가?",
+        "answer": "구속자는 주 예수 그리스도시니 그는 완전하신 하나님이시며 참 사람이십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 1,
+                "verse": 14,
+                "text_ko": "말씀이 육신이 되어 우리 가운데 거하시매, 우리가 그의 영광을 보니 아버지의 독생자의 영광이요, 은혜와 진리가 충만하더라.",
+                "text_en": "And the Word was made flesh, and dwelt among us, (and we beheld his glory, the glory as of the only begotten of the Father,) full of grace and truth."
+            }
+        ]
+    },
+    {
+        "id": 20,
+        "question": "예수 그리스도께서 어떻게 사람이 되셨는가?",
+        "answer": "성령으로 잉태되시고 동정녀 마리아에게서 나셔서 참 사람이 되셨되 죄는 없으셨습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "누가복음",
+                "chapter": 1,
+                "verse": 35,
+                "text_ko": "천사가 대답하여 이르되 성령께서 네게 임하시고 지극히 높으신 이의 능력이 너를 덮으시리니 이러므로 태어날 거룩한 이는 하나님의 아들이라 일컬어지리라.",
+                "text_en": "And the angel answered and said unto her, The Holy Ghost shall come upon thee, and the power of the Highest shall overshadow thee: therefore also that holy thing which shall be born of thee shall be called the Son of God."
+            }
+        ]
+    },
+    {
+        "id": 21,
+        "question": "구속자는 하나님이시며 사람이시니 그리스도만이 어떻게 구속자가 되시는가?",
+        "answer": "그리스도만이 구속자가 되시는 것은 그가 참 하나님이시며 참 사람이시고 한 위이시며, 구속 사역을 감당할 수 있는 유일한 분이시기 때문입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "디모데전서",
+                "chapter": 2,
+                "verse": 5,
+                "text_ko": "하나님은 한 분이시요 하나님과 사람 사이의 중보자도 한 분이시니 곧 사람이신 그리스도 예수라.",
+                "text_en": "For there is one God, and one mediator between God and men, the man Christ Jesus;"
+            }
+        ]
+    },
+    {
+        "id": 22,
+        "question": "우리의 구속자이신 그리스도께서 어떤 상태에 계셨는가?",
+        "answer": "그리스도께서는 낮아지신 상태와 높아지신 상태에 계셨습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "빌립보서",
+                "chapter": 2,
+                "verse": 8,
+                "text_ko": "사람의 모습으로 나타나사 자기를 낮추시고 죽기까지 복종하셨으니 곧 십자가에 죽으심이라.",
+                "text_en": "And being found in fashion as a man, he humbled himself, and became obedient unto death, even the death of the cross."
+            },
+            {
+                "book": "빌립보서",
+                "chapter": 2,
+                "verse": 9,
+                "text_ko": "이러므로 하나님이 그를 지극히 높여 모든 이름 위에 뛰어난 이름을 주사",
+                "text_en": "Wherefore God also hath highly exalted him, and given him a name which is above every name:"
+            }
+        ]
+    },
+    {
+        "id": 23,
+        "question": "그리스도께서 낮아지신 상태는 무엇인가?",
+        "answer": "그리스도께서 낮아지신 상태는 율법 아래 복종하시고, 세상에서 비참을 당하시고, 하나님의 진노와 십자가의 저주를 받으시고, 죽으시고 묻히시고 잠시 동안 죽음의 권세 아래 계신 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "갈라디아서",
+                "chapter": 4,
+                "verse": 4,
+                "text_ko": "때가 차매 하나님이 그 아들을 보내사 여자에게서 나게 하시고 율법 아래에 나게 하신 것은",
+                "text_en": "But when the fulness of the time was come, God sent forth his Son, made of a woman, made under the law,"
+            }
+        ]
+    },
+    {
+        "id": 24,
+        "question": "그리스도께서 높아지신 상태는 무엇인가?",
+        "answer": "그리스도께서 높아지신 상태는 죽은 자 가운데서 부활하시고, 하늘에 오르시고, 하나님 오른편에 앉으시고, 마지막 날에 세상을 심판하시러 오시는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "고린도전서",
+                "chapter": 15,
+                "verse": 4,
+                "text_ko": "장사 지낸 바 되셨다가 성경대로 사흘 만에 다시 살아나사",
+                "text_en": "And that he was buried, and that he rose again the third day according to the scriptures:"
+            }
+        ]
+    },
+    {
+        "id": 25,
+        "question": "그리스도의 중보 사역을 어떻게 누리게 되는가?",
+        "answer": "우리는 성령의 효력 있는 적용으로 그리스도께서 값 주고 사신 구속의 은혜에 참여하게 됩니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 1,
+                "verse": 12,
+                "text_ko": "영접하는 자 곧 그 이름을 믿는 자들에게는 하나님의 자녀가 되는 권세를 주셨으니",
+                "text_en": "But as many as received him, to them gave he power to become the sons of God, even to them that believe on his name:"
+            }
+        ]
+    },
+    {
+        "id": 26,
+        "question": "성령께서 그리스도께서 값 주고 사신 구속을 어떻게 우리에게 적용하시는가?",
+        "answer": "성령께서는 우리 안에 믿음을 일으키시고, 효과적으로 부르심으로 그리스도와 연합케 하사 구속의 모든 은혜를 우리에게 적용하십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "에베소서",
+                "chapter": 2,
+                "verse": 8,
+                "text_ko": "너희가 그 은혜를 인하여 믿음으로 말미암아 구원을 받았으니 이것은 너희에게서 난 것이 아니요 하나님의 선물이라.",
+                "text_en": "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:"
+            }
+        ]
+    },
+    {
+        "id": 27,
+        "question": "효과적인 부르심이란 무엇인가?",
+        "answer": "효과적인 부르심은 성령께서 우리에게 죄와 비참함을 깨닫게 하시고, 지각을 밝히시며, 의지를 새롭게 하심으로 그리스도께로 향하게 하시는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "사도행전",
+                "chapter": 26,
+                "verse": 18,
+                "text_ko": "그 눈을 뜨게 하여 어두움에서 빛으로, 사탄의 권세에서 하나님께로 돌아오게 하고, 죄 사함과 나를 믿어 거룩케 된 무리 가운데서 기업을 얻게 하리라 하더라.",
+                "text_en": "To open their eyes, and to turn them from darkness to light, and from the power of Satan unto God, that they may receive forgiveness of sins, and inheritance among them which are sanctified by faith that is in me."
+            }
+        ]
+    },
+    {
+        "id": 28,
+        "question": "성령께서 효과적으로 부르신 자들에게 주시는 유익은 무엇인가?",
+        "answer": "부름받은 자들은 칭의, 양자, 성화와 이 생과 다음 생에서 그 밖의 여러 유익을 받습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "로마서",
+                "chapter": 8,
+                "verse": 30,
+                "text_ko": "또 미리 정하신 그들을 또한 부르시고 부르신 그들을 또한 의롭다 하시고 의롭다 하신 그들을 또한 영화롭게 하셨느니라.",
+                "text_en": "Moreover whom he did predestinate, them he also called: and whom he called, them he also justified: and whom he justified, them he also glorified."
+            }
+        ]
+    },
+    {
+        "id": 29,
+        "question": "칭의란 무엇인가?",
+        "answer": "칭의는 하나님께서 우리의 죄를 사하시고 그리스도의 의를 우리에게 돌려주셔서 의롭다 선언하시는 행위입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "로마서",
+                "chapter": 3,
+                "verse": 24,
+                "text_ko": "그리스도 예수 안에 있는 속량으로 말미암아 하나님의 은혜로 값없이 의롭다 하심을 얻은 자 되었느니라.",
+                "text_en": "Being justified freely by his grace through the redemption that is in Christ Jesus:"
+            }
+        ]
+    },
+    {
+        "id": 30,
+        "question": "우리가 어떻게 의롭다 하심을 받는가?",
+        "answer": "우리는 오직 그리스도를 믿는 믿음으로 의롭다 하심을 받습니다. 믿음은 그리스도를 영접하고 그에게만 의지하는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "빌립보서",
+                "chapter": 3,
+                "verse": 9,
+                "text_ko": "내가 가진 의는 율법에서 난 것이 아니요 오직 그리스도를 믿음으로 말미암은 것이니 곧 믿음으로 하나님께로부터 난 의라.",
+                "text_en": "And be found in him, not having mine own righteousness, which is of the law, but that which is through the faith of Christ, the righteousness which is of God by faith:"
+            }
+        ]
+    },
+    {
+        "id": 31,
+        "question": "양자됨이란 무엇인가?",
+        "answer": "양자됨은 하나님의 은혜의 행위로서 우리가 하나님의 자녀의 수에 들게 되어 그 모든 권리를 누리게 되는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한일서",
+                "chapter": 3,
+                "verse": 1,
+                "text_ko": "보라 아버지께서 어떠한 사랑을 우리에게 주사 하나님의 자녀라 일컬음을 얻게 하셨는가 우리가 그런즉 세상이 우리를 알지 못함은 그를 알지 못함이라.",
+                "text_en": "Behold, what manner of love the Father hath bestowed upon us, that we should be called the sons of God: therefore the world knoweth us not, because it knew him not."
+            }
+        ]
+    },
+    {
+        "id": 32,
+        "question": "성화란 무엇인가?",
+        "answer": "성화는 하나님의 은혜의 사역으로 우리가 점점 죄에 대하여 죽고 의에 대하여 살게 되는 것입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "데살로니가전서",
+                "chapter": 4,
+                "verse": 3,
+                "text_ko": "하나님의 뜻은 이것이니 너희의 거룩함이라 음란을 버리고",
+                "text_en": "For this is the will of God, even your sanctification, that ye should abstain from fornication:"
+            }
+        ]
+    },
+    {
+        "id": 33,
+        "question": "칭의와 성화의 차이는 무엇인가?",
+        "answer": "칭의는 죄를 사하시고 의롭다 함을 받는 하나님의 법적인 판단이고, 성화는 점진적인 거룩함의 사역입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "히브리서",
+                "chapter": 10,
+                "verse": 14,
+                "text_ko": "그가 한 제물로 거룩하게 된 자들을 영원히 온전하게 하셨느니라.",
+                "text_en": "For by one offering he hath perfected for ever them that are sanctified."
+            }
+        ]
+    },
+    {
+        "id": 34,
+        "question": "성도가 받는 이 생과 다음 생에서의 유익은 무엇인가?",
+        "answer": "이 생에서는 하나님의 은혜와 보호를 누리고, 다음 생에서는 영원한 영광을 누립니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "시편",
+                "chapter": 84,
+                "verse": 11,
+                "text_ko": "여호와 하나님은 해요 방패이시라 여호와께서 은혜와 영광을 주시며 정직하게 행하는 자에게 좋은 것을 아끼지 아니하실 것임이니이다.",
+                "text_en": "For the LORD God is a sun and shield: the LORD will give grace and glory: no good thing will he withhold from them that walk uprightly."
+            }
+        ]
+    },
+    {
+        "id": 35,
+        "question": "성도가 죽을 때 어떤 유익을 누리는가?",
+        "answer": "성도들의 영혼은 즉시 거룩하게 되어 하나님을 뵙고, 몸은 부활을 기다립니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "빌립보서",
+                "chapter": 1,
+                "verse": 23,
+                "text_ko": "내가 그 둘 사이에 끼었노니 떠나서 그리스도와 함께 있는 것이 훨씬 더 좋으나",
+                "text_en": "For I am in a strait betwixt two, having a desire to depart, and to be with Christ; which is far better:"
+            }
+        ]
+    },
+    {
+        "id": 36,
+        "question": "성도가 부활할 때 어떤 유익을 누리는가?",
+        "answer": "성도들은 영광스러운 몸으로 부활하며 하나님 앞에 완전히 의롭게 됩니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "빌립보서",
+                "chapter": 3,
+                "verse": 21,
+                "text_ko": "그는 만물을 자기에게 복종하게 하실 수 있는 자의 역사로 우리의 낮은 몸을 자기 영광의 몸과 같이 변하게 하시리라.",
+                "text_en": "Who shall change our vile body, that it may be fashioned like unto his glorious body, according to the working whereby he is able even to subdue all things unto himself."
+            }
+        ]
+    },
+    {
+        "id": 37,
+        "question": "그리스도께서 구속의 유익을 누구에게 적용하시는가?",
+        "answer": "그리스도께서는 아버지께서 그에게 주신 자들에게 구속의 유익을 적용하십니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "요한복음",
+                "chapter": 17,
+                "verse": 2,
+                "text_ko": "아버지께서 아들에게 모든 사람을 다스리는 권세를 주셨사오니 이는 아들께서 주신 모든 자에게 영생을 주게 하려 함이로소이다.",
+                "text_en": "As thou hast given him power over all flesh, that he should give eternal life to as many as thou hast given him."
+            }
+        ]
+    },
+    {
+        "id": 38,
+        "question": "효과적으로 부르심을 받은 자들이 이 생에서 성령께 받는 유익은 무엇인가?",
+        "answer": "그들은 믿음과 회개, 이 생의 모든 구원의 은혜를 받습니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "사도행전",
+                "chapter": 11,
+                "verse": 18,
+                "text_ko": "그들이 이 말을 듣고 잠잠하여 하나님께 영광을 돌려 이르되 그러면 하나님께서 이방인에게도 생명 얻는 회개를 주셨도다 하니라.",
+                "text_en": "When they heard these things, they held their peace, and glorified God, saying, Then hath God also to the Gentiles granted repentance unto life."
+            }
+        ]
+    },
+    {
+        "id": 39,
+        "question": "믿음이란 무엇인가?",
+        "answer": "믿음은 성령의 사역으로, 죄인이 그리스도의 은혜를 받아들이고 의지하며 구원을 얻는 은혜입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "히브리서",
+                "chapter": 11,
+                "verse": 1,
+                "text_ko": "믿음은 바라는 것들의 실상이요 보이지 않는 것들의 증거니",
+                "text_en": "Now faith is the substance of things hoped for, the evidence of things not seen."
+            }
+        ]
+    },
+    {
+        "id": 40,
+        "question": "회개란 무엇인가?",
+        "answer": "회개는 죄를 슬퍼하고 버리며 하나님께 돌아서 그의 뜻을 따르는 은혜입니다.",
+        "explanation": "",
+        "proof_texts": [
+            {
+                "book": "사도행전",
+                "chapter": 3,
+                "verse": 19,
+                "text_ko": "그러므로 너희가 회개하고 돌이켜 너희 죄 없이 함을 받으라.",
+                "text_en": "Repent ye therefore, and be converted, that your sins may be blotted out,"
+            }
+        ]
+    },
+    
+        {
+          "id": 41,
+          "question": "회개에 속한 본질적인 행위는 무엇인가?",
+          "answer": "죄인이 죄를 알고 슬퍼하며 미워하고 버리고 하나님께로 돌아가 순종을 행하는 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "고린도후서",
+              "chapter": 7,
+              "verse": 10,
+              "text_ko": "하나님의 뜻대로 하는 근심은 후회할 것이 없는 구원에 이르게 하는 회개를 이루지만 세상 근심은 사망을 이루느니라.",
+              "text_en": "For godly sorrow worketh repentance to salvation not to be repented of: but the sorrow of the world worketh death."
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "question": "이 생에서 믿음과 회개 외에 받을 은혜는 무엇인가?",
+          "answer": "이 생에서 성도들은 하나님의 은혜와 보호를 누리며, 그의 위로와 인도를 받습니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "고린도전서",
+              "chapter": 10,
+              "verse": 13,
+              "text_ko": "사람이 감당할 시험 밖에는 너희에게 당한 것이 없나니 하나님은 미쁘사 너희가 감당하지 못할 시험 당함을 허락하지 아니하시고 시험 당할 즈음에 또한 피할 길을 내사 너희로 능히 감당하게 하시느니라.",
+              "text_en": "There hath no temptation taken you but such as is common to man: but God is faithful, who will not suffer you to be tempted above that ye are able; but will with the temptation also make a way to escape, that ye may be able to bear it."
+            }
+          ]
+        },
+        {
+          "id": 43,
+          "question": "십계명의 머리되는 강령은 무엇인가?",
+          "answer": "네 마음과 목숨과 뜻과 힘을 다하여 주 너의 하나님을 사랑하고 네 이웃을 네 자신과 같이 사랑하라는 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "마태복음",
+              "chapter": 22,
+              "verse": "37",
+              "text_ko": "예수께서 이르시되 네 마음을 다하고 목숨을 다하고 뜻을 다하여 주 너의 하나님을 사랑하라 하셨으니",
+              "text_en": "Jesus said unto him, Thou shalt love the Lord thy God with all thy heart, and with all thy soul, and with all thy mind."
+            },
+            {
+              "book": "마태복음",
+              "chapter": 22,
+              "verse": "39",
+              "text_ko": "둘째는 그와 같으니 네 이웃을 네 자신과 같이 사랑하라 하셨으니",
+              "text_en": "And the second is like unto it, Thou shalt love thy neighbour as thyself."
+            }
+          ]
+        },
+        {
+          "id": 44,
+          "question": "십계명의 서문은 무엇인가?",
+          "answer": "십계명의 서문은 ‘나는 너를 애굽 땅 종 되었던 집에서 인도하여 낸 네 하나님 여호와니라’ 하신 말씀입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "출애굽기",
+              "chapter": 20,
+              "verse": 2,
+              "text_ko": "나는 너를 애굽 땅 종 되었던 집에서 인도하여 낸 네 하나님 여호와니라.",
+              "text_en": "I am the LORD thy God, which have brought thee out of the land of Egypt, out of the house of bondage."
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "question": "십계명의 서문이 우리에게 가르치는 것은 무엇인가?",
+          "answer": "하나님께서 우리의 주님이시며 구속자이심을 기억하고 그분을 섬기고 순종해야 함을 가르칩니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "누가복음",
+              "chapter": 1,
+              "verse": 74,
+              "text_ko": "우리가 원수의 손에서 구원함을 받고",
+              "text_en": "That he would grant unto us, that we being delivered out of the hand of our enemies"
+            },
+            {
+              "book": "누가복음",
+              "chapter": 1,
+              "verse": 75,
+              "text_ko": "종신토록 주의 앞에서 성결과 의로 두려움 없이 섬기게 하리라 하셨도다.",
+              "text_en": "Might serve him without fear, In holiness and righteousness before him, all the days of our life."
+            }
+          ]
+        },
+        {
+          "id": 46,
+          "question": "첫째 계명은 무엇인가?",
+          "answer": "첫째 계명은 ‘너는 나 외에는 다른 신들을 네게 두지 말라’ 하신 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "출애굽기",
+              "chapter": 20,
+              "verse": 3,
+              "text_ko": "너는 나 외에는 다른 신들을 네게 두지 말라.",
+              "text_en": "Thou shalt have no other gods before me."
+            }
+          ]
+        },
+        {
+          "id": 47,
+          "question": "첫째 계명이 요구하는 것은 무엇인가?",
+          "answer": "우리가 하나님을 유일하신 하나님으로 알고 인정하며, 그분만을 예배하고 영화롭게 해야 한다는 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "시편",
+              "chapter": 29,
+              "verse": 2,
+              "text_ko": "여호와께 그의 이름에 합당한 영광을 돌리며 거룩한 옷을 입고 여호와께 경배할지어다.",
+              "text_en": "Give unto the LORD the glory due unto his name; worship the LORD in the beauty of holiness."
+            }
+          ]
+        },
+        {
+          "id": 48,
+          "question": "첫째 계명에서 금하신 것은 무엇인가?",
+          "answer": "하나님을 유일하신 하나님으로 알고 인정하며 예배하지 않는 모든 것을 금하신 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "로마서",
+              "chapter": 1,
+              "verse": 21,
+              "text_ko": "하나님을 알되 하나님을 영화롭게도 아니하며 감사하지도 아니하고",
+              "text_en": "Because that, when they knew God, they glorified him not as God, neither were thankful;"
+            }
+          ]
+        },
+        {
+          "id": 49,
+          "question": "둘째 계명은 무엇인가?",
+          "answer": "둘째 계명은 하나님께서 명하신 방식이 아닌 모든 방법으로 하나님을 예배하거나 섬기는 것을 금하시는 계명입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "출애굽기",
+              "chapter": 20,
+              "verse": 4,
+              "text_ko": "너를 위하여 새긴 우상을 만들지 말고, 또 위로 하늘에 있는 것이나 아래로 땅에 있는 것이나 땅 아래 물 속에 있는 어떤 형상도 만들지 말며",
+              "text_en": "Thou shalt not make unto thee any graven image, or any likeness of any thing that is in heaven above, or that is in the earth beneath, or that is in the water under the earth:"
+            }
+          ]
+        },
+        {
+          "id": 50,
+          "question": "둘째 계명이 요구하는 것은 무엇인가?",
+          "answer": "하나님께서 정하신 모든 예배와 규례를 그대로 지켜 행하는 것입니다.",
+          "explanation": "",
+          "proof_texts": [
+            {
+              "book": "신명기",
+              "chapter": 12,
+              "verse": 32,
+              "text_ko": "내가 너희에게 명하는 모든 말을 너희는 지켜 행하고 그것에 더하지도 말고 빼지도 말지니라.",
+              "text_en": "What thing soever I command you, observe to do it: thou shalt not add thereto, nor diminish from it."
+            }
+          ]
+        }
+    ]
+      

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>웨스트민스터 소요리문답 카드 뷰어</title>
+  <style>
+    body {
+      font-family: '맑은 고딕', Arial, sans-serif;
+      background: #f6f8fb;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 95%;
+      max-width: 900px;
+      margin: 36px auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+      padding: 32px;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 6px 24px rgba(0,56,180,0.10);
+    }
+    .number {
+      color: #3988f6;
+      font-weight: bold;
+      font-size: 1.1em;
+      margin-bottom: 8px;
+    }
+    .q {
+      font-weight: bold;
+      margin: 8px 0;
+      font-size: 1.04em;
+    }
+    .a {
+      margin-bottom: 6px;
+    }
+    .ex {
+      font-size: 0.97em;
+      color: #797575;
+      margin-bottom: 8px;
+      margin-left: 10px;
+      border-left: 3px solid #e0e0ff;
+      padding-left: 10px;
+    }
+    .proof {
+      background: #f0f3fd;
+      margin: 5px 0;
+      border-left: 4px solid #bcd6ff;
+      padding: 7px 15px;
+      font-size: 0.96em;
+    }
+    .proofbook {
+      font-weight:bold; color: #3b75ce;
+    }
+    .small {
+      font-size: 0.95em;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="qna-viewer">
+  <h2>웨스트민스터 소요리문답 카드 뷰어</h2>
+  <input type="file" id="fileInput" accept=".json"/>
+  <p style="color:#666; font-size:0.98em;">
+    위의 파일 선택 버튼으로 <b>웨스턴민스터_소요리문답.json</b> 파일을 업로드해 주세요.<br>
+    (파일이 클립보드에 있으면 붙여넣어도 작동합니다.)
+  </p>
+  <div id="card-list"></div>
+</div>
+<script>
+const cardListEl = document.getElementById('card-list');
+
+// 파일 업로드 핸들러
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = JSON.parse(evt.target.result);
+      renderCards(data);
+    } catch (err) {
+      cardListEl.innerHTML = '<div style="color:red;">JSON 파일 형식 오류</div>';
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+// 클립보드 붙여넣기도 지원
+window.addEventListener('paste', e => {
+  const txt = (e.clipboardData || window.clipboardData).getData('text');
+  try {
+    const data = JSON.parse(txt);
+    renderCards(data);
+  } catch {}
+});
+
+function renderCards(data) {
+  if (!Array.isArray(data)) {
+    cardListEl.innerHTML = "<div style='color:red;'>자료 배열 형식이 아님</div>";
+    return;
+  }
+  cardListEl.innerHTML = data.map(item => renderCard(item)).join('');
+}
+
+function renderCard({id, question, answer, explanation, proof_texts}) {
+  return `
+  <div class="card">
+    <div class="number">Q${id}</div>
+    <div class="q">Q. ${question}</div>
+    <div class="a"><b>A.</b> ${answer}</div>
+    ${explanation ? `<div class="ex">${explanation}</div>` : ''}
+    ${proof_texts && proof_texts.length ? (
+      proof_texts.map(pt => `
+        <div class="proof">
+          <span class="proofbook">${pt.book} ${pt.chapter}:${pt.verse}</span><br/>
+          <span class="small">${pt.text_ko}</span>
+        </div>
+      `).join('')
+    ) : ''}
+  </div>`;
+}
+</script>
+</body>
+</html>

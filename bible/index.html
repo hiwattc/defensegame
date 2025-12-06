@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML 카드 리스트</title>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f6f8fa; margin: 0; padding: 30px; }
+    h1 { text-align: center; color: #333; }
+    .card-list { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; margin-top: 32px; }
+    .card { background: #fff; border-radius: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); width: 240px; padding: 26px 20px; text-align: center; text-decoration: none; color: #222; transition: box-shadow .2s; }
+    .card:hover { box-shadow: 0 4px 20px rgba(11,42,97,0.18); background: #f0f6ff; }
+    .card-title { font-weight: bold; font-size: 1.12rem; margin-bottom: 8px; }
+    .card-path { font-size: 0.95em; color: #666; word-break: break-all; }
+    @media (max-width:600px) { .card { width: 96vw; } }
+  </style>
+</head>
+<body>
+  <h1>폴더 내 HTML 링크 카드</h1>
+  <div class="card-list">
+    <a class="card" href="/Users/admin/DEV_BOX/DEV_SPRING/defensegame/bible/short_catechism_gemini.html">
+      <div class="card-title">short_catechism_gemini.html</div>
+      <div class="card-path">/bible/short_catechism_gemini.html</div>
+    </a>
+    <a class="card" href="/Users/admin/DEV_BOX/DEV_SPRING/defensegame/bible/short_catechism_gpt.html">
+      <div class="card-title">short_catechism_gpt.html</div>
+      <div class="card-path">/bible/short_catechism_gpt.html</div>
+    </a>
+    <a class="card" href="/Users/admin/DEV_BOX/DEV_SPRING/defensegame/bible/trash/qna_viewer.html">
+      <div class="card-title">qna_viewer.html</div>
+      <div class="card-path">/bible/trash/qna_viewer.html</div>
+    </a>
+    <a class="card" href="/Users/admin/DEV_BOX/DEV_SPRING/defensegame/bible/index.html">
+      <div class="card-title">index.html</div>
+      <div class="card-path">/bible/index.html</div>
+    </a>
+  </div>
+</body>
+</html>

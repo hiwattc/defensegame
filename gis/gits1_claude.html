@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영등포구청 지도</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-container button {
+            padding: 10px 25px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .search-container button:hover {
+            transform: scale(1.05);
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .info-panel.show {
+            display: block;
+        }
+
+        .info-panel h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .info-panel p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+        }
+
+        .leaflet-popup-content {
+            margin: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ 영등포구청 지도</h1>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="장소 검색... (예: 카페, 병원, 은행)">
+            <button onclick="searchPlace()">검색</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn active" onclick="setMapType('street')">거리뷰</button>
+        <button class="btn" onclick="setMapType('satellite')">위성</button>
+        <button class="btn" onclick="findMyLocation()">📍 내 위치</button>
+        <button class="btn" onclick="resetView()">🏢 구청 위치</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="info-panel" id="infoPanel">
+        <button class="close-btn" onclick="closeInfo()">×</button>
+        <h3 id="infoTitle">영등포구청</h3>
+        <p id="infoContent">서울특별시 영등포구의 행정 중심지입니다.</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        // 영등포구청 좌표
+        const yeongdeungpoOffice = [37.5264, 126.8958];
+        let map, currentMarker, currentLayer;
+
+        // 지도 초기화
+        function initMap() {
+            map = L.map('map').setView(yeongdeungpoOffice, 15);
+
+            // 기본 레이어 (OpenStreetMap)
+            currentLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 영등포구청 마커 추가
+            const officeMarker = L.marker(yeongdeungpoOffice, {
+                title: '영등포구청'
+            }).addTo(map);
+
+            officeMarker.bindPopup(`
+                <div style="text-align: center;">
+                    <h3 style="color: #667eea; margin-bottom: 8px;">🏢 영등포구청</h3>
+                    <p style="margin: 5px 0;">서울특별시 영등포구</p>
+                    <p style="margin: 5px 0;">중앙로 176</p>
+                </div>
+            `);
+
+            // 클릭 이벤트로 마커 추가
+            map.on('click', onMapClick);
+        }
+
+        // 지도 클릭 이벤트
+        function onMapClick(e) {
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+
+            currentMarker = L.marker(e.latlng).addTo(map);
+            currentMarker.bindPopup(`
+                <div>
+                    <strong>선택한 위치</strong><br>
+                    위도: ${e.latlng.lat.toFixed(5)}<br>
+                    경도: ${e.latlng.lng.toFixed(5)}
+                </div>
+            `).openPopup();
+        }
+
+        // 지도 타입 변경
+        function setMapType(type) {
+            // 버튼 활성화 상태 변경
+            document.querySelectorAll('.controls .btn').forEach(btn => {
+                if (btn.textContent.includes('거리뷰') || btn.textContent.includes('위성')) {
+                    btn.classList.remove('active');
+                }
+            });
+            event.target.classList.add('active');
+
+            // 현재 레이어 제거
+            if (currentLayer) {
+                map.removeLayer(currentLayer);
+            }
+
+            // 새 레이어 추가
+            if (type === 'street') {
+                currentLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+            } else if (type === 'satellite') {
+                currentLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles © Esri',
+                    maxZoom: 19
+                }).addTo(map);
+            }
+        }
+
+        // 내 위치 찾기
+        function findMyLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const pos = [position.coords.latitude, position.coords.longitude];
+                    map.setView(pos, 16);
+
+                    if (currentMarker) {
+                        map.removeLayer(currentMarker);
+                    }
+
+                    currentMarker = L.marker(pos).addTo(map);
+                    currentMarker.bindPopup('📍 내 현재 위치').openPopup();
+                }, () => {
+                    alert('위치 정보를 가져올 수 없습니다.');
+                });
+            } else {
+                alert('이 브라우저는 위치 서비스를 지원하지 않습니다.');
+            }
+        }
+
+        // 구청 위치로 리셋
+        function resetView() {
+            map.setView(yeongdeungpoOffice, 15);
+        }
+
+        // 장소 검색 (Nominatim API 사용)
+        async function searchPlace() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) {
+                alert('검색어를 입력하세요.');
+                return;
+            }
+
+            // 영등포구 주변으로 검색 제한
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' 영등포구 서울')}&limit=5`;
+
+            try {
+                const response = await fetch(url);
+                const results = await response.json();
+
+                if (results.length > 0) {
+                    const result = results[0];
+                    const pos = [parseFloat(result.lat), parseFloat(result.lon)];
+                    
+                    map.setView(pos, 17);
+
+                    if (currentMarker) {
+                        map.removeLayer(currentMarker);
+                    }
+
+                    currentMarker = L.marker(pos).addTo(map);
+                    currentMarker.bindPopup(`
+                        <div>
+                            <strong>${result.display_name}</strong>
+                        </div>
+                    `).openPopup();
+                } else {
+                    alert('검색 결과를 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                alert('검색 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 정보 패널 닫기
+        function closeInfo() {
+            document.getElementById('infoPanel').classList.remove('show');
+        }
+
+        // Enter 키로 검색
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchPlace();
+            }
+        });
+
+        // 지도 초기화 실행
+        initMap();
+    </script>
+</body>
+</html>

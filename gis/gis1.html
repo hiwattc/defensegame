@@ -194,10 +194,10 @@
                 <option value="carto-light">CartoDB Positron</option>
                 <option value="carto-dark">CartoDB Dark</option>
             </optgroup>
-            <optgroup label="Stamen Design">
-                <option value="stamen-toner">Stamen Toner (흑백)</option>
-                <option value="stamen-terrain">Stamen Terrain</option>
-                <option value="stamen-watercolor">Stamen Watercolor (수채화)</option>
+            <optgroup label="테마 지도">
+                <option value="wikimedia">Wikimedia (위키피디아)</option>
+                <option value="cyclosm">CyclOSM (자전거 도로)</option>
+                <option value="railway">OpenRailwayMap (철도)</option>
             </optgroup>
             <optgroup label="Esri ArcGIS">
                 <option value="esri-street">Esri Street Map</option>
@@ -325,18 +325,17 @@
                     tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
                     attribution = '© OpenStreetMap contributors © CARTO';
                     break;
-                case 'stamen-toner':
-                    tileUrl = 'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}{r}.png';
-                    attribution = '© OpenStreetMap contributors © Stamen Design';
+                case 'wikimedia':
+                    tileUrl = 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png';
+                    attribution = '© OpenStreetMap contributors, Wikimedia maps';
                     break;
-                case 'stamen-terrain':
-                    tileUrl = 'https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.png';
-                    attribution = '© OpenStreetMap contributors © Stamen Design';
+                case 'cyclosm':
+                    tileUrl = 'https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png';
+                    attribution = '© OpenStreetMap contributors, CyclOSM';
                     break;
-                case 'stamen-watercolor':
-                    tileUrl = 'https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg';
-                    attribution = '© OpenStreetMap contributors © Stamen Design';
-                    maxZoom = 16;
+                case 'railway':
+                    tileUrl = 'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png';
+                    attribution = '© OpenStreetMap contributors, OpenRailwayMap';
                     break;
                 case 'esri-street':
                     tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI/CD 시스템 구성도</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .diagram-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 2px solid #e0e0e0;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+
+        .component {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 1rem;
+            min-width: 150px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .component-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .component-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .arrow {
+            font-size: 2rem;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .branch-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .branch {
+            background: white;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 0.8rem;
+            text-align: center;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .branch.feature {
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .branch.develop {
+            border-color: #17a2b8;
+            color: #17a2b8;
+        }
+
+        .branch.release {
+            border-color: #fd7e14;
+            color: #fd7e14;
+        }
+
+        .branch.main {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .pipeline-card {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .pipeline-card-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .pipeline-jobs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .job-badge {
+            background: #667eea;
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .job-badge.ci {
+            background: #28a745;
+        }
+
+        .job-badge.cd {
+            background: #dc3545;
+        }
+
+        .legend {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        .legend-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+        }
+
+        .info-box-title {
+            font-weight: bold;
+            color: #2196F3;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box-content {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 1.8rem;
+            }
+
+            .flow-row {
+                flex-direction: column;
+            }
+
+            .arrow {
+                transform: rotate(90deg);
+            }
+
+            .pipeline-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const App = () => {
+            return (
+                <div className="container">
+                    <h1 className="title">CI/CD 시스템 구성도</h1>
+
+                    <div className="diagram-container">
+                        {/* GitLab 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">📦 GitLab Repository</h2>
+                            <div className="info-box">
+                                <div className="info-box-title">GitLab 관리</div>
+                                <div className="info-box-content">
+                                    • Jenkins Pipeline 스크립트를 GitLab에서 관리<br/>
+                                    • gitlab-ci.yml을 활용한 편의 기능 제공
+                                </div>
+                            </div>
+                            <div className="flow-row">
+                                <div className="component">
+                                    <div className="component-title">GitLab</div>
+                                    <div className="component-desc">소스 코드 저장소</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="branch-container">
+                                    <div className="branch feature">feature/*</div>
+                                    <div className="branch develop">develop</div>
+                                    <div className="branch release">release</div>
+                                    <div className="branch main">main</div>
+                                </div>
+                            </div>
+                            <div className="info-box">
+                                <div className="info-box-title">브랜치 전략</div>
+                                <div className="info-box-content">
+                                    • 개발자는 feature 브랜치로만 직접 푸시 가능<br/>
+                                    • develop, release, main 브랜치는 Merge Request를 통해서만 변경 가능
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Jenkins Pipeline 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">⚙️ Jenkins Pipeline</h2>
+                            <div className="pipeline-grid">
+                                <div className="pipeline-card">
+                                    <div className="pipeline-card-title">🔧 개발 환경 (Develop)</div>
+                                    <div className="pipeline-jobs">
+                                        <span className="job-badge ci">CI Job</span>
+                                        <span className="job-badge cd">CD Job</span>
+                                    </div>
+                                    <div className="component-desc" style={{marginTop: '0.5rem'}}>
+                                        프로파일: dev<br/>
+                                        브랜치: develop
+                                    </div>
+                                </div>
+                                <div className="pipeline-card">
+                                    <div className="pipeline-card-title">🧪 검증 환경 (Release)</div>
+                                    <div className="pipeline-jobs">
+                                        <span className="job-badge ci">CI Job</span>
+                                        <span className="job-badge cd">CD Job</span>
+                                    </div>
+                                    <div className="component-desc" style={{marginTop: '0.5rem'}}>
+                                        프로파일: staging<br/>
+                                        브랜치: release
+                                    </div>
+                                </div>
+                                <div className="pipeline-card">
+                                    <div className="pipeline-card-title">🚀 운영 환경 (Main)</div>
+                                    <div className="pipeline-jobs">
+                                        <span className="job-badge ci">CI Job</span>
+                                        <span className="job-badge cd">CD Job</span>
+                                    </div>
+                                    <div className="component-desc" style={{marginTop: '0.5rem'}}>
+                                        프로파일: prod<br/>
+                                        브랜치: main
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CI 프로세스 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">🔄 CI (Continuous Integration) 프로세스</h2>
+                            <div className="flow-row">
+                                <div className="component">
+                                    <div className="component-title">GitLab Webhook</div>
+                                    <div className="component-desc">코드 푸시 감지</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">Jenkins CI Job</div>
+                                    <div className="component-desc">Pipeline 실행</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">Maven Build</div>
+                                    <div className="component-desc">프로파일별 빌드<br/>(dev/staging/prod)</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">SonarQube</div>
+                                    <div className="component-desc">코드 품질 점검</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">Nexus</div>
+                                    <div className="component-desc">아티팩트 저장</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CD 프로세스 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">🚀 CD (Continuous Deployment) 프로세스</h2>
+                            <div className="flow-row">
+                                <div className="component">
+                                    <div className="component-title">Nexus</div>
+                                    <div className="component-desc">아티팩트 다운로드</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">Jenkins CD Job</div>
+                                    <div className="component-desc">배포 Pipeline 실행</div>
+                                </div>
+                                <div className="arrow">→</div>
+                                <div className="component">
+                                    <div className="component-title">서버 배포</div>
+                                    <div className="component-desc">개발/검증/운영<br/>환경별 배포</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 전체 플로우 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">📊 전체 시스템 플로우</h2>
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+                                <div className="flow-row">
+                                    <div className="component">
+                                        <div className="component-title">개발자</div>
+                                        <div className="component-desc">feature 브랜치에<br/>코드 푸시</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">Merge Request</div>
+                                        <div className="component-desc">develop/release/main<br/>병합</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">Jenkins CI</div>
+                                        <div className="component-desc">빌드 & 테스트</div>
+                                    </div>
+                                </div>
+                                <div className="flow-row">
+                                    <div className="component">
+                                        <div className="component-title">SonarQube</div>
+                                        <div className="component-desc">코드 품질 검사</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">Maven Package</div>
+                                        <div className="component-desc">프로파일별<br/>아티팩트 생성</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">Nexus Repository</div>
+                                        <div className="component-desc">아티팩트 저장</div>
+                                    </div>
+                                </div>
+                                <div className="flow-row">
+                                    <div className="component">
+                                        <div className="component-title">Jenkins CD</div>
+                                        <div className="component-desc">배포 트리거</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">Nexus에서<br/>아티팩트 다운로드</div>
+                                        <div className="component-desc">버전 관리된<br/>빌드 파일</div>
+                                    </div>
+                                    <div className="arrow">→</div>
+                                    <div className="component">
+                                        <div className="component-title">서버 배포</div>
+                                        <div className="component-desc">개발/검증/운영<br/>환경별 자동 배포</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 기술 스택 섹션 */}
+                        <div className="section">
+                            <h2 className="section-title">🛠️ 기술 스택</h2>
+                            <div className="pipeline-grid">
+                                <div className="component">
+                                    <div className="component-title">GitLab</div>
+                                    <div className="component-desc">소스 코드 관리<br/>Pipeline 스크립트 관리</div>
+                                </div>
+                                <div className="component">
+                                    <div className="component-title">Jenkins</div>
+                                    <div className="component-desc">CI/CD 자동화<br/>Pipeline 실행</div>
+                                </div>
+                                <div className="component">
+                                    <div className="component-title">Maven</div>
+                                    <div className="component-desc">빌드 도구<br/>프로파일 관리</div>
+                                </div>
+                                <div className="component">
+                                    <div className="component-title">SonarQube</div>
+                                    <div className="component-desc">코드 품질 분석<br/>정적 분석</div>
+                                </div>
+                                <div className="component">
+                                    <div className="component-title">Nexus</div>
+                                    <div className="component-desc">아티팩트 저장소<br/>버전 관리</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 범례 */}
+                        <div className="legend">
+                            <div className="legend-title">범례</div>
+                            <div className="legend-items">
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#28a745'}}></div>
+                                    <span>CI Job</span>
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#dc3545'}}></div>
+                                    <span>CD Job</span>
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#ffc107', borderColor: '#ffc107'}}></div>
+                                    <span>feature 브랜치</span>
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#17a2b8', borderColor: '#17a2b8'}}></div>
+                                    <span>develop 브랜치</span>
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#fd7e14', borderColor: '#fd7e14'}}></div>
+                                    <span>release 브랜치</span>
+                                </div>
+                                <div className="legend-item">
+                                    <div className="legend-color" style={{background: '#dc3545', borderColor: '#dc3545'}}></div>
+                                    <span>main 브랜치</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

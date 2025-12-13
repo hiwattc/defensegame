@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테트리스 텍스트 비주얼</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e8ba3 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2a5298;
+            margin-bottom: 0.5rem;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.2rem;
+            border: 3px solid #2a5298;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .text-input:focus {
+            border-color: #7e8ba3;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            background: #2a5298;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(42, 82, 152, 0.4);
+        }
+
+        .btn.clear {
+            background: #dc3545;
+        }
+
+        .btn.clear:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(30, 60, 114, 0.3) 0%, rgba(42, 82, 152, 0.5) 100%);
+        }
+
+        .falling-char {
+            position: absolute;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            user-select: none;
+            transition: none;
+        }
+
+        .falling-emoji {
+            position: absolute;
+            font-size: 3rem;
+            pointer-events: none;
+            user-select: none;
+            transition: none;
+        }
+
+        .obstacle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(200,200,200,0.6));
+            border: 3px solid rgba(255,255,255,0.9);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3), inset 0 2px 5px rgba(255,255,255,0.5);
+            pointer-events: none;
+        }
+
+        .stats {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // 예쁜 이모티콘 리스트
+        const EMOJIS = ['✨', '⭐', '🌟', '💫', '🎉', '🎊', '🎈', '🎁', '💎', '🔮', '💖', '💝', '🌸', '🌺', '🌻', '🌷', '🌹', '🌼', '🦋', '🐝', '🦄', '🌈', '☀️', '🌙', '⭐', '💫', '🔥', '💧', '❄️', '☄️'];
+
+        // 물리 객체 클래스
+        class FallingObject {
+            constructor(x, y, char, isEmoji = false) {
+                this.x = x;
+                this.y = y;
+                this.char = char;
+                this.isEmoji = isEmoji;
+                this.vx = (Math.random() - 0.5) * 2; // 초기 수평 속도
+                this.vy = Math.random() * 2 + 1; // 초기 수직 속도
+                this.radius = isEmoji ? 20 : 15;
+                this.mass = isEmoji ? 1.5 : 1;
+                this.bounce = 0.6; // 반발 계수
+                this.friction = 0.98; // 마찰 계수
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 5;
+                this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
+            }
+
+            update(gravity, obstacles, width, height) {
+                // 중력 적용
+                this.vy += gravity * this.mass;
+                
+                // 속도에 마찰 적용
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                // 위치 업데이트
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 회전
+                this.rotation += this.rotationSpeed;
+
+                // 장애물과의 충돌 검사
+                obstacles.forEach(obstacle => {
+                    const dx = this.x - obstacle.x;
+                    const dy = this.y - obstacle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDistance = this.radius + obstacle.radius;
+
+                    if (distance < minDistance) {
+                        // 충돌 처리
+                        const angle = Math.atan2(dy, dx);
+                        const overlap = minDistance - distance;
+                        
+                        // 위치 보정
+                        this.x += Math.cos(angle) * overlap;
+                        this.y += Math.sin(angle) * overlap;
+
+                        // 반사 계산
+                        const normalX = Math.cos(angle);
+                        const normalY = Math.sin(angle);
+                        const relativeVelocityX = this.vx;
+                        const relativeVelocityY = this.vy;
+                        const dotProduct = relativeVelocityX * normalX + relativeVelocityY * normalY;
+
+                        // 반사 벡터
+                        this.vx -= 2 * dotProduct * normalX * this.bounce;
+                        this.vy -= 2 * dotProduct * normalY * this.bounce;
+
+                        // 약간의 랜덤성 추가
+                        this.vx += (Math.random() - 0.5) * 2;
+                        this.vy += (Math.random() - 0.5) * 2;
+                    }
+                });
+
+                // 벽과의 충돌
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx *= -this.bounce;
+                }
+                if (this.x + this.radius > width) {
+                    this.x = width - this.radius;
+                    this.vx *= -this.bounce;
+                }
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy *= -this.bounce;
+                }
+                if (this.y + this.radius > height) {
+                    this.y = height - this.radius;
+                    this.vy *= -this.bounce * 0.8; // 바닥은 더 많은 에너지 손실
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                
+                if (this.isEmoji) {
+                    ctx.font = '3rem Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.char, 0, 0);
+                } else {
+                    ctx.font = 'bold 2.5rem Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = this.color;
+                    ctx.fillText(this.char, 0, 0);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeText(this.char, 0, 0);
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        const App = () => {
+            const [inputText, setInputText] = useState('');
+            const [fallingObjects, setFallingObjects] = useState([]);
+            const [obstacles, setObstacles] = useState([]);
+            const [stats, setStats] = useState({ total: 0, emojis: 0 });
+            const canvasRef = useRef(null);
+            const animationFrameRef = useRef(null);
+            const objectsRef = useRef([]);
+            const obstaclesRef = useRef([]);
+            const lastCharIndexRef = useRef(0);
+
+            // 장애물 초기화
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const width = canvas.width;
+                const height = canvas.height;
+
+                const newObstacles = [];
+                // 핀볼 장애물들을 랜덤하게 배치
+                for (let i = 0; i < 8; i++) {
+                    newObstacles.push({
+                        x: Math.random() * (width - 100) + 50,
+                        y: Math.random() * (height - 200) + 100,
+                        radius: 30 + Math.random() * 40
+                    });
+                }
+                obstaclesRef.current = newObstacles;
+                setObstacles(newObstacles);
+            }, []);
+
+            // 텍스트 입력 처리
+            const handleInputChange = useCallback((e) => {
+                const newText = e.target.value;
+                setInputText(newText);
+
+                // 새로 입력된 글자만 처리
+                if (newText.length > lastCharIndexRef.current) {
+                    const canvas = canvasRef.current;
+                    if (!canvas) return;
+
+                    const newChars = newText.slice(lastCharIndexRef.current);
+                    const width = canvas.width;
+
+                    newChars.split('').forEach((char, index) => {
+                        // 랜덤한 x 위치에서 시작
+                        const x = Math.random() * (width - 100) + 50;
+                        const y = -50;
+                        
+                        const obj = new FallingObject(x, y, char, false);
+                        objectsRef.current.push(obj);
+                        
+                        // 랜덤하게 이모티콘도 추가 (20% 확률)
+                        if (Math.random() < 0.2) {
+                            const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+                            const emojiX = Math.random() * (width - 100) + 50;
+                            const emojiObj = new FallingObject(emojiX, y, emoji, true);
+                            objectsRef.current.push(emojiObj);
+                            setStats(prev => ({ ...prev, emojis: prev.emojis + 1 }));
+                        }
+                    });
+
+                    lastCharIndexRef.current = newText.length;
+                    setStats(prev => ({ ...prev, total: objectsRef.current.length }));
+                } else if (newText.length < lastCharIndexRef.current) {
+                    // 텍스트가 삭제된 경우 (간단하게 처리)
+                    lastCharIndexRef.current = newText.length;
+                }
+            }, []);
+
+            // 애니메이션 루프
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                const gravity = 0.3;
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 장애물 그리기
+                    obstaclesRef.current.forEach(obstacle => {
+                        ctx.beginPath();
+                        ctx.arc(obstacle.x, obstacle.y, obstacle.radius, 0, Math.PI * 2);
+                        const gradient = ctx.createRadialGradient(
+                            obstacle.x - obstacle.radius * 0.3,
+                            obstacle.y - obstacle.radius * 0.3,
+                            0,
+                            obstacle.x,
+                            obstacle.y,
+                            obstacle.radius
+                        );
+                        gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+                        gradient.addColorStop(1, 'rgba(200,200,200,0.6)');
+                        ctx.fillStyle = gradient;
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    });
+
+                    // 떨어지는 객체 업데이트 및 그리기
+                    objectsRef.current = objectsRef.current.filter(obj => {
+                        obj.update(gravity, obstaclesRef.current, canvas.width, canvas.height);
+                        obj.draw(ctx);
+                        
+                        // 화면 밖으로 너무 멀리 나간 객체 제거 (성능 최적화)
+                        return obj.y < canvas.height + 200 && obj.x > -200 && obj.x < canvas.width + 200;
+                    });
+
+                    setStats(prev => ({ ...prev, total: objectsRef.current.length }));
+
+                    animationFrameRef.current = requestAnimationFrame(animate);
+                };
+
+                animate();
+
+                return () => {
+                    if (animationFrameRef.current) {
+                        cancelAnimationFrame(animationFrameRef.current);
+                    }
+                };
+            }, []);
+
+            // 캔버스 크기 조정
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const resizeCanvas = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight - 150; // 입력 영역 제외
+                };
+
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+
+                return () => window.removeEventListener('resize', resizeCanvas);
+            }, []);
+
+            // 화면 지우기
+            const clearCanvas = () => {
+                objectsRef.current = [];
+                setInputText('');
+                lastCharIndexRef.current = 0;
+                setStats({ total: 0, emojis: 0 });
+            };
+
+            return (
+                <div className="container">
+                    <div className="input-section">
+                        <div className="input-container">
+                            <label className="input-label">
+                                ✍️ 텍스트를 입력하세요 (각 글자가 떨어집니다!)
+                            </label>
+                            <input
+                                type="text"
+                                className="text-input"
+                                value={inputText}
+                                onChange={handleInputChange}
+                                placeholder="여기에 텍스트를 입력하면 글자들이 떨어집니다..."
+                            />
+                            <div className="controls">
+                                <button className="btn clear" onClick={clearCanvas}>
+                                    🗑️ 화면 지우기
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="canvas-container">
+                        <div className="stats">
+                            총 객체: {stats.total} | 이모티콘: {stats.emojis}
+                        </div>
+                        <canvas ref={canvasRef}></canvas>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+

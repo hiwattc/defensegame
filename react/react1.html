@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프리미엄 제품 - 랜딩페이지</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* 헤더 */
+        header {
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #6366f1;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #6366f1;
+        }
+
+        /* 히어로 섹션 */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6rem 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 1s;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            animation: fadeInUp 1s 0.2s both;
+        }
+
+        .cta-button {
+            background: #fff;
+            color: #6366f1;
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            animation: fadeInUp 1s 0.4s both;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* 특징 섹션 */
+        .features {
+            padding: 5rem 2rem;
+            background: #f8f9fa;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #6366f1;
+        }
+
+        /* 제품 섹션 */
+        .product {
+            padding: 5rem 2rem;
+        }
+
+        .product-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+            color: white;
+        }
+
+        .product-info h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .product-info p {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .price {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #6366f1;
+            margin: 2rem 0;
+        }
+
+        .price-original {
+            font-size: 1.5rem;
+            color: #999;
+            text-decoration: line-through;
+            margin-right: 1rem;
+        }
+
+        /* 리뷰 섹션 */
+        .reviews {
+            padding: 5rem 2rem;
+            background: #f8f9fa;
+        }
+
+        .reviews-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .review-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .review-stars {
+            color: #ffc107;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .review-author {
+            font-weight: bold;
+            margin-top: 1rem;
+            color: #6366f1;
+        }
+
+        /* FAQ 섹션 */
+        .faq {
+            padding: 5rem 2rem;
+        }
+
+        .faq-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .faq-question:hover {
+            background: #f8f9fa;
+        }
+
+        .faq-answer {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s, padding 0.3s;
+        }
+
+        .faq-answer.open {
+            max-height: 500px;
+            padding: 1.5rem;
+        }
+
+        /* 푸터 */
+        footer {
+            background: #333;
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #6366f1;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .product-content {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const App = () => {
+            const [openFaq, setOpenFaq] = useState(null);
+
+            const toggleFaq = (index) => {
+                setOpenFaq(openFaq === index ? null : index);
+            };
+
+            const faqs = [
+                {
+                    question: "배송은 얼마나 걸리나요?",
+                    answer: "주문 후 2-3일 내에 배송됩니다. 급하신 경우 당일 배송 옵션도 선택하실 수 있습니다."
+                },
+                {
+                    question: "환불 정책은 어떻게 되나요?",
+                    answer: "구매 후 30일 이내에 만족하지 않으시면 100% 환불해드립니다. 별도의 이유를 요구하지 않습니다."
+                },
+                {
+                    question: "A/S는 어떻게 받나요?",
+                    answer: "제품에 문제가 발생하면 1년 무상 A/S를 제공합니다. 고객센터로 연락주시면 빠르게 처리해드립니다."
+                },
+                {
+                    question: "할부 결제가 가능한가요?",
+                    answer: "네, 최대 12개월 무이자 할부가 가능합니다. 다양한 결제 수단을 지원합니다."
+                }
+            ];
+
+            return (
+                <div>
+                    {/* 헤더 */}
+                    <header>
+                        <nav className="container">
+                            <div className="logo">Premium Product</div>
+                            <ul className="nav-links">
+                                <li><a href="#features">특징</a></li>
+                                <li><a href="#product">제품</a></li>
+                                <li><a href="#reviews">리뷰</a></li>
+                                <li><a href="#faq">FAQ</a></li>
+                            </ul>
+                        </nav>
+                    </header>
+
+                    {/* 히어로 섹션 */}
+                    <section className="hero">
+                        <div className="container">
+                            <h1>당신의 삶을 바꾸는 프리미엄 제품</h1>
+                            <p>혁신적인 기술과 세련된 디자인이 만나 완벽한 경험을 제공합니다</p>
+                            <button className="cta-button">지금 구매하기</button>
+                        </div>
+                    </section>
+
+                    {/* 특징 섹션 */}
+                    <section className="features" id="features">
+                        <div className="container">
+                            <h2 className="section-title">왜 우리 제품을 선택해야 할까요?</h2>
+                            <div className="features-grid">
+                                <div className="feature-card">
+                                    <div className="feature-icon">⚡</div>
+                                    <h3>빠른 성능</h3>
+                                    <p>최신 기술로 제작되어 놀라운 속도와 효율성을 제공합니다. 모든 작업이 순식간에 완료됩니다.</p>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">🎨</div>
+                                    <h3>세련된 디자인</h3>
+                                    <p>미니멀하면서도 우아한 디자인으로 어떤 공간에도 완벽하게 어울립니다.</p>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">🔒</div>
+                                    <h3>안전 보장</h3>
+                                    <p>엄격한 품질 검사를 거쳐 안전성과 내구성을 보장합니다. 1년 무상 A/S를 제공합니다.</p>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">💡</div>
+                                    <h3>스마트 기능</h3>
+                                    <p>AI 기반 스마트 기능으로 사용자의 편의성을 극대화합니다.</p>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">🌱</div>
+                                    <h3>친환경</h3>
+                                    <p>환경을 생각하는 재료와 제조 공정으로 지구를 보호합니다.</p>
+                                </div>
+                                <div className="feature-card">
+                                    <div className="feature-icon">📱</div>
+                                    <h3>편리한 연동</h3>
+                                    <p>다양한 기기와 앱과 원활하게 연동되어 더욱 편리하게 사용할 수 있습니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* 제품 섹션 */}
+                    <section className="product" id="product">
+                        <div className="container">
+                            <div className="product-content">
+                                <div className="product-image">
+                                    📦
+                                </div>
+                                <div className="product-info">
+                                    <h2>프리미엄 제품</h2>
+                                    <p>
+                                        최고 품질의 소재와 정교한 제작 공정을 통해 탄생한 프리미엄 제품입니다. 
+                                        일상생활을 더욱 편리하고 즐겁게 만들어드립니다.
+                                    </p>
+                                    <p>
+                                        지금 구매하시면 특별 할인가로 만나보실 수 있습니다. 
+                                        한정 수량이므로 서두르세요!
+                                    </p>
+                                    <div className="price">
+                                        <span className="price-original">₩199,000</span>
+                                        <span>₩149,000</span>
+                                    </div>
+                                    <button className="cta-button">지금 주문하기</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* 리뷰 섹션 */}
+                    <section className="reviews" id="reviews">
+                        <div className="container">
+                            <h2 className="section-title">고객 후기</h2>
+                            <div className="reviews-grid">
+                                <div className="review-card">
+                                    <div className="review-stars">★★★★★</div>
+                                    <p>"정말 만족스러운 제품입니다! 성능도 좋고 디자인도 예뻐서 매일 사용하고 있어요. 강력 추천합니다!"</p>
+                                    <div className="review-author">- 김민수님</div>
+                                </div>
+                                <div className="review-card">
+                                    <div className="review-stars">★★★★★</div>
+                                    <p>"가격 대비 품질이 정말 훌륭해요. 구매 후 후회 없었고, 친구들에게도 추천했어요."</p>
+                                    <div className="review-author">- 이지은님</div>
+                                </div>
+                                <div className="review-card">
+                                    <div className="review-stars">★★★★★</div>
+                                    <p>"생각보다 훨씬 좋은 제품이에요. 사용하기도 편하고 기능도 다양해서 정말 유용합니다."</p>
+                                    <div className="review-author">- 박준호님</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* FAQ 섹션 */}
+                    <section className="faq" id="faq">
+                        <div className="container">
+                            <h2 className="section-title">자주 묻는 질문</h2>
+                            {faqs.map((faq, index) => (
+                                <div key={index} className="faq-item">
+                                    <div 
+                                        className="faq-question"
+                                        onClick={() => toggleFaq(index)}
+                                    >
+                                        <span>{faq.question}</span>
+                                        <span>{openFaq === index ? '−' : '+'}</span>
+                                    </div>
+                                    <div className={`faq-answer ${openFaq === index ? 'open' : ''}`}>
+                                        {faq.answer}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* 푸터 */}
+                    <footer>
+                        <div className="container">
+                            <ul className="footer-links">
+                                <li><a href="#features">특징</a></li>
+                                <li><a href="#product">제품</a></li>
+                                <li><a href="#reviews">리뷰</a></li>
+                                <li><a href="#faq">FAQ</a></li>
+                                <li><a href="#">고객센터</a></li>
+                            </ul>
+                            <p>&copy; 2024 Premium Product. All rights reserved.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스타크래프트 마린 게임</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .status-bar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-bottom: 3px solid #4a90e2;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        .status-bar h3 {
+            color: #4a90e2;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .status-info {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-item strong {
+            color: #4a90e2;
+        }
+
+        .status-help {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .game-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .selection-box {
+            position: absolute;
+            border: 2px dashed #4a90e2;
+            background: rgba(74, 144, 226, 0.1);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+            z-index: 60;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // 유닛 클래스
+        class Unit {
+            constructor(x, y, team, id) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.team = team; // 'ally' or 'enemy'
+                this.radius = 12;
+                this.maxHp = 100;
+                this.hp = 100;
+                this.speed = 2;
+                this.targetX = x;
+                this.targetY = y;
+                this.isMoving = false;
+                this.attackRange = 150;
+                this.attackCooldown = 0;
+                this.attackSpeed = team === 'enemy' ? 40 : 60; // 발사 빈도를 절반으로 줄임 (2배 증가)
+                this.damage = 10;
+                this.searchRange = team === 'enemy' ? 800 : 150; // 적군은 더 먼 거리까지 탐색
+                this.target = null;
+                this.selected = false;
+                this.color = team === 'ally' ? '#4a90e2' : '#e24a4a';
+                
+                // 이모티콘 설정 (아군/적군 구분)
+                const allyEmojis = ['🪖', '⚔️', '🛡️', '🗡️', '⚡', '🔥', '💎', '⭐', '🌟', '✨'];
+                const enemyEmojis = ['👹', '💀', '☠️', '👿', '🔥', '⚡', '💥', '🌑', '🌚', '⚫'];
+                this.emoji = team === 'ally' 
+                    ? allyEmojis[Math.floor(Math.random() * allyEmojis.length)]
+                    : enemyEmojis[Math.floor(Math.random() * enemyEmojis.length)];
+            }
+
+            update(units, walls) {
+                // 공격 쿨다운 감소
+                if (this.attackCooldown > 0) {
+                    this.attackCooldown--;
+                }
+
+                // 이동 처리
+                if (this.isMoving) {
+                    const dx = this.targetX - this.x;
+                    const dy = this.targetY - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance > 2) {
+                        const angle = Math.atan2(dy, dx);
+                        const newX = this.x + Math.cos(angle) * this.speed;
+                        const newY = this.y + Math.sin(angle) * this.speed;
+
+                        // 벽 충돌 검사
+                        if (!this.checkWallCollision(newX, newY, walls)) {
+                            // 유닛 충돌 검사
+                            if (!this.checkUnitCollision(newX, newY, units, this.id)) {
+                                this.x = newX;
+                                this.y = newY;
+                            } else {
+                                // 다른 유닛과 충돌하면 약간 옆으로 이동 시도
+                                const perpAngle1 = angle + Math.PI / 2;
+                                const perpAngle2 = angle - Math.PI / 2;
+                                
+                                const tryX1 = this.x + Math.cos(perpAngle1) * this.speed;
+                                const tryY1 = this.y + Math.sin(perpAngle1) * this.speed;
+                                const tryX2 = this.x + Math.cos(perpAngle2) * this.speed;
+                                const tryY2 = this.y + Math.sin(perpAngle2) * this.speed;
+                                
+                                if (!this.checkWallCollision(tryX1, tryY1, walls) && 
+                                    !this.checkUnitCollision(tryX1, tryY1, units, this.id)) {
+                                    this.x = tryX1;
+                                    this.y = tryY1;
+                                } else if (!this.checkWallCollision(tryX2, tryY2, walls) && 
+                                          !this.checkUnitCollision(tryX2, tryY2, units, this.id)) {
+                                    this.x = tryX2;
+                                    this.y = tryY2;
+                                } else {
+                                    // 모든 방향이 막혔으면 멈춤
+                                    this.isMoving = false;
+                                }
+                            }
+                        } else {
+                            this.isMoving = false;
+                        }
+                    } else {
+                        this.isMoving = false;
+                    }
+                }
+
+                // 타겟 찾기 및 공격 (적군은 더 자주 탐색)
+                if (this.attackCooldown === 0 || (this.team === 'enemy' && this.attackCooldown % 5 === 0)) {
+                    this.findAndAttackTarget(units, walls);
+                }
+            }
+
+            checkWallCollision(x, y, walls) {
+                for (const wall of walls) {
+                    if (x - this.radius < wall.x + wall.width &&
+                        x + this.radius > wall.x &&
+                        y - this.radius < wall.y + wall.height &&
+                        y + this.radius > wall.y) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            checkUnitCollision(x, y, units, excludeId) {
+                for (const unit of units) {
+                    if (unit.id !== excludeId && unit.hp > 0) {
+                        const dx = unit.x - x;
+                        const dy = unit.y - y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDistance = this.radius + unit.radius + 2; // 2px 여유 공간
+                        if (distance < minDistance) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            findAndAttackTarget(units, walls) {
+                let closestEnemy = null;
+                let closestDistance = this.searchRange;
+
+                for (const unit of units) {
+                    if (unit.team !== this.team && unit.hp > 0) {
+                        const dx = unit.x - this.x;
+                        const dy = unit.y - this.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestEnemy = unit;
+                        }
+                    }
+                }
+
+                if (closestEnemy) {
+                    // 적군은 아군을 향해 이동 (사정거리까지 근접)
+                    if (this.team === 'enemy') {
+                        const dx = closestEnemy.x - this.x;
+                        const dy = closestEnemy.y - this.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // 사정거리 밖이면 이동 (사정거리까지 근접)
+                        if (distance > this.attackRange) {
+                            // 벽을 피해서 이동
+                            const angle = Math.atan2(dy, dx);
+                            
+                            const moveX = this.x + Math.cos(angle) * this.speed;
+                            const moveY = this.y + Math.sin(angle) * this.speed;
+                            
+                            if (!this.checkWallCollision(moveX, moveY, walls) && 
+                                !this.checkUnitCollision(moveX, moveY, units, this.id)) {
+                                this.targetX = closestEnemy.x;
+                                this.targetY = closestEnemy.y;
+                                this.isMoving = true;
+                            } else {
+                                // 벽이나 유닛에 막히면 우회 시도
+                                const perpAngle1 = angle + Math.PI / 2;
+                                const perpAngle2 = angle - Math.PI / 2;
+                                
+                                const tryX1 = this.x + Math.cos(perpAngle1) * this.speed * 2;
+                                const tryY1 = this.y + Math.sin(perpAngle1) * this.speed * 2;
+                                const tryX2 = this.x + Math.cos(perpAngle2) * this.speed * 2;
+                                const tryY2 = this.y + Math.sin(perpAngle2) * this.speed * 2;
+                                
+                                if (!this.checkWallCollision(tryX1, tryY1, walls) && 
+                                    !this.checkUnitCollision(tryX1, tryY1, units, this.id)) {
+                                    this.targetX = tryX1;
+                                    this.targetY = tryY1;
+                                    this.isMoving = true;
+                                } else if (!this.checkWallCollision(tryX2, tryY2, walls) && 
+                                          !this.checkUnitCollision(tryX2, tryY2, units, this.id)) {
+                                    this.targetX = tryX2;
+                                    this.targetY = tryY2;
+                                    this.isMoving = true;
+                                }
+                            }
+                        } else {
+                            // 사정거리 내에 있으면 이동 중지하고 공격
+                            this.isMoving = false;
+                        }
+                    }
+                    
+                    // 사정거리 내면 공격
+                    if (closestDistance <= this.attackRange) {
+                        this.target = closestEnemy;
+                        this.attack(closestEnemy);
+                    } else {
+                        this.target = closestEnemy; // 타겟은 설정하되 공격은 안함
+                    }
+                } else {
+                    this.target = null;
+                }
+            }
+
+            attack(target) {
+                if (this.attackCooldown === 0 && target.hp > 0) {
+                    target.hp -= this.damage;
+                    this.attackCooldown = this.attackSpeed;
+                    if (target.hp <= 0) {
+                        target.hp = 0;
+                    }
+                }
+            }
+
+            moveTo(x, y) {
+                this.targetX = x;
+                this.targetY = y;
+                this.isMoving = true;
+            }
+
+            draw(ctx) {
+                // 유닛 그리기
+                ctx.save();
+                
+                // 선택 표시
+                if (this.selected) {
+                    ctx.strokeStyle = '#ffff00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // 유닛 본체 (이모티콘 배경)
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 테두리
+                ctx.strokeStyle = this.team === 'ally' ? '#2a7fff' : '#ff2a2a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 이모티콘 그리기
+                ctx.font = `${this.radius * 1.5}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+
+                // 총구 표시
+                if (this.target && this.target.hp > 0) {
+                    const dx = this.target.x - this.x;
+                    const dy = this.target.y - this.y;
+                    const angle = Math.atan2(dy, dx);
+                    const gunX = this.x + Math.cos(angle) * this.radius;
+                    const gunY = this.y + Math.sin(angle) * this.radius;
+                    
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(gunX, gunY);
+                    ctx.stroke();
+                }
+
+                // HP 바
+                const hpPercent = this.hp / this.maxHp;
+                const barWidth = this.radius * 2;
+                const barHeight = 4;
+                const barX = this.x - barWidth / 2;
+                const barY = this.y - this.radius - 10;
+
+                // 배경
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // HP
+                ctx.fillStyle = hpPercent > 0.5 ? '#4caf50' : hpPercent > 0.25 ? '#ff9800' : '#f44336';
+                ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight);
+
+                // HP 텍스트
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.ceil(this.hp), this.x, barY - 2);
+
+                ctx.restore();
+            }
+        }
+
+        // 총알 클래스
+        class Bullet {
+            constructor(x, y, targetX, targetY, damage, team) {
+                this.x = x;
+                this.y = y;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.damage = damage;
+                this.team = team; // 발사한 유닛의 팀
+                this.speed = 8;
+                const dx = targetX - x;
+                const dy = targetY - y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                this.vx = (dx / distance) * this.speed;
+                this.vy = (dy / distance) * this.speed;
+                this.radius = 3;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                // 빛나는 효과
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffff00';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            isHit(target) {
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance < target.radius + this.radius;
+            }
+
+            checkWallCollision(walls) {
+                for (const wall of walls) {
+                    if (this.x >= wall.x && this.x <= wall.x + wall.width &&
+                        this.y >= wall.y && this.y <= wall.y + wall.height) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        // 폭발 이펙트 클래스
+        class Explosion {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.maxRadius = 30;
+                this.life = 20;
+                this.maxLife = 20;
+            }
+
+            update() {
+                this.life--;
+                this.radius = this.maxRadius * (1 - this.life / this.maxLife);
+            }
+
+            draw(ctx) {
+                const alpha = this.life / this.maxLife;
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius
+                );
+                gradient.addColorStop(0, `rgba(255, 200, 0, ${alpha})`);
+                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            isDead() {
+                return this.life <= 0;
+            }
+        }
+
+        // 미로 생성 함수 (벽이 겹치지 않게 개선)
+        function generateMaze(width, height, cellSize) {
+            const walls = [];
+            const minSpacing = cellSize * 3; // 벽 사이 최소 간격 (유닛 이동 공간 확보)
+
+            // 외벽
+            walls.push({ x: 0, y: 0, width: width, height: cellSize }); // 상
+            walls.push({ x: 0, y: height - cellSize, width: width, height: cellSize }); // 하
+            walls.push({ x: 0, y: 0, width: cellSize, height: height }); // 좌
+            walls.push({ x: width - cellSize, y: 0, width: cellSize, height: height }); // 우
+
+            // 벽이 겹치지 않게 생성하는 함수
+            const isWallOverlapping = (newWall, existingWalls) => {
+                for (const wall of existingWalls) {
+                    // 두 벽이 겹치는지 확인 (간격 포함)
+                    if (newWall.x < wall.x + wall.width + minSpacing &&
+                        newWall.x + newWall.width + minSpacing > wall.x &&
+                        newWall.y < wall.y + wall.height + minSpacing &&
+                        newWall.y + newWall.height + minSpacing > wall.y) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // 추가 랜덤 벽들 (3개 -> 6개로 2배 증가)
+            const wallCount = 6;
+            let attempts = 0;
+            const maxAttempts = 200; // 무한 루프 방지
+
+            for (let i = 0; i < wallCount && attempts < maxAttempts; attempts++) {
+                const isVertical = Math.random() > 0.5;
+                let newWall;
+
+                if (isVertical) {
+                    const x = Math.random() * (width - cellSize * 4) + cellSize * 2;
+                    const y = Math.random() * (height - cellSize * 5) + cellSize * 2;
+                    const wallHeight = Math.random() * (height / 5) + cellSize * 2;
+                    newWall = { x, y, width: cellSize, height: wallHeight };
+                } else {
+                    const x = Math.random() * (width - cellSize * 5) + cellSize * 2;
+                    const y = Math.random() * (height - cellSize * 4) + cellSize * 2;
+                    const wallWidth = Math.random() * (width / 5) + cellSize * 2;
+                    newWall = { x, y, width: wallWidth, height: cellSize };
+                }
+
+                // 외벽과의 간격 확인
+                const tooCloseToEdge = 
+                    newWall.x < cellSize * 2 ||
+                    newWall.y < cellSize * 2 ||
+                    newWall.x + newWall.width > width - cellSize * 2 ||
+                    newWall.y + newWall.height > height - cellSize * 2;
+
+                if (!tooCloseToEdge && !isWallOverlapping(newWall, walls)) {
+                    walls.push(newWall);
+                    i++;
+                }
+            }
+
+            return walls;
+        }
+
+        const App = () => {
+            const canvasRef = useRef(null);
+            const [units, setUnits] = useState([]);
+            const [bullets, setBullets] = useState([]);
+            const [walls, setWalls] = useState([]);
+            const [explosions, setExplosions] = useState([]);
+            const [selectedUnits, setSelectedUnits] = useState([]);
+            const [isDragging, setIsDragging] = useState(false);
+            const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+            const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 });
+            const [stats, setStats] = useState({ allies: 0, enemies: 0 });
+
+            const unitsRef = useRef([]);
+            const bulletsRef = useRef([]);
+            const explosionsRef = useRef([]);
+            const wallsRef = useRef([]);
+            const animationFrameRef = useRef(null);
+            const lastAttackFrameRef = useRef(0);
+
+            // 게임 초기화
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const statusBarHeight = 60; // status 바 높이
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight - statusBarHeight;
+
+                // 미로 생성
+                const newWalls = generateMaze(canvas.width, canvas.height, 40);
+                wallsRef.current = newWalls;
+                setWalls(newWalls);
+
+                // 벽 충돌 검사 헬퍼 함수
+                const checkPositionCollision = (x, y, radius, walls) => {
+                    for (const wall of walls) {
+                        if (x - radius < wall.x + wall.width &&
+                            x + radius > wall.x &&
+                            y - radius < wall.y + wall.height &&
+                            y + radius > wall.y) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                // 아군 유닛 생성 (32개)
+                const newUnits = [];
+                for (let i = 0; i < 32; i++) {
+                    let x, y;
+                    let attempts = 0;
+                    do {
+                        x = 100 + Math.random() * 300;
+                        y = 100 + Math.random() * 300;
+                        attempts++;
+                    } while (checkPositionCollision(x, y, 12, newWalls) && attempts < 50);
+                    newUnits.push(new Unit(x, y, 'ally', `ally-${i}`));
+                }
+
+                // 적군 유닛 생성 (32개)
+                for (let i = 0; i < 32; i++) {
+                    let x, y;
+                    let attempts = 0;
+                    do {
+                        x = canvas.width - 400 + Math.random() * 300;
+                        y = canvas.height - 400 + Math.random() * 300;
+                        attempts++;
+                    } while (checkPositionCollision(x, y, 12, newWalls) && attempts < 50);
+                    newUnits.push(new Unit(x, y, 'enemy', `enemy-${i}`));
+                }
+
+                unitsRef.current = newUnits;
+                setUnits(newUnits);
+                updateStats(newUnits);
+            }, []);
+
+            const updateStats = (unitList) => {
+                const allies = unitList.filter(u => u.team === 'ally' && u.hp > 0).length;
+                const enemies = unitList.filter(u => u.team === 'enemy' && u.hp > 0).length;
+                setStats({ allies, enemies });
+            };
+
+            // 애니메이션 루프
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 배경
+                    ctx.fillStyle = '#2a2a3e';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // 벽 그리기 (더 세련된 스타일)
+                    wallsRef.current.forEach(wall => {
+                        // 그림자 효과
+                        ctx.fillStyle = '#333';
+                        ctx.fillRect(wall.x + 2, wall.y + 2, wall.width, wall.height);
+                        
+                        // 벽 본체
+                        const gradient = ctx.createLinearGradient(
+                            wall.x, wall.y,
+                            wall.x + wall.width, wall.y + wall.height
+                        );
+                        gradient.addColorStop(0, '#666');
+                        gradient.addColorStop(1, '#444');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+                        
+                        // 테두리
+                        ctx.strokeStyle = '#222';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+                        
+                        // 하이라이트
+                        ctx.strokeStyle = '#888';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(wall.x, wall.y);
+                        ctx.lineTo(wall.x + wall.width, wall.y);
+                        ctx.stroke();
+                    });
+
+                    // 유닛 업데이트 및 그리기
+                    const deadUnits = [];
+                    unitsRef.current = unitsRef.current.filter(unit => {
+                        if (unit.hp <= 0) {
+                            deadUnits.push(unit);
+                            return false;
+                        }
+                        unit.update(unitsRef.current, wallsRef.current);
+                        unit.draw(ctx);
+                        return true;
+                    });
+
+                    // 죽은 유닛 위치에 폭발 이펙트 추가
+                    deadUnits.forEach(unit => {
+                        explosionsRef.current.push(new Explosion(unit.x, unit.y));
+                    });
+
+                    // 총알 생성 (공격 시) - 발사 빈도를 절반으로 줄임
+                    const currentFrame = Date.now();
+                    if (currentFrame - lastAttackFrameRef.current > 200) { // 100ms -> 200ms로 증가
+                        unitsRef.current.forEach(unit => {
+                            if (unit.target && unit.target.hp > 0 && unit.attackCooldown === unit.attackSpeed - 5) {
+                                const bullet = new Bullet(unit.x, unit.y, unit.target.x, unit.target.y, unit.damage, unit.team);
+                                bulletsRef.current.push(bullet);
+                            }
+                        });
+                        lastAttackFrameRef.current = currentFrame;
+                    }
+
+                    // 총알 업데이트 및 그리기
+                    bulletsRef.current = bulletsRef.current.filter(bullet => {
+                        bullet.update();
+                        bullet.draw(ctx);
+
+                        // 벽과 충돌 검사
+                        if (bullet.checkWallCollision(wallsRef.current)) {
+                            explosionsRef.current.push(new Explosion(bullet.x, bullet.y));
+                            return false;
+                        }
+
+                        // 유닛과 충돌 검사 (같은 팀은 공격하지 않음)
+                        let hit = false;
+                        unitsRef.current.forEach(unit => {
+                            if (bullet.isHit(unit) && unit.team !== bullet.team) {
+                                // 적 팀만 공격
+                                unit.hp -= bullet.damage;
+                                if (unit.hp <= 0) {
+                                    unit.hp = 0;
+                                }
+                                explosionsRef.current.push(new Explosion(bullet.x, bullet.y));
+                                hit = true;
+                            }
+                        });
+
+                        // 화면 밖으로 나가면 제거
+                        if (bullet.x < 0 || bullet.x > canvas.width || 
+                            bullet.y < 0 || bullet.y > canvas.height || hit) {
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    // 폭발 이펙트 업데이트 및 그리기
+                    explosionsRef.current = explosionsRef.current.filter(explosion => {
+                        explosion.update();
+                        explosion.draw(ctx);
+                        return !explosion.isDead();
+                    });
+                    setExplosions([...explosionsRef.current]);
+
+                    setBullets([...bulletsRef.current]);
+                    setUnits([...unitsRef.current]);
+                    updateStats(unitsRef.current);
+
+                    animationFrameRef.current = requestAnimationFrame(animate);
+                };
+
+                animate();
+
+                return () => {
+                    if (animationFrameRef.current) {
+                        cancelAnimationFrame(animationFrameRef.current);
+                    }
+                };
+            }, []);
+
+            // 캔버스 크기 조정
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const resizeCanvas = () => {
+                    const statusBarHeight = 60;
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight - statusBarHeight;
+                };
+
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+
+                return () => window.removeEventListener('resize', resizeCanvas);
+            }, []);
+
+            // 마우스 이벤트 처리
+            const handleMouseDown = useCallback((e) => {
+                // 우클릭은 별도 처리
+                if (e.button === 2) {
+                    return;
+                }
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 적 클릭 검사
+                let clickedEnemy = null;
+                for (const unit of unitsRef.current) {
+                    if (unit.team === 'enemy' && unit.hp > 0) {
+                        const dx = unit.x - x;
+                        const dy = unit.y - y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < unit.radius) {
+                            clickedEnemy = unit;
+                            break;
+                        }
+                    }
+                }
+
+                if (clickedEnemy && selectedUnits.length > 0) {
+                    // 선택된 아군 유닛들이 적을 공격하도록 설정
+                    selectedUnits.forEach(unitId => {
+                        const unit = unitsRef.current.find(u => u.id === unitId);
+                        if (unit && unit.team === 'ally') {
+                            unit.target = clickedEnemy;
+                        }
+                    });
+                } else if (!clickedEnemy) {
+                    // 드래그 시작
+                    setIsDragging(true);
+                    setDragStart({ x, y });
+                    setDragEnd({ x, y });
+                }
+            }, [selectedUnits]);
+
+            // 우클릭 이벤트 처리 (이동 명령)
+            const handleContextMenu = useCallback((e) => {
+                e.preventDefault();
+                
+                if (selectedUnits.length === 0) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 선택된 유닛들을 해당 위치로 이동
+                selectedUnits.forEach(unitId => {
+                    const unit = unitsRef.current.find(u => u.id === unitId);
+                    if (unit && unit.team === 'ally') {
+                        unit.moveTo(x, y);
+                        unit.target = null; // 이동 명령 시 타겟 해제
+                    }
+                });
+            }, [selectedUnits]);
+
+            const handleMouseMove = useCallback((e) => {
+                if (!isDragging) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                setDragEnd({ x, y });
+            }, [isDragging]);
+
+            const handleMouseUp = useCallback((e) => {
+                if (!isDragging) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 선택 박스 영역 계산
+                const minX = Math.min(dragStart.x, x);
+                const maxX = Math.max(dragStart.x, x);
+                const minY = Math.min(dragStart.y, y);
+                const maxY = Math.max(dragStart.y, y);
+
+                // 선택된 유닛 찾기
+                const newSelected = [];
+                unitsRef.current.forEach(unit => {
+                    if (unit.team === 'ally' && unit.hp > 0) {
+                        if (unit.x >= minX && unit.x <= maxX &&
+                            unit.y >= minY && unit.y <= maxY) {
+                            unit.selected = true;
+                            newSelected.push(unit.id);
+                        } else {
+                            unit.selected = false;
+                        }
+                    }
+                });
+
+                setSelectedUnits(newSelected);
+
+                setIsDragging(false);
+            }, [isDragging, dragStart]);
+
+
+            return (
+                <div className="container">
+                    <div className="status-bar">
+                        <h3>🎮 스타크래프트 마린 게임</h3>
+                        <div className="status-info">
+                            <div className="status-item">
+                                <strong>아군:</strong> <span>{stats.allies}</span>
+                            </div>
+                            <div className="status-item">
+                                <strong>적군:</strong> <span>{stats.enemies}</span>
+                            </div>
+                            <div className="status-help">
+                                드래그 선택 | 우클릭 이동 | 적 클릭 공격
+                            </div>
+                        </div>
+                    </div>
+                    <div className="game-container">
+                        {isDragging && (
+                            <div
+                                className="selection-box"
+                                style={{
+                                    left: Math.min(dragStart.x, dragEnd.x),
+                                    top: Math.min(dragStart.y, dragEnd.y),
+                                    width: Math.abs(dragEnd.x - dragStart.x),
+                                    height: Math.abs(dragEnd.y - dragStart.y)
+                                }}
+                            />
+                        )}
+                        <canvas
+                            ref={canvasRef}
+                            className="game-canvas"
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onContextMenu={handleContextMenu}
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+

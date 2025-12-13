@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>폴더 즐겨찾기</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .add-folder-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 2px solid #e0e0e0;
+        }
+
+        .add-folder-form {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .favorite-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+            position: relative;
+        }
+
+        .favorite-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .favorite-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .favorite-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+        }
+
+        .favorite-path {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+            word-break: break-all;
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 5px;
+        }
+
+        .favorite-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .favorite-actions .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .info-box strong {
+            color: #2196F3;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #28a745;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #dc3545;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #f8f9fa;
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 1.8rem;
+            }
+
+            .favorites-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .add-folder-form {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const [favorites, setFavorites] = useState([]);
+            const [newName, setNewName] = useState('');
+            const [newPath, setNewPath] = useState('');
+            const [toast, setToast] = useState(null);
+
+            // 로컬 스토리지에서 즐겨찾기 불러오기
+            useEffect(() => {
+                const saved = localStorage.getItem('folderFavorites');
+                if (saved) {
+                    try {
+                        setFavorites(JSON.parse(saved));
+                    } catch (e) {
+                        console.error('Failed to load favorites:', e);
+                    }
+                }
+            }, []);
+
+            // 즐겨찾기 저장
+            const saveFavorites = (newFavorites) => {
+                setFavorites(newFavorites);
+                localStorage.setItem('folderFavorites', JSON.stringify(newFavorites));
+            };
+
+            // 즐겨찾기 추가
+            const addFavorite = () => {
+                if (!newName.trim() || !newPath.trim()) {
+                    showToast('이름과 경로를 모두 입력해주세요.');
+                    return;
+                }
+
+                const newFavorite = {
+                    id: Date.now(),
+                    name: newName.trim(),
+                    path: newPath.trim()
+                };
+
+                saveFavorites([...favorites, newFavorite]);
+                setNewName('');
+                setNewPath('');
+                showToast('즐겨찾기가 추가되었습니다.');
+            };
+
+            // 즐겨찾기 삭제
+            const deleteFavorite = (id) => {
+                if (confirm('정말 삭제하시겠습니까?')) {
+                    saveFavorites(favorites.filter(fav => fav.id !== id));
+                    showToast('즐겨찾기가 삭제되었습니다.');
+                }
+            };
+
+            // 폴더 열기
+            const openFolder = (path) => {
+                // OS 감지
+                const userAgent = navigator.userAgent.toLowerCase();
+                const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                const isWindows = navigator.platform.toUpperCase().indexOf('WIN') >= 0;
+                const isLinux = navigator.platform.toUpperCase().indexOf('LINUX') >= 0;
+
+                try {
+                    if (isMac) {
+                        // macOS: file:// 프로토콜로 시도
+                        // 실제로는 터미널이나 Finder를 열려면 외부 스크립트가 필요하지만
+                        // 브라우저 제약으로 인해 경로를 복사하는 방식 사용
+                        copyToClipboard(path);
+                        showToast('경로가 클립보드에 복사되었습니다. 터미널에서 "open ' + path + '" 명령어를 사용하세요.');
+                    } else if (isWindows) {
+                        // Windows: file:// 프로토콜 사용
+                        const fileUrl = 'file:///' + path.replace(/\\/g, '/');
+                        window.open(fileUrl);
+                        showToast('폴더를 여는 중...');
+                    } else if (isLinux) {
+                        // Linux: file:// 프로토콜 사용
+                        const fileUrl = 'file://' + path;
+                        window.open(fileUrl);
+                        showToast('폴더를 여는 중...');
+                    } else {
+                        copyToClipboard(path);
+                        showToast('경로가 클립보드에 복사되었습니다: ' + path);
+                    }
+                } catch (error) {
+                    console.error('Error opening folder:', error);
+                    copyToClipboard(path);
+                    showToast('경로가 클립보드에 복사되었습니다: ' + path);
+                }
+            };
+
+            // 터미널 열기 (macOS/Linux)
+            const openTerminal = (path) => {
+                copyToClipboard(`cd "${path}"`);
+                showToast('터미널 명령어가 클립보드에 복사되었습니다. 터미널을 열고 붙여넣으세요.');
+            };
+
+            // 클립보드에 복사
+            const copyToClipboard = (text) => {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).catch(err => {
+                        console.error('Failed to copy:', err);
+                        fallbackCopyToClipboard(text);
+                    });
+                } else {
+                    fallbackCopyToClipboard(text);
+                }
+            };
+
+            // 폴백 복사 방법
+            const fallbackCopyToClipboard = (text) => {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    console.error('Fallback copy failed:', err);
+                }
+                document.body.removeChild(textArea);
+            };
+
+            // 토스트 메시지 표시
+            const showToast = (message) => {
+                setToast(message);
+                setTimeout(() => setToast(null), 3000);
+            };
+
+            return (
+                <div className="container">
+                    <h1 className="title">📁 폴더 즐겨찾기</h1>
+
+                    <div className="info-box">
+                        <strong>사용 방법:</strong><br/>
+                        • 즐겨찾기 이름과 폴더 경로를 입력하고 추가하세요.<br/>
+                        • "폴더 열기" 버튼을 클릭하면 해당 위치로 탐색기/터미널이 열립니다.<br/>
+                        • macOS의 경우 경로가 클립보드에 복사되며, 터미널에서 "open [경로]" 명령어를 사용하세요.
+                    </div>
+
+                    <div className="add-folder-section">
+                        <h2 style={{marginBottom: '1rem', color: '#667eea'}}>새 즐겨찾기 추가</h2>
+                        <div className="add-folder-form">
+                            <div className="form-group">
+                                <label>이름</label>
+                                <input
+                                    type="text"
+                                    placeholder="예: 개발 프로젝트"
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && addFavorite()}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>경로</label>
+                                <input
+                                    type="text"
+                                    placeholder="예: /Users/admin/Documents 또는 C:\\Users\\Admin\\Documents"
+                                    value={newPath}
+                                    onChange={(e) => setNewPath(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && addFavorite()}
+                                />
+                            </div>
+                            <div style={{display: 'flex', alignItems: 'flex-end'}}>
+                                <button className="btn btn-primary" onClick={addFavorite}>
+                                    추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {favorites.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-state-icon">📂</div>
+                            <p>아직 즐겨찾기가 없습니다. 위에서 추가해보세요!</p>
+                        </div>
+                    ) : (
+                        <div className="favorites-grid">
+                            {favorites.map((favorite) => (
+                                <div key={favorite.id} className="favorite-card">
+                                    <button
+                                        className="delete-btn"
+                                        onClick={() => deleteFavorite(favorite.id)}
+                                        title="삭제"
+                                    >
+                                        ×
+                                    </button>
+                                    <div className="favorite-icon">📁</div>
+                                    <div className="favorite-name">{favorite.name}</div>
+                                    <div className="favorite-path">{favorite.path}</div>
+                                    <div className="favorite-actions">
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => openFolder(favorite.path)}
+                                        >
+                                            폴더 열기
+                                        </button>
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => openTerminal(favorite.path)}
+                                        >
+                                            터미널 열기
+                                        </button>
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => {
+                                                copyToClipboard(favorite.path);
+                                                showToast('경로가 클립보드에 복사되었습니다.');
+                                            }}
+                                        >
+                                            경로 복사
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {toast && (
+                        <div className="toast">
+                            {toast}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영등포구청 지도111</title>
+    <title>영등포구청 지도</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <style>
         * {
@@ -100,12 +100,23 @@
             font-size: 14px;
             cursor: pointer;
             outline: none;
-            min-width: 200px;
+            min-width: 250px;
             font-weight: 500;
         }
 
         .map-select:hover {
             background: #f8f9fa;
+        }
+
+        .map-select optgroup {
+            font-weight: bold;
+            color: #333;
+            font-style: normal;
+        }
+
+        .map-select option {
+            font-weight: normal;
+            padding: 5px;
         }
 
         #map {
@@ -174,16 +185,30 @@
 
     <div class="controls">
         <select id="mapStyleSelect" class="map-select" onchange="changeMapStyle()">
-            <option value="osm">OpenStreetMap</option>
-            <option value="osm-hot">OSM Humanitarian</option>
-            <option value="topo">OpenTopoMap</option>
-            <option value="carto-light">CartoDB Positron</option>
-            <option value="carto-dark">CartoDB Dark</option>
-            <option value="stamen-toner">Stamen Toner</option>
-            <option value="stamen-terrain">Stamen Terrain</option>
-            <option value="stamen-watercolor">Stamen Watercolor</option>
-            <option value="esri-street">Esri Street</option>
-            <option value="satellite">위성 이미지</option>
+            <optgroup label="OpenStreetMap">
+                <option value="osm">OpenStreetMap</option>
+                <option value="osm-hot">OSM Humanitarian</option>
+                <option value="topo">OpenTopoMap</option>
+            </optgroup>
+            <optgroup label="CartoDB">
+                <option value="carto-light">CartoDB Positron</option>
+                <option value="carto-dark">CartoDB Dark</option>
+            </optgroup>
+            <optgroup label="Stamen Design">
+                <option value="stamen-toner">Stamen Toner (흑백)</option>
+                <option value="stamen-terrain">Stamen Terrain</option>
+                <option value="stamen-watercolor">Stamen Watercolor (수채화)</option>
+            </optgroup>
+            <optgroup label="Esri ArcGIS">
+                <option value="esri-street">Esri Street Map</option>
+                <option value="esri-topo">Esri World Topo (지형도)</option>
+                <option value="esri-natgeo">Esri NatGeo (내셔널지오그래픽)</option>
+                <option value="esri-physical">Esri Physical (물리적 지형)</option>
+                <option value="esri-shaded">Esri Shaded Relief (음영기복)</option>
+                <option value="esri-terrain">Esri Terrain Base</option>
+                <option value="esri-usa-topo">Esri USA Topo (미국 전용)</option>
+                <option value="satellite">Esri 위성 이미지</option>
+            </optgroup>
         </select>
         <button class="btn" onclick="findMyLocation()">📍 내 위치</button>
         <button class="btn" onclick="resetView()">🏢 구청 위치</button>
@@ -316,6 +341,34 @@
                 case 'esri-street':
                     tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
                     attribution = 'Tiles © Esri';
+                    break;
+                case 'esri-topo':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri';
+                    break;
+                case 'esri-natgeo':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri — National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC';
+                    maxZoom = 16;
+                    break;
+                case 'esri-physical':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri';
+                    maxZoom = 8;
+                    break;
+                case 'esri-shaded':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri';
+                    maxZoom = 13;
+                    break;
+                case 'esri-terrain':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri';
+                    maxZoom = 13;
+                    break;
+                case 'esri-usa-topo':
+                    tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}';
+                    attribution = 'Tiles © Esri — USGS, Esri';
                     break;
                 case 'satellite':
                     tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';

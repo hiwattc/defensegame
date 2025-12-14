@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>영등포구청 지도1111</title>
+    <title>영등포구청 지도</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
     <style>
         * {
@@ -153,6 +153,47 @@
             color: #333;
         }
 
+        .results-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid #667eea;
+        }
+
+        .result-item:hover {
+            background: #e9ecef;
+        }
+
+        .result-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .result-item small {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .results-count {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
         .close-btn {
             position: absolute;
             top: 10px;
@@ -218,8 +259,8 @@
 
     <div class="info-panel" id="infoPanel">
         <button class="close-btn" onclick="closeInfo()">×</button>
-        <h3 id="infoTitle">영등포구청</h3>
-        <p id="infoContent">서울특별시 영등포구의 행정 중심지입니다.</p>
+        <h3 id="infoTitle">검색 결과</h3>
+        <div id="infoContent"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -227,6 +268,7 @@
         // 영등포구청 좌표
         const yeongdeungpoOffice = [37.5264, 126.8958];
         let map, currentMarker, currentLayer;
+        let searchMarkers = []; // 검색 결과 마커들을 저장
 
         // 지도 초기화
         function initMap() {
@@ -415,34 +457,80 @@
                 return;
             }
 
-            // 영등포구 주변으로 검색 제한
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' 영등포구 서울')}&limit=5`;
+            // 이전 검색 마커들 제거
+            searchMarkers.forEach(marker => map.removeLayer(marker));
+            searchMarkers = [];
+
+            // 현재 지도의 경계 가져오기
+            const bounds = map.getBounds();
+            const viewbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+
+            // Nominatim API로 검색 (현재 보이는 영역 내에서 최대 50개)
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=1&limit=50`;
 
             try {
                 const response = await fetch(url);
                 const results = await response.json();
 
                 if (results.length > 0) {
-                    const result = results[0];
-                    const pos = [parseFloat(result.lat), parseFloat(result.lon)];
+                    // 결과 목록 HTML 생성
+                    let resultsHTML = `<div class="results-count">총 ${results.length}개 발견</div><div class="results-list">`;
                     
-                    map.setView(pos, 17);
+                    results.forEach((result, index) => {
+                        const pos = [parseFloat(result.lat), parseFloat(result.lon)];
+                        
+                        // 커스텀 아이콘 생성 (번호 표시)
+                        const icon = L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background: #667eea; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">${index + 1}</div>`,
+                            iconSize: [30, 30]
+                        });
 
-                    if (currentMarker) {
-                        map.removeLayer(currentMarker);
-                    }
+                        // 마커 생성
+                        const marker = L.marker(pos, { icon: icon }).addTo(map);
+                        marker.bindPopup(`
+                            <div>
+                                <strong>#${index + 1}</strong><br>
+                                ${result.display_name}
+                            </div>
+                        `);
+                        
+                        searchMarkers.push(marker);
 
-                    currentMarker = L.marker(pos).addTo(map);
-                    currentMarker.bindPopup(`
-                        <div>
-                            <strong>${result.display_name}</strong>
-                        </div>
-                    `).openPopup();
+                        // 결과 목록 아이템 생성
+                        resultsHTML += `
+                            <div class="result-item" onclick="focusMarker(${index})">
+                                <strong>#${index + 1} ${result.name || result.display_name.split(',')[0]}</strong>
+                                <small>${result.display_name}</small>
+                            </div>
+                        `;
+                    });
+
+                    resultsHTML += '</div>';
+
+                    // 정보 패널에 결과 표시
+                    document.getElementById('infoTitle').textContent = `"${query}" 검색 결과`;
+                    document.getElementById('infoContent').innerHTML = resultsHTML;
+                    document.getElementById('infoPanel').classList.add('show');
+
+                    // 모든 마커가 보이도록 지도 범위 조정
+                    const group = L.featureGroup(searchMarkers);
+                    map.fitBounds(group.getBounds().pad(0.1));
+
                 } else {
-                    alert('검색 결과를 찾을 수 없습니다.');
+                    alert('현재 보이는 지도 영역에서 검색 결과를 찾을 수 없습니다. 지도를 이동하거나 축소해보세요.');
                 }
             } catch (error) {
                 alert('검색 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 특정 마커에 포커스
+        function focusMarker(index) {
+            const marker = searchMarkers[index];
+            if (marker) {
+                map.setView(marker.getLatLng(), 18);
+                marker.openPopup();
             }
         }
 

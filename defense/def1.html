@@ -103,6 +103,7 @@
         let power = 0;
         let charging = false;
         let ammo = 3; // 초기 포탄 개수
+        let spaceChargeInterval = null; // 스페이스바 충전 인터벌
         
         const keys = {
             ArrowLeft: false,
@@ -663,15 +664,13 @@
                     charging = true;
                     power = 0;
                     
-                    const chargeInterval = setInterval(() => {
+                    spaceChargeInterval = setInterval(() => {
                         if (charging && power < 100) {
                             power = Math.min(power + 3, 100);
                         } else {
-                            clearInterval(chargeInterval);
+                            clearInterval(spaceChargeInterval);
                         }
                     }, 30);
-                    
-                    document.dataset.spaceChargeInterval = chargeInterval;
                 } else {
                     keys[e.key] = true;
                 }
@@ -684,8 +683,9 @@
                 
                 // 스페이스바를 뗐을 때 발사
                 if (e.key === ' ' && charging) {
-                    if (document.dataset.spaceChargeInterval) {
-                        clearInterval(document.dataset.spaceChargeInterval);
+                    if (spaceChargeInterval) {
+                        clearInterval(spaceChargeInterval);
+                        spaceChargeInterval = null;
                     }
                     
                     const speed = power * 0.225;

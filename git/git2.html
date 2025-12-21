@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Graph Master - Git 그래프 퍼즐 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 40px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .panel-title {
+            font-size: 24px;
+            color: #6dd5ed;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(109, 213, 237, 0.5);
+        }
+
+        .graph-container {
+            position: relative;
+            min-height: 400px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .graph-svg {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+        }
+
+        .commit-node {
+            fill: #7ee787;
+            stroke: #2ea043;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .commit-node:hover {
+            fill: #96f0a3;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 10px #7ee787);
+        }
+
+        .commit-node.current {
+            fill: #ffd93d;
+            stroke: #ff6b35;
+        }
+
+        .commit-node.target {
+            fill: #6dd5ed;
+            stroke: #2193b0;
+        }
+
+        .branch-line {
+            stroke: #7ee787;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .commit-label {
+            fill: white;
+            font-size: 12px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .branch-label {
+            fill: #6dd5ed;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: start;
+        }
+
+        .command-input-area {
+            margin-top: 20px;
+        }
+
+        .command-prompt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #7ee787;
+            margin-bottom: 15px;
+        }
+
+        .prompt-symbol {
+            color: #7ee787;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #7ee787;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 16px;
+            outline: none;
+            padding: 5px;
+        }
+
+        .command-input::placeholder {
+            color: rgba(126, 231, 135, 0.5);
+        }
+
+        .command-history {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .history-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .history-item.success {
+            border-left: 3px solid #7ee787;
+            color: #7ee787;
+        }
+
+        .history-item.error {
+            border-left: 3px solid #ff7b72;
+            color: #ff7b72;
+        }
+
+        .help-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .help-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .help-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .help-btn:active {
+            transform: translateY(0);
+        }
+
+        .hint-box {
+            background: rgba(255, 217, 61, 0.1);
+            border: 2px solid #ffd93d;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .hint-box.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hint-title {
+            color: #ffd93d;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .hint-content {
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .answer-box {
+            background: rgba(109, 213, 237, 0.1);
+            border: 2px solid #6dd5ed;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .answer-box.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .answer-title {
+            color: #6dd5ed;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .answer-command {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #6dd5ed;
+            margin-top: 10px;
+            border-left: 4px solid #6dd5ed;
+        }
+
+        .level-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .level-title {
+            font-size: 20px;
+            color: #ffd93d;
+            margin-bottom: 10px;
+        }
+
+        .level-description {
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .success-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, rgba(30, 30, 46, 0.98), rgba(45, 45, 65, 0.98));
+            border: 3px solid #7ee787;
+            border-radius: 20px;
+            padding: 40px;
+            z-index: 1000;
+            min-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: popupIn 0.5s forwards;
+            text-align: center;
+        }
+
+        @keyframes popupIn {
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .success-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 32px;
+            color: #7ee787;
+            margin-bottom: 15px;
+        }
+
+        .success-message {
+            color: #e0e0e0;
+            margin-bottom: 25px;
+        }
+
+        .next-level-btn {
+            background: linear-gradient(135deg, #7ee787, #2ea043);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .next-level-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(126, 231, 135, 0.4);
+        }
+
+        .error-message {
+            color: #ff7b72;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 123, 114, 0.1);
+            border-radius: 5px;
+            border-left: 3px solid #ff7b72;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .combo-display {
+            position: fixed;
+            top: 20%;
+            right: 5%;
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffd93d;
+            text-shadow: 0 0 20px #ffd93d;
+            animation: comboAnim 1s;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @keyframes comboAnim {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            50% { transform: scale(1.5) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 0; }
+        }
+
+        .level-selector {
+            position: relative;
+        }
+
+        .level-select-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .level-select-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .level-select-btn.active {
+            background: rgba(109, 213, 237, 0.3);
+            border-color: #6dd5ed;
+        }
+
+        .level-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: rgba(20, 20, 35, 0.98);
+            border: 2px solid rgba(102, 126, 234, 0.5);
+            border-radius: 10px;
+            padding: 10px;
+            min-width: 250px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .level-dropdown.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .level-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .level-item:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-left-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .level-item.active {
+            background: rgba(109, 213, 237, 0.2);
+            border-left-color: #6dd5ed;
+            color: #6dd5ed;
+        }
+
+        .level-item-number {
+            font-weight: bold;
+            color: #6dd5ed;
+            margin-right: 10px;
+        }
+
+        .level-item-title {
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🎮 Git Graph Master</div>
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <div class="level-selector">
+                    <button class="level-select-btn" id="levelSelectBtn" onclick="toggleLevelDropdown()">
+                        📋 레벨 선택
+                        <span style="font-size: 12px;">▼</span>
+                    </button>
+                    <div class="level-dropdown" id="levelDropdown"></div>
+                </div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">LEVEL</div>
+                        <div class="stat-value" id="level">1</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">SCORE</div>
+                        <div class="stat-value" id="score">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">COMBO</div>
+                        <div class="stat-value" id="combo">0x</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">MOVES</div>
+                        <div class="stat-value" id="moves">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">📊 Before (현재 상태)</div>
+                <div class="level-info">
+                    <div class="level-title" id="levelTitle">레벨 1: 브랜치 생성</div>
+                    <div class="level-description" id="levelDescription">
+                        현재 main 브랜치에 있습니다. feature 브랜치를 생성하고 전환하세요.
+                    </div>
+                </div>
+                <div class="graph-container">
+                    <svg class="graph-svg" id="beforeGraph"></svg>
+                </div>
+                <div class="command-input-area">
+                    <div class="command-prompt">
+                        <span class="prompt-symbol">$</span>
+                        <input type="text" class="command-input" id="commandInput" 
+                               placeholder="git 명령어를 입력하세요..." 
+                               autocomplete="off">
+                    </div>
+                    <div class="error-message" id="errorMessage"></div>
+                    <div class="command-history" id="commandHistory"></div>
+                    <div class="help-buttons">
+                        <button class="help-btn" onclick="showHint()">💡 힌트 보기</button>
+                        <button class="help-btn" onclick="showAnswer()">✅ 정답 보기</button>
+                        <button class="help-btn" onclick="resetLevel()">🔄 다시 시작</button>
+                    </div>
+                    <div class="hint-box" id="hintBox">
+                        <div class="hint-title">💡 힌트</div>
+                        <div class="hint-content" id="hintContent"></div>
+                    </div>
+                    <div class="answer-box" id="answerBox">
+                        <div class="answer-title">✅ 정답</div>
+                        <div class="answer-content" id="answerContent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">🎯 After (목표 상태)</div>
+                <div class="graph-container">
+                    <svg class="graph-svg" id="afterGraph"></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 게임 상태
+        let currentLevel = 0;
+        let score = 0;
+        let combo = 0;
+        let moves = 0;
+        let currentState = null;
+        let targetState = null;
+
+        // 레벨 데이터
+        const levels = [
+            {
+                title: "레벨 1: 브랜치 생성 및 전환",
+                description: "main 브랜치에서 feature 브랜치를 생성하고 전환하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"], current: true }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"] },
+                        { name: "feature", commits: ["C1", "C2"], current: true }
+                    ]
+                },
+                solution: ["git branch feature", "git checkout feature"],
+                hint: "git branch로 브랜치를 생성하고, git checkout으로 전환합니다.",
+                commands: ["branch", "checkout"]
+            },
+            {
+                title: "레벨 2: 브랜치에서 커밋 추가",
+                description: "feature 브랜치에 새로운 커밋을 추가하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"] },
+                        { name: "feature", commits: ["C1", "C2"], current: true }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"] },
+                        { name: "feature", commits: ["C1", "C2", "C3"], current: true }
+                    ]
+                },
+                solution: ["git commit -m \"Add feature\""],
+                hint: "git commit으로 새로운 커밋을 생성합니다. -m 옵션으로 메시지를 지정할 수 있습니다.",
+                commands: ["commit"]
+            },
+            {
+                title: "레벨 3: 브랜치 병합",
+                description: "feature 브랜치의 변경사항을 main 브랜치에 병합하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"], current: true },
+                        { name: "feature", commits: ["C1", "C2", "C3"] }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3", "M1"], current: true },
+                        { name: "feature", commits: ["C1", "C2", "C3"] }
+                    ]
+                },
+                solution: ["git merge feature"],
+                hint: "현재 브랜치(main)에서 git merge로 다른 브랜치를 병합합니다.",
+                commands: ["merge"]
+            },
+            {
+                title: "레벨 4: 브랜치 생성 및 전환 (한 번에)",
+                description: "새 브랜치를 생성하고 동시에 전환하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3"], current: true }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3"] },
+                        { name: "dev", commits: ["C1", "C2", "C3"], current: true }
+                    ]
+                },
+                solution: ["git checkout -b dev"],
+                hint: "git checkout -b는 브랜치를 생성하고 동시에 전환하는 단축 명령어입니다.",
+                commands: ["checkout", "-b"]
+            },
+            {
+                title: "레벨 5: 여러 브랜치 관리",
+                description: "hotfix 브랜치를 생성하고, 커밋을 추가한 후 main에 병합하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"], current: true },
+                        { name: "dev", commits: ["C1", "C2", "C3"] }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "H1", "M1"], current: true },
+                        { name: "dev", commits: ["C1", "C2", "C3"] },
+                        { name: "hotfix", commits: ["C1", "C2", "H1"] }
+                    ]
+                },
+                solution: [
+                    "git checkout -b hotfix",
+                    "git commit -m \"Fix bug\"",
+                    "git checkout main",
+                    "git merge hotfix"
+                ],
+                hint: "여러 단계가 필요합니다: 1) 브랜치 생성/전환 2) 커밋 3) main으로 돌아가기 4) 병합",
+                commands: ["checkout", "commit", "merge"]
+            },
+            {
+                title: "레벨 6: Rebase 연습",
+                description: "feature 브랜치를 main 위에 rebase하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3"], current: true },
+                        { name: "feature", commits: ["C1", "C2", "F1"] }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3"], current: true },
+                        { name: "feature", commits: ["C1", "C2", "C3", "F1"] }
+                    ]
+                },
+                solution: [
+                    "git checkout feature",
+                    "git rebase main"
+                ],
+                hint: "rebase는 브랜치의 커밋을 다른 브랜치 위에 재배치합니다. 먼저 feature 브랜치로 전환하세요.",
+                commands: ["checkout", "rebase"]
+            },
+            {
+                title: "레벨 7: 브랜치 삭제",
+                description: "병합된 feature 브랜치를 삭제하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3", "M1"], current: true },
+                        { name: "feature", commits: ["C1", "C2", "C3"] }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "C3", "M1"], current: true }
+                    ]
+                },
+                solution: ["git branch -d feature"],
+                hint: "git branch -d로 병합된 브랜치를 안전하게 삭제할 수 있습니다.",
+                commands: ["branch", "-d"]
+            },
+            {
+                title: "레벨 8: 복잡한 병합",
+                description: "두 개의 feature 브랜치를 모두 main에 병합하세요.",
+                before: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2"], current: true },
+                        { name: "feature1", commits: ["C1", "C2", "F1"] },
+                        { name: "feature2", commits: ["C1", "C2", "F2"] }
+                    ]
+                },
+                after: {
+                    branches: [
+                        { name: "main", commits: ["C1", "C2", "F1", "M1", "F2", "M2"], current: true },
+                        { name: "feature1", commits: ["C1", "C2", "F1"] },
+                        { name: "feature2", commits: ["C1", "C2", "F2"] }
+                    ]
+                },
+                solution: [
+                    "git merge feature1",
+                    "git merge feature2"
+                ],
+                hint: "main 브랜치에서 두 브랜치를 순서대로 병합하면 됩니다.",
+                commands: ["merge"]
+            }
+        ];
+
+        // SVG 그래프 그리기
+        function drawGraph(svgId, state, isTarget = false) {
+            const svg = document.getElementById(svgId);
+            svg.innerHTML = '';
+
+            const padding = 50;
+            const commitRadius = 20;
+            const branchSpacing = 100;
+            const commitSpacing = 80;
+
+            let maxCommits = 0;
+            state.branches.forEach(branch => {
+                maxCommits = Math.max(maxCommits, branch.commits.length);
+            });
+
+            const width = Math.max(400, state.branches.length * branchSpacing + padding * 2);
+            const height = maxCommits * commitSpacing + padding * 2;
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+
+            // 브랜치별로 커밋 그리기
+            state.branches.forEach((branch, branchIndex) => {
+                const x = padding + branchIndex * branchSpacing;
+                const currentBranch = state.branches.find(b => b.current);
+
+                branch.commits.forEach((commit, commitIndex) => {
+                    const y = padding + commitIndex * commitSpacing;
+                    
+                    // 커밋 노드
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', commitRadius);
+                    
+                    let className = 'commit-node';
+                    if (branch.current && commitIndex === branch.commits.length - 1) {
+                        className += ' current';
+                    }
+                    if (isTarget && branch.current && commitIndex === branch.commits.length - 1) {
+                        className += ' target';
+                    }
+                    circle.setAttribute('class', className);
+                    svg.appendChild(circle);
+
+                    // 커밋 라벨
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y + 5);
+                    text.setAttribute('class', 'commit-label');
+                    text.textContent = commit;
+                    svg.appendChild(text);
+
+                    // 브랜치 라인 (수직)
+                    if (commitIndex > 0) {
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', x);
+                        line.setAttribute('y1', y - commitRadius);
+                        line.setAttribute('x2', x);
+                        line.setAttribute('y2', y - commitSpacing + commitRadius);
+                        line.setAttribute('class', 'branch-line');
+                        svg.appendChild(line);
+                    }
+                });
+
+                // 브랜치 이름
+                const branchText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                branchText.setAttribute('x', x);
+                branchText.setAttribute('y', padding - 20);
+                branchText.setAttribute('class', 'branch-label');
+                branchText.textContent = branch.name + (branch.current ? ' *' : '');
+                svg.appendChild(branchText);
+
+                // 브랜치 간 연결선 (같은 커밋끼리)
+                if (branchIndex > 0) {
+                    const prevBranch = state.branches[branchIndex - 1];
+                    branch.commits.forEach((commit, commitIndex) => {
+                        const prevCommitIndex = prevBranch.commits.indexOf(commit);
+                        if (prevCommitIndex !== -1) {
+                            const x1 = padding + (branchIndex - 1) * branchSpacing;
+                            const x2 = padding + branchIndex * branchSpacing;
+                            const y = padding + commitIndex * commitSpacing;
+                            
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', x1 + commitRadius);
+                            line.setAttribute('y1', y);
+                            line.setAttribute('x2', x2 - commitRadius);
+                            line.setAttribute('y2', y);
+                            line.setAttribute('class', 'branch-line');
+                            line.setAttribute('stroke-dasharray', '5,5');
+                            svg.appendChild(line);
+                        }
+                    });
+                }
+            });
+        }
+
+        // 상태 비교
+        function statesEqual(state1, state2) {
+            // 브랜치 개수 확인
+            if (state1.branches.length !== state2.branches.length) {
+                console.log('❌ 브랜치 개수 불일치:', state1.branches.length, 'vs', state2.branches.length);
+                return false;
+            }
+            
+            // 브랜치를 이름으로 정렬하여 비교
+            const sorted1 = [...state1.branches].sort((a, b) => a.name.localeCompare(b.name));
+            const sorted2 = [...state2.branches].sort((a, b) => a.name.localeCompare(b.name));
+            
+            // 브랜치 이름으로 매칭하여 비교
+            for (let i = 0; i < sorted1.length; i++) {
+                const b1 = sorted1[i];
+                const b2 = sorted2[i];
+                
+                // 브랜치 이름 확인
+                if (b1.name !== b2.name) {
+                    console.log('❌ 브랜치 이름 불일치:', b1.name, 'vs', b2.name);
+                    return false;
+                }
+                
+                // 커밋 개수 확인
+                if (b1.commits.length !== b2.commits.length) {
+                    console.log(`❌ 브랜치 ${b1.name}의 커밋 개수 불일치:`, b1.commits.length, 'vs', b2.commits.length);
+                    return false;
+                }
+                
+                // current 상태 확인
+                if (b1.current !== b2.current) {
+                    console.log(`❌ 브랜치 ${b1.name}의 current 상태 불일치:`, b1.current, 'vs', b2.current);
+                    return false;
+                }
+                
+                // 커밋 순서 확인
+                for (let j = 0; j < b1.commits.length; j++) {
+                    if (b1.commits[j] !== b2.commits[j]) {
+                        console.log(`❌ 브랜치 ${b1.name}의 커밋 ${j} 불일치:`, b1.commits[j], 'vs', b2.commits[j]);
+                        return false;
+                    }
+                }
+            }
+            
+            console.log('✅ 상태 일치 확인됨!');
+            return true;
+        }
+
+        // Git 명령어 실행 시뮬레이션
+        function executeCommand(command, state) {
+            const parts = command.trim().split(/\s+/);
+            if (parts.length === 0 || parts[0] !== 'git') {
+                return { success: false, message: "git 명령어로 시작해야 합니다." };
+            }
+
+            const cmd = parts[1];
+            const args = parts.slice(2);
+
+            try {
+                switch (cmd) {
+                    case 'branch':
+                        if (args.length === 0) {
+                            return { success: false, message: "브랜치 이름을 지정하세요." };
+                        }
+                        if (args[0] === '-d' || args[0] === '--delete') {
+                            const branchName = args[1];
+                            const branchIndex = state.branches.findIndex(b => b.name === branchName);
+                            if (branchIndex === -1) {
+                                return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+                            }
+                            if (state.branches[branchIndex].current) {
+                                return { success: false, message: "현재 브랜치는 삭제할 수 없습니다." };
+                            }
+                            state.branches.splice(branchIndex, 1);
+                            return { success: true, message: `브랜치 '${branchName}' 삭제됨` };
+                        } else {
+                            const branchName = args[0];
+                            if (state.branches.find(b => b.name === branchName)) {
+                                return { success: false, message: `브랜치 '${branchName}'가 이미 존재합니다.` };
+                            }
+                            const currentBranch = state.branches.find(b => b.current);
+                            state.branches.push({
+                                name: branchName,
+                                commits: [...currentBranch.commits],
+                                current: false
+                            });
+                            return { success: true, message: `브랜치 '${branchName}' 생성됨` };
+                        }
+                    
+                    case 'checkout':
+                        if (args.length === 0) {
+                            return { success: false, message: "브랜치 이름을 지정하세요." };
+                        }
+                        if (args[0] === '-b') {
+                            const branchName = args[1];
+                            if (!branchName) {
+                                return { success: false, message: "브랜치 이름을 지정하세요." };
+                            }
+                            if (state.branches.find(b => b.name === branchName)) {
+                                return { success: false, message: `브랜치 '${branchName}'가 이미 존재합니다.` };
+                            }
+                            const currentBranch = state.branches.find(b => b.current);
+                            state.branches.forEach(b => b.current = false);
+                            state.branches.push({
+                                name: branchName,
+                                commits: [...currentBranch.commits],
+                                current: true
+                            });
+                            return { success: true, message: `브랜치 '${branchName}' 생성 및 전환됨` };
+                        } else {
+                            const branchName = args[0];
+                            const branch = state.branches.find(b => b.name === branchName);
+                            if (!branch) {
+                                return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+                            }
+                            state.branches.forEach(b => b.current = false);
+                            branch.current = true;
+                            return { success: true, message: `브랜치 '${branchName}'로 전환됨` };
+                        }
+                    
+                    case 'commit':
+                        const currentBranch = state.branches.find(b => b.current);
+                        if (!currentBranch) {
+                            return { success: false, message: "현재 브랜치를 찾을 수 없습니다." };
+                        }
+                        const lastCommit = currentBranch.commits[currentBranch.commits.length - 1];
+                        const commitNum = parseInt(lastCommit.substring(1)) + 1;
+                        const newCommit = 'C' + commitNum;
+                        currentBranch.commits.push(newCommit);
+                        return { success: true, message: `커밋 '${newCommit}' 생성됨` };
+                    
+                    case 'merge':
+                        if (args.length === 0) {
+                            return { success: false, message: "병합할 브랜치 이름을 지정하세요." };
+                        }
+                        const mergeBranchName = args[0];
+                        const mergeBranch = state.branches.find(b => b.name === mergeBranchName);
+                        if (!mergeBranch) {
+                            return { success: false, message: `브랜치 '${mergeBranchName}'를 찾을 수 없습니다.` };
+                        }
+                        if (mergeBranch.current) {
+                            return { success: false, message: "현재 브랜치를 병합할 수 없습니다." };
+                        }
+                        const current = state.branches.find(b => b.current);
+                        // 병합 커밋 추가
+                        const mergeCommitNum = current.commits.length + 1;
+                        const mergeCommit = 'M' + mergeCommitNum;
+                        current.commits.push(...mergeBranch.commits.slice(current.commits.length));
+                        if (mergeBranch.commits.length > current.commits.length - 1) {
+                            current.commits.push(mergeCommit);
+                        }
+                        return { success: true, message: `브랜치 '${mergeBranchName}' 병합됨` };
+                    
+                    case 'rebase':
+                        if (args.length === 0) {
+                            return { success: false, message: "rebase할 브랜치 이름을 지정하세요." };
+                        }
+                        const rebaseBranchName = args[0];
+                        const rebaseBranch = state.branches.find(b => b.name === rebaseBranchName);
+                        if (!rebaseBranch) {
+                            return { success: false, message: `브랜치 '${rebaseBranchName}'를 찾을 수 없습니다.` };
+                        }
+                        const rebaseCurrent = state.branches.find(b => b.current);
+                        if (rebaseCurrent.name === rebaseBranchName) {
+                            return { success: false, message: "현재 브랜치를 rebase할 수 없습니다." };
+                        }
+                        // rebase: 현재 브랜치의 커밋을 rebase 브랜치 위에 재배치
+                        const commonCommits = [];
+                        for (let i = 0; i < Math.min(rebaseCurrent.commits.length, rebaseBranch.commits.length); i++) {
+                            if (rebaseCurrent.commits[i] === rebaseBranch.commits[i]) {
+                                commonCommits.push(rebaseCurrent.commits[i]);
+                            } else {
+                                break;
+                            }
+                        }
+                        const newCommits = rebaseCurrent.commits.slice(commonCommits.length);
+                        rebaseCurrent.commits = [...rebaseBranch.commits, ...newCommits];
+                        return { success: true, message: `브랜치 '${rebaseBranchName}' 위에 rebase됨` };
+                    
+                    default:
+                        return { success: false, message: `알 수 없는 명령어: ${cmd}` };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        // 레벨 드롭다운 생성
+        function createLevelDropdown() {
+            const dropdown = document.getElementById('levelDropdown');
+            dropdown.innerHTML = '';
+            
+            levels.forEach((level, index) => {
+                const levelItem = document.createElement('div');
+                levelItem.className = 'level-item';
+                if (index === currentLevel) {
+                    levelItem.classList.add('active');
+                }
+                levelItem.innerHTML = `
+                    <span class="level-item-number">${index + 1}</span>
+                    <span class="level-item-title">${level.title}</span>
+                `;
+                levelItem.onclick = () => selectLevel(index);
+                dropdown.appendChild(levelItem);
+            });
+        }
+
+        // 레벨 드롭다운 토글
+        function toggleLevelDropdown() {
+            const dropdown = document.getElementById('levelDropdown');
+            const btn = document.getElementById('levelSelectBtn');
+            dropdown.classList.toggle('show');
+            btn.classList.toggle('active');
+        }
+
+        // 레벨 선택
+        function selectLevel(levelIndex) {
+            if (levelIndex < 0 || levelIndex >= levels.length) return;
+            
+            // 성공 팝업이 있으면 제거
+            document.querySelector('.success-popup')?.remove();
+            
+            currentLevel = levelIndex;
+            combo = 0;
+            initLevel(currentLevel);
+            createLevelDropdown();
+            toggleLevelDropdown();
+        }
+
+        // 레벨 초기화
+        function initLevel(levelIndex) {
+            const level = levels[levelIndex];
+            currentState = JSON.parse(JSON.stringify(level.before));
+            targetState = JSON.parse(JSON.stringify(level.after));
+            
+            document.getElementById('levelTitle').textContent = level.title;
+            document.getElementById('levelDescription').textContent = level.description;
+            document.getElementById('hintContent').textContent = level.hint;
+            
+            const answerCommands = level.solution.map(cmd => `<div class="answer-command">$ ${cmd}</div>`).join('');
+            document.getElementById('answerContent').innerHTML = answerCommands;
+            
+            document.getElementById('commandHistory').innerHTML = '';
+            document.getElementById('commandInput').value = '';
+            document.getElementById('hintBox').classList.remove('show');
+            document.getElementById('answerBox').classList.remove('show');
+            document.getElementById('errorMessage').classList.remove('show');
+            
+            moves = 0;
+            updateStats();
+            drawGraph('beforeGraph', currentState);
+            drawGraph('afterGraph', targetState, true);
+            
+            // 레벨 드롭다운 업데이트
+            createLevelDropdown();
+        }
+
+        // 명령어 처리
+        function handleCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            const result = executeCommand(command, currentState);
+            moves++;
+            
+            // 명령어 히스토리 추가
+            const historyDiv = document.getElementById('commandHistory');
+            const historyItem = document.createElement('div');
+            historyItem.className = `history-item ${result.success ? 'success' : 'error'}`;
+            historyItem.textContent = `$ ${command} - ${result.message}`;
+            historyDiv.appendChild(historyItem);
+            historyDiv.scrollTop = historyDiv.scrollHeight;
+            
+            // 에러 메시지 표시
+            const errorDiv = document.getElementById('errorMessage');
+            if (!result.success) {
+                errorDiv.textContent = result.message;
+                errorDiv.classList.add('show');
+                combo = 0;
+                setTimeout(() => errorDiv.classList.remove('show'), 3000);
+            } else {
+                errorDiv.classList.remove('show');
+                drawGraph('beforeGraph', currentState);
+                
+                // 목표 달성 확인
+                // 이미 성공 팝업이 표시되어 있는지 확인
+                if (document.querySelector('.success-popup')) {
+                    input.value = '';
+                    updateStats();
+                    return;
+                }
+                
+                // 상태 비교 (깊은 복사로 비교)
+                const currentStateCopy = JSON.parse(JSON.stringify(currentState));
+                const targetStateCopy = JSON.parse(JSON.stringify(targetState));
+                
+                console.log('🔍 상태 비교 시작');
+                console.log('현재 상태:', currentStateCopy);
+                console.log('목표 상태:', targetStateCopy);
+                
+                if (statesEqual(currentStateCopy, targetStateCopy)) {
+                    combo++;
+                    const points = 1000 * combo;
+                    score += points;
+                    updateStats();
+                    
+                    if (combo > 1) {
+                        showComboEffect();
+                    }
+                    
+                    setTimeout(() => {
+                        showSuccessPopup(currentLevel);
+                    }, 300);
+                }
+            }
+            
+            input.value = '';
+            updateStats();
+        }
+
+        // 통계 업데이트
+        function updateStats() {
+            document.getElementById('level').textContent = currentLevel + 1;
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo + 'x';
+            document.getElementById('moves').textContent = moves;
+            
+            // 레벨 드롭다운의 활성 상태 업데이트
+            const levelItems = document.querySelectorAll('.level-item');
+            levelItems.forEach((item, index) => {
+                if (index === currentLevel) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // 콤보 효과
+        function showComboEffect() {
+            const comboDiv = document.createElement('div');
+            comboDiv.className = 'combo-display';
+            comboDiv.textContent = `${combo}x COMBO! 🔥`;
+            document.body.appendChild(comboDiv);
+            setTimeout(() => comboDiv.remove(), 1000);
+        }
+
+        // 성공 팝업
+        function showSuccessPopup(levelIndex) {
+            const popup = document.createElement('div');
+            popup.className = 'success-popup';
+            popup.innerHTML = `
+                <div class="success-icon">🎉</div>
+                <div class="success-title">레벨 완료!</div>
+                <div class="success-message">
+                    축하합니다! 목표 상태를 달성했습니다!<br>
+                    이동 횟수: ${moves}회<br>
+                    콤보: ${combo}x
+                </div>
+                <button class="next-level-btn" onclick="nextLevel()">
+                    ${levelIndex < levels.length - 1 ? '다음 레벨 →' : '게임 완료! 🏆'}
+                </button>
+            `;
+            document.body.appendChild(popup);
+        }
+
+        // 다음 레벨
+        function nextLevel() {
+            document.querySelector('.success-popup')?.remove();
+            if (currentLevel < levels.length - 1) {
+                currentLevel++;
+                initLevel(currentLevel);
+            } else {
+                alert('🎉 축하합니다! 모든 레벨을 완료했습니다!');
+                location.reload();
+            }
+        }
+
+        // 힌트 보기
+        function showHint() {
+            const hintBox = document.getElementById('hintBox');
+            hintBox.classList.toggle('show');
+        }
+
+        // 정답 보기
+        function showAnswer() {
+            const answerBox = document.getElementById('answerBox');
+            answerBox.classList.toggle('show');
+        }
+
+        // 레벨 리셋
+        function resetLevel() {
+            if (confirm('레벨을 다시 시작하시겠습니까?')) {
+                combo = 0;
+                initLevel(currentLevel);
+            }
+        }
+
+        // 이벤트 리스너
+        document.getElementById('commandInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleCommand();
+            }
+        });
+
+        // 드롭다운 외부 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('levelDropdown');
+            const btn = document.getElementById('levelSelectBtn');
+            if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                dropdown.classList.remove('show');
+                btn.classList.remove('active');
+            }
+        });
+
+        // 게임 시작
+        createLevelDropdown();
+        initLevel(currentLevel);
+    </script>
+</body>
+</html>

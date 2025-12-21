@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Ninja Chronicles 🥷</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #00ff41;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+        }
+
+        .hud-item {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .timer {
+            color: #ff6b6b;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Main Game Area */
+        .game-area {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .graph-panel {
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #333;
+            border-radius: 15px;
+            padding: 25px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #00ff41;
+        }
+
+        .before-header { color: #ff6b6b; }
+        .after-header { color: #51cf66; }
+
+        .graph {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .head-indicator {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #ffeb3b;
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Terminal */
+        .terminal {
+            background: #000;
+            border: 3px solid #00ff41;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .terminal-header {
+            color: #00ff41;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .command-input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        #command-input {
+            width: 100%;
+            background: #000;
+            border: 2px solid #00ff41;
+            color: #00ff41;
+            padding: 15px 50px 15px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        #command-input::placeholder {
+            color: #666;
+        }
+
+        .prompt {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #00ff41;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .terminal-output {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .output-line {
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+
+        .success { color: #51cf66; }
+        .error { color: #ff6b6b; }
+        .hint { color: #ffd43b; }
+
+        /* Hint Buttons */
+        .hint-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-hint {
+            background: linear-gradient(45deg, #ffd43b, #ffeb3b);
+            color: #000;
+        }
+
+        .btn-hint:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-solution {
+            background: linear-gradient(45deg, #51cf66, #00ff41);
+            color: #000;
+            box-shadow: 0 0 20px rgba(81, 207, 102, 0.5);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Level Info */
+        .level-info {
+            grid-column: 1 / -1;
+            text-align: center;
+            background: rgba(0, 255, 65, 0.1);
+            border: 2px solid #00ff41;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .level-title {
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00ff41, #51cf66);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .level-description {
+            font-size: 16px;
+            color: #ccc;
+        }
+
+        /* Success Animation */
+        .success-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(81, 207, 102, 0.3) 0%, transparent 70%);
+            display: none;
+            z-index: 1000;
+            animation: successPulse 0.6s ease-out;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+
+        /* Stars */
+        .stars {
+            display: inline-flex;
+            gap: 5px;
+            font-size: 24px;
+        }
+
+        .star {
+            transition: all 0.3s ease;
+        }
+
+        .star.filled { color: #ffd700; text-shadow: 0 0 10px #ffd700; }
+        .star.empty { color: #666; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .game-area {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .hud {
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Success Overlay -->
+        <div class="success-overlay" id="successOverlay"></div>
+
+        <!-- HUD -->
+        <div class="hud">
+            <div class="hud-item">
+                🥷 <span id="level">1</span>/10
+            </div>
+            <div class="hud-item">
+                ⭐ <span class="stars" id="stars">
+                    <span class="star empty">★</span>
+                    <span class="star empty">★</span>
+                    <span class="star empty">★</span>
+                </span>
+            </div>
+            <div class="hud-item timer">
+                ⏱️ <span id="timer">60</span>s
+            </div>
+            <div class="hud-item">
+                ⚡ <span id="combo">0</span>x
+            </div>
+            <div class="hud-item">
+                💎 <span id="score">0</span>
+            </div>
+        </div>
+
+        <!-- Level Info -->
+        <div class="level-info">
+            <div class="level-title" id="levelTitle">첫 번째 커밋!</div>
+            <div class="level-description" id="levelDesc">
+                빈 저장소에 첫 번째 커밋을 만들어주세요!
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="game-area">
+            <div class="graph-panel">
+                <div class="panel-header before-header">
+                    📊 현재 상태 (Before)
+                </div>
+                <div class="graph" id="beforeGraph"></div>
+            </div>
+            <div class="graph-panel">
+                <div class="panel-header after-header">
+                    🎯 목표 상태 (After)
+                </div>
+                <div class="graph" id="afterGraph"></div>
+            </div>
+        </div>
+
+        <!-- Terminal -->
+        <div class="terminal">
+            <div class="terminal-header">💻 Git Terminal</div>
+            <div class="command-input-container">
+                <div class="prompt">git&gt;</div>
+                <input type="text" id="command-input" placeholder="명령어를 입력하고 Enter를 누르세요..." autocomplete="off">
+            </div>
+            <div class="terminal-output" id="terminalOutput"></div>
+            <div class="hint-buttons">
+                <button class="btn btn-hint" id="hintBtn">💡 힌트 (3/3)</button>
+                <button class="btn btn-solution" id="solutionBtn">✅ 정답보기 (⭐2)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 게임 데이터
+        const levels = [
+            {
+                title: "첫 번째 커밋!",
+                description: "빈 저장소에 첫 번째 커밋을 만들어주세요!",
+                before: "  ",
+                after: "* A",
+                solution: "commit",
+                hints: [
+                    "첫 번째 파일을 저장소에 추가해야 해요!",
+                    "간단한 명령어 하나만 입력하세요",
+                    "`git commit`으로 시작!"
+                ]
+            },
+            {
+                title: "브랜치 생성",
+                description: "새로운 feature 브랜치를 만들어주세요!",
+                before: "* A\n  ",
+                after: "* A\n|\n* master",
+                solution: "branch feature",
+                hints: [
+                    "새로운 브랜치를 만들어야 해요!",
+                    "`git branch <이름>` 형식",
+                    "`feature`라는 이름으로!"
+                ]
+            },
+            {
+                title: "브랜치 이동",
+                description: "feature 브랜치로 이동해주세요!",
+                before: "* A\n|\n* master",
+                after: "* A\n|\n* feature ← HEAD",
+                solution: "checkout feature",
+                hints: [
+                    "다른 브랜치로 이동해야 해요!",
+                    "`git checkout` 명령어",
+                    "`feature`로 이동!"
+                ]
+            },
+            {
+                title: "간단한 병합",
+                description: "feature 브랜치를 master에 병합해주세요!",
+                before: "* C\n|\n* B\n|\n* A\n* master",
+                after: "* D\n|\n* C\n|\n* B\n|\n* A\n* master ← HEAD",
+                solution: "merge feature",
+                hints: [
+                    "두 브랜치를 합쳐야 해요!",
+                    "`git merge` 명령어",
+                    "`feature`를 master에!"
+                ]
+            },
+            {
+                title: "리베이스 마법",
+                description: "feature 브랜치를 master 위에 재정렬해주세요!",
+                before: "  C\n /\n* B ← HEAD\n|\n* A\n* master",
+                after: "* C'\n|\n* B ← HEAD\n|\n* A\n* master",
+                solution: "rebase master",
+                hints: [
+                    "커밋 순서를 바꿔야 해요!",
+                    "`git rebase`로...",
+                    "`master` 위에 재배치!"
+                ]
+            }
+        ];
+
+        // 게임 상태
+        let currentLevel = 0;
+        let timer = 60;
+        let combo = 0;
+        let score = 0;
+        let hintsUsed = 0;
+        let gameTimer;
+        let isGameActive = false;
+
+        // DOM 요소들
+        const elements = {
+            level: document.getElementById('level'),
+            levelTitle: document.getElementById('levelTitle'),
+            levelDesc: document.getElementById('levelDesc'),
+            stars: document.getElementById('stars'),
+            timer: document.getElementById('timer'),
+            combo: document.getElementById('combo'),
+            score: document.getElementById('score'),
+            beforeGraph: document.getElementById('beforeGraph'),
+            afterGraph: document.getElementById('afterGraph'),
+            commandInput: document.getElementById('command-input'),
+            terminalOutput: document.getElementById('terminalOutput'),
+            hintBtn: document.getElementById('hintBtn'),
+            solutionBtn: document.getElementById('solutionBtn'),
+            successOverlay: document.getElementById('successOverlay')
+        };
+
+        // 별 표시 업데이트
+        function updateStars(starsEarned) {
+            const starElements = elements.stars.querySelectorAll('.star');
+            starElements.forEach((star, index) => {
+                if (index < starsEarned) {
+                    star.classList.add('filled');
+                    star.classList.remove('empty');
+                } else {
+                    star.classList.add('empty');
+                    star.classList.remove('filled');
+                }
+            });
+        }
+
+        // 터미널 출력
+        function addTerminalOutput(text, type = 'normal') {
+            const line = document.createElement('div');
+            line.className = `output-line ${type}`;
+            line.textContent = `git> ${text}`;
+            elements.terminalOutput.appendChild(line);
+            elements.terminalOutput.scrollTop = elements.terminalOutput.scrollHeight;
+        }
+
+        // 힌트 버튼 업데이트
+        function updateHintButton() {
+            const remainingHints = 3 - hintsUsed;
+            elements.hintBtn.textContent = `💡 힌트 (${remainingHints}/3)`;
+            elements.hintBtn.disabled = remainingHints === 0;
+        }
+
+        // 레벨 로드
+        function loadLevel(levelIndex) {
+            const level = levels[levelIndex];
+            currentLevel = levelIndex;
+
+            // UI 업데이트
+            elements.level.textContent = levelIndex + 1;
+            elements.levelTitle.textContent = level.title;
+            elements.levelDesc.textContent = level.description;
+            elements.beforeGraph.textContent = level.before;
+            elements.afterGraph.textContent = level.after;
+
+            // 상태 초기화
+            timer = 60;
+            hintsUsed = 0;
+            updateStars(0);
+            elements.terminalOutput.innerHTML = '';
+            elements.commandInput.value = '';
+            elements.commandInput.focus();
+
+            updateHintButton();
+            addTerminalOutput(`레벨 ${levelIndex + 1} 시작! "${level.solution}"을 입력해보세요.`, 'success');
+
+            // 타이머 시작
+            if (isGameActive) clearInterval(gameTimer);
+            isGameActive = true;
+            gameTimer = setInterval(updateTimer, 1000);
+        }
+
+        // 타이머 업데이트
+        function updateTimer() {
+            timer--;
+            elements.timer.textContent = timer;
+
+            if (timer <= 0) {
+                clearInterval(gameTimer);
+                isGameActive = false;
+                gameOver('시간 초과! 😵');
+            }
+        }
+
+        // 명령어 체크
+        function checkCommand(input) {
+            const level = levels[currentLevel];
+            const userInput = input.trim().toLowerCase().replace(/\s+/g, ' ');
+
+            if (userInput === level.solution) {
+                clearInterval(gameTimer);
+                isGameActive = false;
+                success();
+            } else {
+                addTerminalOutput('❌ 잘못된 명령어입니다. 다시 시도해보세요!', 'error');
+                elements.commandInput.value = '';
+                elements.commandInput.focus();
+            }
+        }
+
+        // 성공!
+        function success() {
+            const timeBonus = timer * 5;
+            const speedBonus = timer > 58 ? 50 : 0;
+            const comboBonus = Math.pow(2, combo);
+            const baseScore = 100;
+            const starsEarned = timer >= 45 ? 3 : timer >= 30 ? 2 : 1;
+            const levelScore = (baseScore + timeBonus + speedBonus) * comboBonus;
+
+            score += levelScore;
+            combo++;
+
+            // 별 업데이트
+            updateStars(starsEarned);
+
+            // 터미널 출력
+            addTerminalOutput(`✅ 정답! (${60 - timer}초 만에 성공)`, 'success');
+            addTerminalOutput(`🎉 점수: ${levelScore} (콤보 x${comboBonus})`, 'success');
+
+            // 성공 애니메이션
+            elements.successOverlay.style.display = 'block';
+            setTimeout(() => {
+                elements.successOverlay.style.display = 'none';
+            }, 600);
+
+            // 다음 레벨
+            setTimeout(() => {
+                if (currentLevel < levels.length - 1) {
+                    loadLevel(currentLevel + 1);
+                } else {
+                    gameComplete();
+                }
+            }, 2000);
+
+            // UI 업데이트
+            elements.combo.textContent = combo;
+            elements.score.textContent = score;
+        }
+
+        // 게임 완료
+        function gameComplete() {
+            addTerminalOutput('🎊 축하합니다! Git Ninja가 되었습니다! 🥷✨', 'success');
+            addTerminalOutput(`최종 점수: ${score}`, 'success');
+            addTerminalOutput('새로고침해서 다시 도전해보세요!', 'hint');
+        }
+
+        // 게임 오버
+        function gameOver(reason) {
+            addTerminalOutput(`💀 ${reason}`, 'error');
+            addTerminalOutput('새로고침해서 다시 도전해보세요!', 'hint');
+            combo = 0;
+            elements.combo.textContent = '0';
+        }
+
+        // 힌트 보여주기
+        function showHint() {
+            if (hintsUsed >= 3) return;
+
+            const level = levels[currentLevel];
+            const hintIndex = hintsUsed;
+            const hint = level.hints[hintIndex];
+
+            addTerminalOutput(`💡 힌트 ${hintIndex + 1}: ${hint}`, 'hint');
+            hintsUsed++;
+            updateHintButton();
+        }
+
+        // 정답 보여주기
+        function showSolution() {
+            const level = levels[currentLevel];
+            addTerminalOutput(`✅ 정답: git ${level.solution}`, 'success');
+        }
+
+        // 이벤트 리스너
+        elements.commandInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const command = elements.commandInput.value;
+                if (command.trim()) {
+                    checkCommand(command);
+                }
+            }
+        });
+
+        elements.hintBtn.addEventListener('click', showHint);
+        elements.solutionBtn.addEventListener('click', showSolution);
+
+        // 게임 시작
+        loadLevel(0);
+
+        // 포커스 유지
+        elements.commandInput.focus();
+        document.addEventListener('click', () => elements.commandInput.focus());
+    </script>
+</body>
+</html>

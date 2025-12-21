@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>간단 타워 디펜스 게임</title>
+<style>
+    body { margin:0; background:#222; font-family:Arial; color:white; }
+    #gameContainer {
+        position: relative;
+        width: 800px;
+        height: 600px;
+        margin: 20px auto;
+        border: 4px solid #444;
+        overflow: hidden;
+        background: #111;
+    }
+    canvas { background:#0a2a0a; display:block; }
+    #ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        border-radius: 8px;
+    }
+    button {
+        margin: 5px;
+        padding: 8px 12px;
+        background:#4CAF50;
+        color:white;
+        border:none;
+        border-radius:4px;
+        cursor:pointer;
+    }
+    button:hover { background:#45a049; }
+    .tower-btn { width:60px; height:60px; font-size:30px; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui">
+        <h2>타워 디펜스</h2>
+        <p>목숨: <span id="lives">20</span> | 돈: <span id="gold">150</span> | 웨이브: <span id="wave">1</span></p>
+        <p>타워 선택 후 맵에 클릭해서 설치하세요!</p>
+        <button class="tower-btn" id="tower1">🏹<br>50</button>
+        <button class="tower-btn" id="tower2">🔥<br>100</button>
+        <button class="tower-btn" id="tower3">🧊<br>150</button>
+        <br>
+        <button id="startWave">다음 웨이브</button>
+    </div>
+</div>
+
+<script>
+// === 게임 기본 설정 ===
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const livesDisplay = document.getElementById('lives');
+const goldDisplay = document.getElementById('gold');
+const waveDisplay = document.getElementById('wave');
+
+let lives = 20;
+let gold = 150;
+let wave = 0;
+let enemies = [];
+let towers = [];
+let projectiles = [];
+let placingTower = null;
+
+// 경로 (왼쪽에서 오른쪽으로 S자 모양)
+const path = [
+    {x: 0, y: 200},
+    {x: 200, y: 200},
+    {x: 200, y: 400},
+    {x: 600, y: 400},
+    {x: 600, y: 100},
+    {x: 800, y: 100}
+];
+
+// 적 경로 따라가는 함수
+function getPathProgress(pointIndex, progress) {
+    if (pointIndex >= path.length - 1) return path[path.length-1];
+    const a = path[pointIndex];
+    const b = path[pointIndex+1];
+    return {
+        x: a.x + (b.x - a.x) * progress,
+        y: a.y + (b.y - a.y) * progress
+    };
+}
+
+// === 적 클래스 ===
+class Enemy {
+    constructor(hp, speed, reward) {
+        this.pointIndex = 0;
+        this.progress = 0;
+        this.hp = hp;
+        this.maxHp = hp;
+        this.speed = speed;
+        this.reward = reward;
+        this.radius = 15;
+    }
+    update() {
+        this.progress += this.speed;
+        if (this.progress >= 1) {
+            this.progress = 0;
+            this.pointIndex++;
+            if (this.pointIndex >= path.length - 1) {
+                // 도착하면 목숨 감소
+                lives--;
+                livesDisplay.textContent = lives;
+                if (lives <= 0) alert("게임 오버! 새로고침해서 다시 시작하세요.");
+                return false; // 제거
+            }
+        }
+        const pos = getPathProgress(this.pointIndex, this.progress);
+        this.x = pos.x;
+        this.y = pos.y;
+        return true;
+    }
+    draw() {
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fill();
+        // HP 바
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x - 20, this.y - 30, 40, 6);
+        ctx.fillStyle = 'lime';
+        ctx.fillRect(this.x - 20, this.y - 30, 40 * (this.hp / this.maxHp), 6);
+    }
+}
+
+// === 타워 클래스 ===
+class Tower {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type; // 1: 기본, 2: 불, 3: 얼음
+        this.range = 120;
+        this.damage = type === 1 ? 30 : type === 2 ? 50 : 20;
+        this.fireRate = type === 3 ? 30 : 20; // 얼음은 느리게
+        this.cooldown = 0;
+        this.cost = type === 1 ? 50 : type === 2 ? 100 : 150;
+        this.color = type === 1 ? '#3498db' : type === 2 ? '#e67e22' : '#9b59b6';
+    }
+    update() {
+        if (this.cooldown > 0) this.cooldown--;
+        
+        if (this.cooldown <= 0) {
+            // 가장 가까운 적 찾기
+            let target = null;
+            let minDist = this.range;
+            for (const enemy of enemies) {
+                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    target = enemy;
+                }
+            }
+            if (target) {
+                this.cooldown = this.fireRate;
+                projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.type));
+            }
+        }
+    }
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 25, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.range, 0, Math.PI*2);
+        ctx.stroke();
+        
+        // 타워 모양
+        ctx.fillStyle = 'white';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.type===1?'🏹':this.type===2?'🔥':'🧊', this.x, this.y+8);
+    }
+}
+
+// === 발사체 클래스 ===
+class Projectile {
+    constructor(x, y, target, damage, type) {
+        this.x = x;
+        this.y = y;
+        this.target = target;
+        this.damage = damage;
+        this.type = type;
+        this.speed = 7;
+        this.radius = 6;
+    }
+    update() {
+        if (!this.target || this.target.hp <= 0) return false;
+        
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const dist = Math.hypot(dx, dy);
+        
+        if (dist < 10) {
+            this.target.hp -= this.damage;
+            if (this.type === 3) this.target.speed *= 0.6; // 얼음 슬로우
+            if (this.target.hp <= 0) {
+                gold += this.target.reward;
+                goldDisplay.textContent = gold;
+            }
+            return false;
+        }
+        
+        this.x += dx/dist * this.speed;
+        this.y += dy/dist * this.speed;
+        return true;
+    }
+    draw() {
+        ctx.fillStyle = this.type===2?'orange':this.type===3?'cyan':'yellow';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+// === 게임 루프 ===
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 경로 그리기
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 40;
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) {
+        ctx.lineTo(path[i].x, path[i].y);
+    }
+    ctx.stroke();
+    
+    // 오브젝트 업데이트 & 그리기
+    enemies = enemies.filter(e => e.update());
+    enemies.forEach(e => e.draw());
+    
+    towers.forEach(t => {
+        t.update();
+        t.draw();
+    });
+    
+    projectiles = projectiles.filter(p => p.update());
+    projectiles.forEach(p => p.draw());
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// === 웨이브 시작 ===
+document.getElementById('startWave').addEventListener('click', () => {
+    if (enemies.length > 0) return; // 이미 진행중이면 무시
+    
+    wave++;
+    waveDisplay.textContent = wave;
+    
+    const enemyCount = 8 + wave * 3;
+    for (let i = 0; i < enemyCount; i++) {
+        setTimeout(() => {
+            const hp = 50 + wave * 20;
+            const speed = 0.008 + wave * 0.001;
+            enemies.push(new Enemy(hp, speed, 20));
+        }, i * 600);
+    }
+});
+
+// === 타워 설치 ===
+function tryPlaceTower(x, y, type) {
+    const cost = type===1?50:type===2?100:150;
+    if (gold < cost) {
+        alert("돈이 부족합니다!");
+        return;
+    }
+    // 경로와 너무 가까우면 설치 불가
+    for (let i = 0; i < path.length-1; i++) {
+        const a = path[i], b = path[i+1];
+        const dist = distanceToSegment({x,y}, a, b);
+        if (dist < 60) {
+            alert("경로 근처에는 설치할 수 없습니다!");
+            return;
+        }
+    }
+    gold -= cost;
+    goldDisplay.textContent = gold;
+    towers.push(new Tower(x, y, type));
+    placingTower = null;
+}
+
+function distanceToSegment(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return Math.hypot(p.x-a.x, p.y-a.y);
+    const t = Math.max(0, Math.min(1, ((p.x-a.x)*dx + (p.y-a.y)*dy) / (len*len)));
+    return Math.hypot(p.x - (a.x + t*dx), p.y - (a.y + t*dy));
+}
+
+// 타워 버튼
+document.getElementById('tower1').addEventListener('click', () => placingTower = 1);
+document.getElementById('tower2').addEventListener('click', () => placingTower = 2);
+document.getElementById('tower3').addEventListener('click', () => placingTower = 3);
+
+canvas.addEventListener('click', (e) => {
+    if (!placingTower) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    tryPlaceTower(x, y, placingTower);
+});
+
+// 게임 시작
+alert("타워 디펜스 게임 시작!\n타워를 선택한 뒤 맵을 클릭해서 설치하세요.\n'다음 웨이브' 버튼을 눌러 적을 소환하세요!");
+gameLoop();
+</script>
+</body>
+</html>

@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>방어 전투 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            width: 1400px;
+            height: 800px;
+            position: relative;
+        }
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #canvasWrapper {
+            width: 100%;
+            height: 750px;
+            overflow: hidden;
+            position: relative;
+            background: #000;
+        }
+        #minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 240px;
+            height: 140px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 3px solid #4facfe;
+            border-radius: 10px;
+            z-index: 10;
+            cursor: pointer;
+        }
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #info {
+            padding: 15px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+        .team-info {
+            display: flex;
+            gap: 20px;
+        }
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #startBtn {
+            padding: 10px 30px;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #startBtn:hover {
+            transform: scale(1.05);
+        }
+        #startBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .selection-box {
+            position: absolute;
+            border: 2px dashed #4facfe;
+            background: rgba(79, 172, 254, 0.1);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="info">
+            <div class="team-info">
+                <div class="stat">🔵 아군: <span id="blueCount">12</span></div>
+                <div class="stat">🎯 스테이지: <span id="stage">1</span></div>
+            </div>
+            <button id="startBtn">전투 시작</button>
+            <div class="team-info">
+                <div class="stat">🔴 적군: <span id="redCount">12</span></div>
+                <div class="stat">⌨️ 화살표 키로 화면 이동</div>
+            </div>
+        </div>
+        <div id="canvasWrapper">
+            <canvas id="gameCanvas" width="4800" height="2800"></canvas>
+            <div id="minimap">
+                <canvas id="minimapCanvas" width="240" height="140"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const blueCountEl = document.getElementById('blueCount');
+        const redCountEl = document.getElementById('redCount');
+        const stageEl = document.getElementById('stage');
+
+        // 카메라 위치
+        let cameraX = 0;
+        let cameraY = 0;
+        const cameraSpeed = 20;
+        
+        // 미니맵 스케일
+        const minimapScale = minimapCanvas.width / canvas.width;
+
+        let gameStarted = false;
+        let units = [];
+        let particles = [];
+        let selectedUnits = [];
+        let selectionStart = null;
+        let selectionEnd = null;
+        let lastFrameTime = 0;
+        const targetFPS = 60;
+        const frameTime = 1000 / targetFPS;
+        let currentStage = 1;
+        let enemyCount = 12;
+
+        // 버프 지형 생성
+        const buffZones = [];
+        function generateBuffZones() {
+            const leftSide = canvas.width * 0.25;
+            const rightSide = canvas.width * 0.75;
+            const centerZone = canvas.width * 0.5;
+            
+            // 왼쪽 진영 버프존
+            // 연두색 (1.5배) - 2개
+            for(let i = 0; i < 2; i++) {
+                buffZones.push({
+                    x: 100 + Math.random() * 150,
+                    y: 150 + i * 250,
+                    type: 'green',
+                    radius: 70,
+                    multiplier: 1.5
+                });
+            }
+            // 파랑색 (2배) - 1개
+            buffZones.push({
+                x: leftSide - 50,
+                y: canvas.height / 2,
+                type: 'blue',
+                radius: 75,
+                multiplier: 2.0
+            });
+            
+            // 오른쪽 진영 버프존 (대칭)
+            // 연두색 (1.5배) - 2개
+            for(let i = 0; i < 2; i++) {
+                buffZones.push({
+                    x: canvas.width - 100 - Math.random() * 150,
+                    y: 150 + i * 250,
+                    type: 'green',
+                    radius: 70,
+                    multiplier: 1.5
+                });
+            }
+            // 파랑색 (2배) - 1개
+            buffZones.push({
+                x: rightSide + 50,
+                y: canvas.height / 2,
+                type: 'blue',
+                radius: 75,
+                multiplier: 2.0
+            });
+            
+            // 중앙 격전지 버프존
+            // 빨강색 (3배) - 2개 (중앙 상하)
+            buffZones.push({
+                x: centerZone,
+                y: canvas.height * 0.35,
+                type: 'red',
+                radius: 80,
+                multiplier: 3.0
+            });
+            buffZones.push({
+                x: centerZone,
+                y: canvas.height * 0.65,
+                type: 'red',
+                radius: 80,
+                multiplier: 3.0
+            });
+            
+            // 중앙 파랑색 (2배) - 1개
+            buffZones.push({
+                x: centerZone,
+                y: canvas.height / 2,
+                type: 'blue',
+                radius: 70,
+                multiplier: 2.0
+            });
+        }
+
+        class Unit {
+            constructor(x, y, team, type) {
+                this.x = x;
+                this.y = y;
+                this.team = team;
+                this.type = 'archer'; // 모두 궁수로 변경
+                this.hp = 80;
+                this.maxHp = this.hp;
+                this.speed = 1.3;
+                this.range = 300;
+                this.damage = 18;
+                this.attackCooldown = 0;
+                this.attackSpeed = 50;
+                this.emoji = this.getEmoji();
+                this.targetX = x;
+                this.targetY = y;
+                this.selected = false;
+                this.angle = team === 'blue' ? 0 : Math.PI;
+                this.baseRange = 300; // 기본 사거리
+                this.currentRangeMultiplier = 1.0;
+                this.targetBuffZone = null; // 목표 버프존
+                this.buffZoneCheckCooldown = 0;
+            }
+
+            getEmoji() {
+                if(this.team === 'blue') {
+                    return '🐱';
+                } else {
+                    return '🐺';
+                }
+            }
+
+            update() {
+                if(this.hp <= 0) return;
+
+                // 버프존 체크 및 사거리 업데이트
+                this.currentRangeMultiplier = 1.0;
+                for(let zone of buffZones) {
+                    const dx = this.x - zone.x;
+                    const dy = this.y - zone.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist <= zone.radius) {
+                        this.currentRangeMultiplier = Math.max(this.currentRangeMultiplier, zone.multiplier);
+                    }
+                }
+                this.range = this.baseRange * this.currentRangeMultiplier;
+
+                // 명중 효과 처리 (프레임 기반)
+                if(this.hitEffectDelay !== undefined) {
+                    this.hitEffectDelay--;
+                    if(this.hitEffectDelay <= 0) {
+                        createHitEffect(this.attacker, this);
+                        if(this.hp <= 0) {
+                            createDeathEffect(this);
+                        }
+                        delete this.hitEffectDelay;
+                        delete this.attacker;
+                    }
+                }
+
+                // 자동 전투 모드 (적군만) - 공격적 AI
+                if(gameStarted && this.team === 'red') {
+                    this.buffZoneCheckCooldown--;
+                    
+                    const enemy = this.findNearestEnemy();
+                    
+                    // 버프존이 없거나 체크 쿨다운이면 새로운 버프존 탐색
+                    if(!this.targetBuffZone || this.buffZoneCheckCooldown <= 0) {
+                        const inBuffZone = buffZones.some(zone => {
+                            const dx = this.x - zone.x;
+                            const dy = this.y - zone.y;
+                            return Math.sqrt(dx*dx + dy*dy) <= zone.radius;
+                        });
+                        
+                        // 버프존 밖에 있으면 가장 좋은 버프존 찾기
+                        if(!inBuffZone) {
+                            this.targetBuffZone = this.findBestBuffZone();
+                            this.buffZoneCheckCooldown = 180; // 3초마다 재평가
+                        } else {
+                            this.targetBuffZone = null;
+                            this.buffZoneCheckCooldown = 60;
+                        }
+                    }
+                    
+                    if(enemy) {
+                        const dx = enemy.x - this.x;
+                        const dy = enemy.y - this.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        this.angle = Math.atan2(dy, dx);
+
+                        // 우선순위: 1. 사거리 내 적 공격, 2. 버프존으로 이동하며 접근, 3. 적에게 직진
+                        if(dist <= this.range) {
+                            // 사거리 내면 공격만
+                            this.attack(enemy);
+                        } else if(this.targetBuffZone && this.currentRangeMultiplier < 2.0) {
+                            // 버프존으로 이동 (낮은 배율일 때만)
+                            const zoneDx = this.targetBuffZone.x - this.x;
+                            const zoneDy = this.targetBuffZone.y - this.y;
+                            const zoneDist = Math.sqrt(zoneDx*zoneDx + zoneDy*zoneDy);
+                            
+                            if(zoneDist > this.targetBuffZone.radius) {
+                                this.targetX = this.x + (zoneDx/zoneDist) * this.speed * 1.5;
+                                this.targetY = this.y + (zoneDy/zoneDist) * this.speed * 1.5;
+                            }
+                        } else {
+                            // 적에게 적극적으로 접근
+                            this.targetX = this.x + (dx/dist) * this.speed * 1.8;
+                            this.targetY = this.y + (dy/dist) * this.speed * 1.8;
+                        }
+                    } else if(this.targetBuffZone) {
+                        // 적이 없으면 버프존으로
+                        const zoneDx = this.targetBuffZone.x - this.x;
+                        const zoneDy = this.targetBuffZone.y - this.y;
+                        const zoneDist = Math.sqrt(zoneDx*zoneDx + zoneDy*zoneDy);
+                        
+                        if(zoneDist > this.targetBuffZone.radius) {
+                            this.targetX = this.x + (zoneDx/zoneDist) * this.speed;
+                            this.targetY = this.y + (zoneDy/zoneDist) * this.speed;
+                        }
+                    }
+                }
+                
+                // 아군은 수동 조작 + 사거리 내 적 자동 공격
+                if(gameStarted && this.team === 'blue') {
+                    const enemy = this.findNearestEnemy();
+                    if(enemy) {
+                        const dx = enemy.x - this.x;
+                        const dy = enemy.y - this.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        this.angle = Math.atan2(dy, dx);
+
+                        // 사거리 내에 있으면 공격만
+                        if(dist <= this.range) {
+                            this.attack(enemy);
+                        }
+                    }
+                }
+
+                // 이동
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if(dist > 2) {
+                    this.x += (dx/dist) * this.speed;
+                    this.y += (dy/dist) * this.speed;
+                }
+
+                if(this.attackCooldown > 0) {
+                    this.attackCooldown--;
+                }
+            }
+
+            findNearestEnemy() {
+                let nearest = null;
+                let minDist = Infinity;
+                const maxSearchDist = this.range * 2; // 검색 범위 확대
+
+                for(let unit of units) {
+                    if(unit.team !== this.team && unit.hp > 0) {
+                        const dx = unit.x - this.x;
+                        const dy = unit.y - this.y;
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        
+                        if(dist < maxSearchDist && dist < minDist) {
+                            minDist = dist;
+                            nearest = unit;
+                        }
+                    }
+                }
+                return nearest;
+            }
+
+            findBestBuffZone() {
+                let bestZone = null;
+                let bestScore = -Infinity;
+
+                for(let zone of buffZones) {
+                    const dx = zone.x - this.x;
+                    const dy = zone.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // 거리가 가까울수록, 배율이 높을수록 좋음
+                    const score = zone.multiplier * 1000 - dist;
+                    
+                    if(score > bestScore && dist > 50) {
+                        bestScore = score;
+                        bestZone = zone;
+                    }
+                }
+                return bestZone;
+            }
+
+            attack(target) {
+                if(this.attackCooldown <= 0 && target.hp > 0) {
+                    // 활 발사 효과
+                    createAttackEffect(this, target);
+                    
+                    // 즉시 데미지 적용 (setTimeout 제거로 성능 개선)
+                    target.hp -= this.damage;
+                    
+                    // 명중 효과는 약간의 지연으로
+                    const dx = target.x - this.x;
+                    const dy = target.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const hitDelay = Math.min(Math.floor(dist / 20), 15); // 최대 15프레임
+                    
+                    // 프레임 카운터로 처리 (setTimeout 대신)
+                    target.hitEffectDelay = hitDelay;
+                    target.attacker = this;
+                    
+                    this.attackCooldown = this.attackSpeed;
+                }
+            }
+
+            draw() {
+                if(this.hp <= 0) return;
+
+                // 선택 표시
+                if(this.selected) {
+                    ctx.strokeStyle = '#4facfe';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // 버프 효과 표시
+                if(this.currentRangeMultiplier > 1.0) {
+                    let glowColor = '';
+                    if(this.currentRangeMultiplier >= 3.0) glowColor = 'rgba(255, 100, 100, 0.4)';
+                    else if(this.currentRangeMultiplier >= 2.0) glowColor = 'rgba(100, 150, 255, 0.4)';
+                    else glowColor = 'rgba(150, 255, 150, 0.4)';
+                    
+                    ctx.fillStyle = glowColor;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 30, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // 유닛 이모티콘
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.font = '32px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, 0, 0);
+                ctx.restore();
+
+                // HP 바
+                const barWidth = 40;
+                const barHeight = 5;
+                const hpPercent = this.hp / this.maxHp;
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(this.x - barWidth/2, this.y - 30, barWidth, barHeight);
+                
+                ctx.fillStyle = this.team === 'blue' ? '#4facfe' : '#f5576c';
+                ctx.fillRect(this.x - barWidth/2, this.y - 30, barWidth * hpPercent, barHeight);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, vx, vy, life, type = 'normal', target = null) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = vx;
+                this.vy = vy;
+                this.life = life;
+                this.maxLife = life;
+                this.size = Math.random() * 4 + 2;
+                this.type = type;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.target = target; // 화살의 목표
+                this.hit = false; // 명중 여부
+            }
+
+            update() {
+                // 화살이 목표에 명중했는지 체크
+                if(this.type === 'arrow' && this.target && !this.hit) {
+                    const dx = this.x - this.target.x;
+                    const dy = this.y - this.target.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // 목표에 가까이 도달하면 명중
+                    if(dist < 20) {
+                        this.hit = true;
+                        this.life = 0; // 즉시 제거
+                        return;
+                    }
+                }
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                if(this.type === 'arrow') {
+                    // 화살은 중력 영향 적음
+                    this.vy += 0.05;
+                    this.rotation = Math.atan2(this.vy, this.vx);
+                } else {
+                    this.vy += 0.2;
+                }
+                
+                this.life--;
+            }
+
+            draw() {
+                const alpha = this.life / this.maxLife;
+                
+                if(this.type === 'arrow') {
+                    // 화살 그리기 - 빨간색으로 더 잘 보이게
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    
+                    // 화살 몸통 (더 두껍고 선명하게)
+                    ctx.strokeStyle = `rgba(255, 50, 50, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, 0);
+                    ctx.lineTo(10, 0);
+                    ctx.stroke();
+                    
+                    // 화살촉 (더 크게)
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(10, 0);
+                    ctx.lineTo(6, -4);
+                    ctx.moveTo(10, 0);
+                    ctx.lineTo(6, 4);
+                    ctx.stroke();
+                    
+                    // 화살 깃털
+                    ctx.strokeStyle = `rgba(255, 100, 100, ${alpha * 0.7})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-10, 0);
+                    ctx.lineTo(-13, -3);
+                    ctx.moveTo(-10, 0);
+                    ctx.lineTo(-13, 3);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                } else {
+                    // 일반 파티클
+                    ctx.fillStyle = this.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function createAttackEffect(attacker, target) {
+            // 화살 발사 효과 - 빨간색으로 잘 보이게
+            const dx = target.x - attacker.x;
+            const dy = target.y - attacker.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const speed = 20; // 속도 증가
+            
+            // 메인 화살만 - 빨간색
+            particles.push(new Particle(
+                attacker.x,
+                attacker.y,
+                'rgb(255, 50, 50)', // 선명한 빨간색
+                (dx / dist) * speed,
+                (dy / dist) * speed,
+                Math.floor(dist / speed),
+                'arrow',
+                target // 목표 전달
+            ));
+        }
+
+        function createHitEffect(attacker, target) {
+            // 화살 명중 효과 - 파티클 수 감소
+            for(let i = 0; i < 6; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                particles.push(new Particle(
+                    target.x,
+                    target.y,
+                    attacker.team === 'blue' ? 'rgb(79, 172, 254)' : 'rgb(245, 87, 108)',
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    15,
+                    'normal'
+                ));
+            }
+        }
+
+        function createDeathEffect(unit) {
+            for(let i = 0; i < 15; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                particles.push(new Particle(
+                    unit.x,
+                    unit.y,
+                    'rgb(150, 150, 150)',
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    30
+                ));
+            }
+        }
+
+        function initUnits() {
+            units = [];
+            
+            // 아군 (왼쪽) - 항상 12명
+            for(let i = 0; i < 12; i++) {
+                units.push(new Unit(
+                    80 + (i % 3) * 60,
+                    150 + Math.floor(i / 3) * 100,
+                    'blue',
+                    'archer'
+                ));
+            }
+
+            // 적군 (오른쪽) - 스테이지마다 1명씩 증가
+            const rows = Math.ceil(enemyCount / 3);
+            for(let i = 0; i < enemyCount; i++) {
+                units.push(new Unit(
+                    canvas.width - 80 - (i % 3) * 60,
+                    150 + Math.floor(i / 3) * (500 / rows),
+                    'red',
+                    'archer'
+                ));
+            }
+        }
+
+        function drawBuffZones() {
+            buffZones.forEach(zone => {
+                // 외곽선
+                ctx.strokeStyle = zone.type === 'green' ? 'rgba(150, 255, 150, 0.8)' : 
+                                  zone.type === 'blue' ? 'rgba(100, 150, 255, 0.8)' : 
+                                  'rgba(255, 100, 100, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 5]);
+                ctx.beginPath();
+                ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // 내부 채우기
+                ctx.fillStyle = zone.type === 'green' ? 'rgba(150, 255, 150, 0.15)' : 
+                                zone.type === 'blue' ? 'rgba(100, 150, 255, 0.15)' : 
+                                'rgba(255, 100, 100, 0.15)';
+                ctx.beginPath();
+                ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 배수 표시
+                ctx.fillStyle = zone.type === 'green' ? '#66ff66' : 
+                                zone.type === 'blue' ? '#6699ff' : 
+                                '#ff6666';
+                ctx.font = 'bold 20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`×${zone.multiplier}`, zone.x, zone.y);
+            });
+        }
+        
+        function drawMinimap() {
+            // 미니맵 배경
+            minimapCtx.fillStyle = '#87CEEB';
+            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+            
+            // 버프존 그리기
+            buffZones.forEach(zone => {
+                const x = zone.x * minimapScale;
+                const y = zone.y * minimapScale;
+                const r = zone.radius * minimapScale;
+                
+                minimapCtx.fillStyle = zone.type === 'green' ? 'rgba(150, 255, 150, 0.3)' : 
+                                       zone.type === 'blue' ? 'rgba(100, 150, 255, 0.3)' : 
+                                       'rgba(255, 100, 100, 0.3)';
+                minimapCtx.beginPath();
+                minimapCtx.arc(x, y, r, 0, Math.PI * 2);
+                minimapCtx.fill();
+            });
+            
+            // 유닛 그리기
+            units.forEach(u => {
+                if(u.hp <= 0) return;
+                
+                const x = u.x * minimapScale;
+                const y = u.y * minimapScale;
+                
+                minimapCtx.fillStyle = u.team === 'blue' ? '#4facfe' : '#f5576c';
+                minimapCtx.beginPath();
+                minimapCtx.arc(x, y, 2, 0, Math.PI * 2);
+                minimapCtx.fill();
+            });
+            
+            // 카메라 뷰포트 표시
+            const viewX = cameraX * minimapScale;
+            const viewY = cameraY * minimapScale;
+            const viewW = canvasWrapper.offsetWidth * minimapScale;
+            const viewH = canvasWrapper.offsetHeight * minimapScale;
+            
+            minimapCtx.strokeStyle = '#ffffff';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.strokeRect(viewX, viewY, viewW, viewH);
+        }
+
+        function updateCounts() {
+            const blueAlive = units.filter(u => u.team === 'blue' && u.hp > 0).length;
+            const redAlive = units.filter(u => u.team === 'red' && u.hp > 0).length;
+            blueCountEl.textContent = blueAlive;
+            redCountEl.textContent = redAlive;
+            stageEl.textContent = currentStage;
+
+            if(gameStarted && (blueAlive === 0 || redAlive === 0)) {
+                gameStarted = false;
+                startBtn.disabled = false;
+                
+                if(blueAlive > 0) {
+                    // 아군 승리 - 다음 스테이지
+                    currentStage++;
+                    enemyCount++;
+                    startBtn.textContent = `🎉 승리! 스테이지 ${currentStage} 시작`;
+                    
+                    // 3초 후 자동으로 다음 스테이지 시작
+                    setTimeout(() => {
+                        if(!gameStarted) {
+                            startBtn.textContent = '전투 시작';
+                        }
+                    }, 3000);
+                } else {
+                    // 아군 패배 - 게임 오버
+                    startBtn.textContent = `💀 패배! 스테이지 ${currentStage}에서 전멸`;
+                }
+            }
+        }
+
+        function gameLoop(currentTime) {
+            // FPS 제한
+            if(currentTime - lastFrameTime < frameTime) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            lastFrameTime = currentTime;
+
+            // 카메라 위치 적용
+            canvas.style.transform = `translate(${-cameraX}px, ${-cameraY}px)`;
+
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBuffZones();
+
+            // 파티클 최대 개수 제한 (더 엄격하게)
+            if(particles.length > 100) {
+                particles = particles.slice(-100);
+            }
+
+            // 파티클 업데이트 및 그리기 최적화
+            for(let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if(particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 유닛 업데이트 및 그리기
+            for(let i = units.length - 1; i >= 0; i--) {
+                const u = units[i];
+                if(u.hp > 0) {
+                    u.update();
+                    u.draw();
+                } else if(gameStarted) {
+                    // 전투 중에만 죽은 유닛 제거
+                    units.splice(i, 1);
+                }
+            }
+
+            // 선택 박스 그리기
+            if(selectionStart && selectionEnd) {
+                ctx.strokeStyle = '#4facfe';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(
+                    selectionStart.x,
+                    selectionStart.y,
+                    selectionEnd.x - selectionStart.x,
+                    selectionEnd.y - selectionStart.y
+                );
+                ctx.setLineDash([]);
+            }
+
+            updateCounts();
+            drawMinimap(); // 미니맵 업데이트
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 미니맵 클릭으로 카메라 이동
+        minimapCanvas.addEventListener('click', (e) => {
+            const rect = minimapCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // 미니맵 좌표를 실제 맵 좌표로 변환
+            const targetX = (clickX / minimapCanvas.width) * canvas.width;
+            const targetY = (clickY / minimapCanvas.height) * canvas.height;
+            
+            // 카메라를 클릭 위치 중앙으로 이동
+            const maxX = canvas.width - canvasWrapper.offsetWidth;
+            const maxY = canvas.height - canvasWrapper.offsetHeight;
+            
+            cameraX = Math.max(0, Math.min(maxX, targetX - canvasWrapper.offsetWidth / 2));
+            cameraY = Math.max(0, Math.min(maxY, targetY - canvasWrapper.offsetHeight / 2));
+        });
+
+        // 키보드 이벤트 - 화살표로 화면 이동
+        document.addEventListener('keydown', (e) => {
+            const maxX = canvas.width - canvasWrapper.offsetWidth;
+            const maxY = canvas.height - canvasWrapper.offsetHeight;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    cameraX = Math.max(0, cameraX - cameraSpeed);
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                    cameraX = Math.min(maxX, cameraX + cameraSpeed);
+                    e.preventDefault();
+                    break;
+                case 'ArrowUp':
+                    cameraY = Math.max(0, cameraY - cameraSpeed);
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                    cameraY = Math.min(maxY, cameraY + cameraSpeed);
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // 마우스 이벤트
+        let isDragging = false;
+        let dragStartTime = 0;
+        const clickThreshold = 200; // 200ms 이내면 클릭으로 간주
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left + cameraX;
+            const y = e.clientY - rect.top + cameraY;
+
+            // 우클릭 처리
+            if(e.button === 2) {
+                e.preventDefault();
+                
+                // 선택된 유닛 이동
+                let hasSelected = false;
+                units.forEach(u => {
+                    if(u.selected && u.team === 'blue' && u.hp > 0) {
+                        u.targetX = x + (Math.random() - 0.5) * 50;
+                        u.targetY = y + (Math.random() - 0.5) * 50;
+                        hasSelected = true;
+                    }
+                });
+
+                // 이동 효과
+                if(hasSelected) {
+                    for(let i = 0; i < 10; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 2 + 1;
+                        particles.push(new Particle(
+                            x,
+                            y,
+                            'rgb(255, 255, 100)',
+                            Math.cos(angle) * speed,
+                            Math.sin(angle) * speed,
+                            20
+                        ));
+                    }
+                }
+                return;
+            }
+
+            // 좌클릭 - 선택 시작
+            dragStartTime = Date.now();
+            selectionStart = {x, y};
+            isDragging = true;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if(!isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left + cameraX;
+            const y = e.clientY - rect.top + cameraY;
+
+            selectionEnd = {x, y};
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if(!isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left + cameraX;
+            const y = e.clientY - rect.top + cameraY;
+            
+            const clickDuration = Date.now() - dragStartTime;
+            const dragDistance = Math.sqrt(
+                Math.pow(x - selectionStart.x, 2) + 
+                Math.pow(y - selectionStart.y, 2)
+            );
+
+            // 클릭으로 간주 (짧은 시간 + 짧은 거리)
+            if(clickDuration < clickThreshold && dragDistance < 10) {
+                // 클릭한 위치의 아군 유닛 찾기
+                let clickedUnit = null;
+                for(let u of units) {
+                    if(u.team === 'blue' && u.hp > 0) {
+                        const dist = Math.sqrt(
+                            Math.pow(u.x - x, 2) + 
+                            Math.pow(u.y - y, 2)
+                        );
+                        if(dist < 25) {
+                            clickedUnit = u;
+                            break;
+                        }
+                    }
+                }
+
+                if(clickedUnit) {
+                    // Shift 키를 누르고 있으면 다중 선택
+                    if(!e.shiftKey) {
+                        units.forEach(u => u.selected = false);
+                    }
+                    clickedUnit.selected = !clickedUnit.selected;
+                } else {
+                    // 빈 공간 클릭시 선택 해제
+                    if(!e.shiftKey) {
+                        units.forEach(u => u.selected = false);
+                    }
+                }
+            } else {
+                // 드래그로 간주
+                const minX = Math.min(selectionStart.x, x);
+                const maxX = Math.max(selectionStart.x, x);
+                const minY = Math.min(selectionStart.y, y);
+                const maxY = Math.max(selectionStart.y, y);
+
+                // Shift 키를 누르지 않았으면 기존 선택 해제
+                if(!e.shiftKey) {
+                    units.forEach(u => u.selected = false);
+                }
+
+                // 박스 안의 아군 유닛 선택
+                units.forEach(u => {
+                    if(u.team === 'blue' && u.hp > 0 &&
+                       u.x >= minX && u.x <= maxX &&
+                       u.y >= minY && u.y <= maxY) {
+                        u.selected = true;
+                    }
+                });
+            }
+
+            isDragging = false;
+            selectionStart = null;
+            selectionEnd = null;
+        });
+
+        // 우클릭 메뉴 방지
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        });
+
+        startBtn.addEventListener('click', () => {
+            if(!gameStarted) {
+                gameStarted = true;
+                startBtn.disabled = true;
+                startBtn.textContent = `전투 중... (스테이지 ${currentStage})`;
+                
+                // 새 스테이지면 유닛 초기화
+                const blueAlive = units.filter(u => u.team === 'blue' && u.hp > 0).length;
+                if(blueAlive === 0 || units.filter(u => u.team === 'red').length === 0) {
+                    initUnits();
+                }
+                
+                // 적군만 중앙으로 이동
+                units.forEach(u => {
+                    if(u.team === 'red') {
+                        u.targetX = canvas.width / 2 + (Math.random() - 0.5) * 200;
+                        u.targetY = canvas.height / 2 + (Math.random() - 0.5) * 200;
+                    }
+                });
+            }
+        });
+
+        generateBuffZones();
+        initUnits();
+        gameLoop();
+    </script>
+</body>
+</html>

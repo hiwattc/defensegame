@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Quest - 4지선다 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .stars {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .game-container {
+            position: relative;
+            z-index: 1;
+            background: rgba(30, 30, 46, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            max-width: 900px;
+            width: 100%;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f05033 0%, #d63a27 100%);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .title {
+            font-size: 36px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .hud {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd93d, #ff6b35);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(255, 217, 61, 0.5);
+        }
+
+        .game-area {
+            padding: 40px;
+            min-height: 500px;
+        }
+
+        .level-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(33, 147, 176, 0.3);
+        }
+
+        .scenario-title {
+            color: #6dd5ed;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(109, 213, 237, 0.5);
+        }
+
+        .scenario-text {
+            color: #e0e0e0;
+            line-height: 1.8;
+            font-size: 16px;
+            margin-bottom: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #6dd5ed;
+        }
+
+        .file-tree {
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 4px solid #7ee787;
+            padding: 20px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #7ee787;
+            border-radius: 8px;
+            white-space: pre-line;
+        }
+
+        .question-box {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 2px solid rgba(109, 213, 237, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 25px 0;
+        }
+
+        .question-text {
+            color: #ffd93d;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .choices {
+            display: grid;
+            gap: 15px;
+        }
+
+        .choice-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            transition: all 0.3s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .choice-btn:active:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .choice-btn::before {
+            content: attr(data-number);
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 35px;
+            height: 35px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .choice-btn .choice-text {
+            margin-left: 50px;
+            display: block;
+        }
+
+        .choice-btn.correct {
+            background: linear-gradient(135deg, #2ea043 0%, #238636 100%);
+            border-color: #7ee787;
+            animation: correctAnim 0.5s;
+        }
+
+        .choice-btn.wrong {
+            background: linear-gradient(135deg, #da3633 0%, #b62324 100%);
+            border-color: #ff7b72;
+            animation: wrongAnim 0.5s;
+        }
+
+        @keyframes correctAnim {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-10px) scale(1.02); }
+            75% { transform: translateY(-5px) scale(1.01); }
+        }
+
+        @keyframes wrongAnim {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-15px); }
+            50% { transform: translateX(15px); }
+            75% { transform: translateX(-10px); }
+        }
+
+        .result-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, rgba(30, 30, 46, 0.98), rgba(45, 45, 65, 0.98));
+            border: 3px solid;
+            border-radius: 20px;
+            padding: 40px;
+            z-index: 1000;
+            min-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: popupIn 0.5s forwards;
+        }
+
+        @keyframes popupIn {
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .result-popup.success {
+            border-color: #7ee787;
+        }
+
+        .result-popup.failure {
+            border-color: #ff7b72;
+        }
+
+        .result-icon {
+            text-align: center;
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .result-title {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .result-popup.success .result-title {
+            color: #7ee787;
+        }
+
+        .result-popup.failure .result-title {
+            color: #ff7b72;
+        }
+
+        .result-message {
+            color: #e0e0e0;
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .result-stats {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .result-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            color: #e0e0e0;
+        }
+
+        .result-stat-value {
+            font-weight: bold;
+            color: #ffd93d;
+        }
+
+        .next-btn {
+            background: linear-gradient(135deg, #ffd93d, #ff6b35);
+            color: #1e1e2e;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 18px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: bold;
+            display: block;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+
+        .next-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 217, 61, 0.4);
+        }
+
+        .combo-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            font-weight: bold;
+            color: #ffd93d;
+            text-shadow: 0 0 30px #ffd93d, 0 0 60px #ff6b35;
+            animation: comboAnim 1s;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @keyframes comboAnim {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+        }
+
+        .timer-warning {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { color: white; }
+            50% { color: #ff6b35; }
+        }
+
+        .game-over-screen {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .game-over-title {
+            font-size: 48px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .final-stats {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+
+        .final-stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            font-size: 20px;
+            color: #e0e0e0;
+        }
+
+        .final-stat-value {
+            font-weight: bold;
+            color: #ffd93d;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+    
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🚀 GIT QUEST 🚀</div>
+            <div class="hud">
+                <div class="stat-box">
+                    <div class="stat-label">LEVEL</div>
+                    <div class="stat-value" id="level">1</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">SCORE</div>
+                    <div class="stat-value" id="score">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">COMBO</div>
+                    <div class="stat-value" id="combo">0x</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">TIME</div>
+                    <div class="stat-value" id="timer">90s</div>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="game-area" id="gameArea"></div>
+    </div>
+
+    <script>
+        // 별 생성
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 150; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+
+        const levels = [
+            {
+                title: "저장소 초기화 미션",
+                story: "🎯 새로운 프로젝트를 시작합니다! 빈 폴더에 Git 저장소를 만들어야 합니다.",
+                fileTree: "📁 my-awesome-project/\n  (empty directory)",
+                question: "Git 저장소를 초기화하는 명령어는?",
+                choices: [
+                    { text: "git init", correct: true },
+                    { text: "git start", correct: false },
+                    { text: "git create", correct: false },
+                    { text: "git new", correct: false }
+                ],
+                feedback: {
+                    correct: "정확합니다! git init으로 .git 폴더가 생성되며 Git 저장소가 초기화됩니다.",
+                    wrong: "아쉽습니다. git init이 정답입니다. 이 명령어는 현재 디렉토리를 Git 저장소로 만듭니다."
+                }
+            },
+            {
+                title: "파일 스테이징 미션",
+                story: "📝 index.html 파일을 작성했습니다. 커밋하기 전에 스테이징 영역에 추가해야 합니다.",
+                fileTree: "📁 my-awesome-project/\n  📄 index.html (untracked)",
+                question: "index.html 파일을 스테이징 영역에 추가하려면?",
+                choices: [
+                    { text: "git add index.html", correct: true },
+                    { text: "git stage index.html", correct: false },
+                    { text: "git commit index.html", correct: false },
+                    { text: "git include index.html", correct: false }
+                ],
+                feedback: {
+                    correct: "완벽합니다! git add로 파일을 스테이징 영역에 추가했습니다.",
+                    wrong: "틀렸습니다. git add 명령어를 사용해야 합니다."
+                }
+            },
+            {
+                title: "커밋 생성 미션",
+                story: "💾 스테이징된 변경사항을 커밋해야 합니다. 메시지는 'Initial commit'으로 작성하세요.",
+                fileTree: "📁 my-awesome-project/\n  📄 index.html (staged)",
+                question: "커밋 메시지와 함께 커밋하는 명령어는?",
+                choices: [
+                    { text: "git commit -m \"Initial commit\"", correct: true },
+                    { text: "git save -m \"Initial commit\"", correct: false },
+                    { text: "git push -m \"Initial commit\"", correct: false },
+                    { text: "git commit \"Initial commit\"", correct: false }
+                ],
+                feedback: {
+                    correct: "훌륭합니다! -m 옵션으로 커밋 메시지를 함께 작성했습니다.",
+                    wrong: "아쉽습니다. git commit -m \"메시지\" 형식이 정답입니다."
+                }
+            },
+            {
+                title: "브랜치 생성 미션",
+                story: "🌿 새로운 기능 개발을 위해 'feature-login' 브랜치를 만들어야 합니다.",
+                fileTree: "📁 my-awesome-project/\n  🌿 Current: main",
+                question: "새 브랜치를 생성하는 명령어는?",
+                choices: [
+                    { text: "git branch feature-login", correct: true },
+                    { text: "git create branch feature-login", correct: false },
+                    { text: "git new feature-login", correct: false },
+                    { text: "git make feature-login", correct: false }
+                ],
+                feedback: {
+                    correct: "정확합니다! git branch로 새 브랜치가 생성되었습니다.",
+                    wrong: "틀렸습니다. git branch <브랜치명>이 정답입니다."
+                }
+            },
+            {
+                title: "브랜치 전환 미션",
+                story: "🔄 방금 만든 feature-login 브랜치로 이동해야 합니다.",
+                fileTree: "📁 my-awesome-project/\n  🌿 Branches: main*, feature-login",
+                question: "브랜치를 전환하는 명령어는?",
+                choices: [
+                    { text: "git checkout feature-login", correct: true },
+                    { text: "git change feature-login", correct: false },
+                    { text: "git move feature-login", correct: false },
+                    { text: "git goto feature-login", correct: false }
+                ],
+                feedback: {
+                    correct: "완벽합니다! checkout으로 브랜치를 전환했습니다. (switch도 사용 가능)",
+                    wrong: "아쉽습니다. git checkout 또는 git switch가 정답입니다."
+                }
+            },
+            {
+                title: "전체 파일 추가 미션",
+                story: "📦 여러 파일을 수정했습니다. 모든 변경사항을 한번에 스테이징하세요.",
+                fileTree: "📁 my-awesome-project/\n  📄 style.css (modified)\n  📄 app.js (modified)\n  📄 utils.js (new)",
+                question: "모든 변경된 파일을 스테이징하려면?",
+                choices: [
+                    { text: "git add .", correct: true },
+                    { text: "git add all", correct: false },
+                    { text: "git add *", correct: false },
+                    { text: "git commit -a", correct: false }
+                ],
+                feedback: {
+                    correct: "훌륭합니다! 점(.)은 현재 디렉토리의 모든 변경사항을 의미합니다.",
+                    wrong: "틀렸습니다. git add . 또는 git add -A가 정답입니다."
+                }
+            },
+            {
+                title: "상태 확인 미션",
+                story: "🔍 현재 저장소의 상태를 확인하고 싶습니다.",
+                fileTree: "📁 my-awesome-project/\n  📄 Changes staged: 3\n  📄 Changes not staged: 1",
+                question: "Git 저장소의 현재 상태를 확인하는 명령어는?",
+                choices: [
+                    { text: "git status", correct: true },
+                    { text: "git info", correct: false },
+                    { text: "git check", correct: false },
+                    { text: "git state", correct: false }
+                ],
+                feedback: {
+                    correct: "정확합니다! status로 스테이징 상태와 변경사항을 확인할 수 있습니다.",
+                    wrong: "아쉽습니다. git status가 정답입니다."
+                }
+            },
+            {
+                title: "변경사항 취소 미션",
+                story: "↩️ config.js 파일의 변경사항을 취소하고 마지막 커밋 상태로 되돌리고 싶습니다.",
+                fileTree: "📁 my-awesome-project/\n  📄 config.js (modified, not staged)",
+                question: "워킹 디렉토리의 변경사항을 취소하려면?",
+                choices: [
+                    { text: "git checkout -- config.js", correct: true },
+                    { text: "git reset config.js", correct: false },
+                    { text: "git undo config.js", correct: false },
+                    { text: "git cancel config.js", correct: false }
+                ],
+                feedback: {
+                    correct: "완벽합니다! checkout --로 파일을 마지막 커밋 상태로 되돌렸습니다.",
+                    wrong: "틀렸습니다. git checkout -- <파일명> 또는 git restore가 정답입니다."
+                }
+            },
+            {
+                title: "브랜치 병합 준비",
+                story: "🔀 feature-login 작업이 완료되었습니다. main 브랜치로 돌아가세요.",
+                fileTree: "📁 my-awesome-project/\n  🌿 Current: feature-login*",
+                question: "main 브랜치로 전환하는 명령어는?",
+                choices: [
+                    { text: "git checkout main", correct: true },
+                    { text: "git branch main", correct: false },
+                    { text: "git switch-to main", correct: false },
+                    { text: "git return main", correct: false }
+                ],
+                feedback: {
+                    correct: "정확합니다! main 브랜치로 돌아왔습니다.",
+                    wrong: "아쉽습니다. git checkout main이 정답입니다."
+                }
+            },
+            {
+                title: "브랜치 병합 미션",
+                story: "🎯 이제 feature-login 브랜치를 main에 병합하세요.",
+                fileTree: "📁 my-awesome-project/\n  🌿 Current: main*\n  🌿 To merge: feature-login",
+                question: "브랜치를 병합하는 명령어는?",
+                choices: [
+                    { text: "git merge feature-login", correct: true },
+                    { text: "git join feature-login", correct: false },
+                    { text: "git combine feature-login", correct: false },
+                    { text: "git pull feature-login", correct: false }
+                ],
+                feedback: {
+                    correct: "완벽합니다! feature-login이 main에 병합되었습니다!",
+                    wrong: "틀렸습니다. git merge <브랜치명>이 정답입니다."
+                }
+            },
+            {
+                title: "커밋 히스토리 확인",
+                story: "📜 지금까지의 모든 커밋 기록을 확인하고 싶습니다.",
+                fileTree: "📁 Commits:\n  • Merge feature-login\n  • Add login feature\n  • Initial commit",
+                question: "커밋 히스토리를 보는 명령어는?",
+                choices: [
+                    { text: "git log", correct: true },
+                    { text: "git history", correct: false },
+                    { text: "git commits", correct: false },
+                    { text: "git show", correct: false }
+                ],
+                feedback: {
+                    correct: "훌륭합니다! log로 커밋 히스토리를 확인할 수 있습니다.",
+                    wrong: "아쉽습니다. git log가 정답입니다."
+                }
+            },
+            {
+                title: "원격 저장소 연결",
+                story: "🌐 GitHub에 원격 저장소를 만들었습니다. 로컬 저장소와 연결해야 합니다.",
+                fileTree: "🌍 Remote: https://github.com/user/repo.git\n📁 Local: my-awesome-project/",
+                question: "원격 저장소를 추가하는 명령어는?",
+                choices: [
+                    { text: "git remote add origin <URL>", correct: true },
+                    { text: "git add remote origin <URL>", correct: false },
+                    { text: "git connect origin <URL>", correct: false },
+                    { text: "git link origin <URL>", correct: false }
+                ],
+                feedback: {
+                    correct: "정확합니다! origin이라는 이름으로 원격 저장소가 추가되었습니다.",
+                    wrong: "틀렸습니다. git remote add origin <URL>이 정답입니다."
+                }
+            },
+            {
+                title: "원격 저장소에 푸시",
+                story: "📤 로컬 커밋을 원격 저장소에 업로드해야 합니다.",
+                fileTree: "📁 Local commits: 5\n🌍 Remote commits: 0\n⬆️ Ready to push",
+                question: "변경사항을 원격 저장소에 푸시하려면?",
+                choices: [
+                    { text: "git push origin main", correct: true },
+                    { text: "git upload origin main", correct: false },
+                    { text: "git send origin main", correct: false },
+                    { text: "git commit origin main", correct: false }
+                ],
+                feedback: {
+                    correct: "완벽합니다! 로컬 커밋이 원격 저장소에 업로드되었습니다!",
+                    wrong: "아쉽습니다. git push origin <브랜치명>이 정답입니다."
+                }
+            },
+            {
+                title: "원격 저장소에서 가져오기",
+                story: "📥 팀원이 원격 저장소에 새로운 커밋을 푸시했습니다. 최신 변경사항을 가져오세요.",
+                fileTree: "🌍 Remote commits: 8\n📁 Local commits: 5\n⬇️ 3 commits behind",
+                question: "원격 저장소의 변경사항을 가져오고 병합하려면?",
+                choices: [
+                    { text: "git pull origin main", correct: true },
+                    { text: "git fetch origin main", correct: false },
+                    { text: "git download origin main", correct: false },
+                    { text: "git get origin main", correct: false }
+                ],
+                feedback: {
+                    correct: "훌륭합니다! pull은 fetch + merge를 한번에 수행합니다.",
+                    wrong: "틀렸습니다. git pull origin <브랜치명>이 정답입니다."
+                }
+            },
+            {
+                title: "최종 미션: 브랜치 삭제",
+                story: "🧹 병합이 완료된 feature-login 브랜치를 정리하고 싶습니다.",
+                fileTree: "📁 my-awesome-project/\n  🌿 main*\n  🌿 feature-login (merged)",
+                question: "브랜치를 삭제하는 명령어는?",
+                choices: [
+                    { text: "git branch -d feature-login", correct: true },
+                    { text: "git delete feature-login", correct: false },
+                    { text: "git remove feature-login", correct: false },
+                    { text: "git branch --delete feature-login", correct: false }
+                ],
+                feedback: {
+                    correct: "🎉 축하합니다! 모든 미션을 완료했습니다! Git 마스터가 되셨습니다!",
+                    wrong: "아쉽습니다. git branch -d <브랜치명>이 정답입니다."
+                }
+            }
+        ];
+
+        let currentLevel = 0;
+        let score = 0;
+        let combo = 0;
+        let timeLeft = 90;
+        let timerInterval;
+        let answered = false;
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const timerEl = document.getElementById('timer');
+                timerEl.textContent = timeLeft + 's';
+                
+                if (timeLeft <= 10) {
+                    timerEl.classList.add('timer-warning');
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showGameOver(false);
+                }
+            }, 1000);
+        }
+
+        function showLevel() {
+            answered = false;
+            const level = levels[currentLevel];
+            const gameArea = document.getElementById('gameArea');
+            
+            gameArea.innerHTML = `
+                <div class="level-badge">LEVEL ${currentLevel + 1} of ${levels.length}</div>
+                <div class="scenario-title">${level.title}</div>
+                <div class="scenario-text">${level.story}</div>
+                <div class="file-tree">${level.fileTree}</div>
+                
+                <div class="question-box">
+                    <div class="question-text">❓ ${level.question}</div>
+                    <div class="choices" id="choices"></div>
+                </div>
+            `;
+
+            const choicesDiv = document.getElementById('choices');
+            level.choices.forEach((choice, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.setAttribute('data-number', String.fromCharCode(65 + index));
+                btn.innerHTML = `<span class="choice-text">${choice.text}</span>`;
+                btn.onclick = () => handleChoice(index);
+                choicesDiv.appendChild(btn);
+            });
+
+            updateStats();
+            updateProgress();
+        }
+
+        function handleChoice(choiceIndex) {
+            if (answered) return;
+            answered = true;
+
+            const level = levels[currentLevel];
+            const choice = level.choices[choiceIndex];
+            const buttons = document.querySelectorAll('.choice-btn');
+            
+            buttons.forEach(btn => btn.disabled = true);
+            buttons[choiceIndex].classList.add(choice.correct ? 'correct' : 'wrong');
+
+            if (choice.correct) {
+                combo++;
+                const points = 100 * combo;
+                score += points;
+                showComboEffect();
+                updateStats();
+                
+                setTimeout(() => {
+                    showResultPopup(true, level.feedback.correct, points);
+                }, 600);
+            } else {
+                combo = 0;
+                updateStats();
+                
+                setTimeout(() => {
+                    showResultPopup(false, level.feedback.wrong, 0);
+                }, 600);
+            }
+        }
+
+        function showComboEffect() {
+            if (combo > 1) {
+                const comboDiv = document.createElement('div');
+                comboDiv.className = 'combo-display';
+                comboDiv.textContent = `${combo}x COMBO! 🔥`;
+                document.body.appendChild(comboDiv);
+                
+                setTimeout(() => comboDiv.remove(), 1000);
+            }
+        }
+
+        function showResultPopup(isCorrect, message, points) {
+            const popup = document.createElement('div');
+            popup.className = `result-popup ${isCorrect ? 'success' : 'failure'}`;
+            
+            popup.innerHTML = `
+                <div class="result-icon">${isCorrect ? '🎉' : '😢'}</div>
+                <div class="result-title">${isCorrect ? 'CORRECT!' : 'WRONG!'}</div>
+                <div class="result-message">${message}</div>
+                ${isCorrect ? `
+                    <div class="result-stats">
+                        <div class="result-stat">
+                            <span>획득 점수</span>
+                            <span class="result-stat-value">+${points}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span>현재 콤보</span>
+                            <span class="result-stat-value">${combo}x</span>
+                        </div>
+                    </div>
+                ` : ''}
+                <button class="next-btn" onclick="nextLevel()">${currentLevel < levels.length - 1 ? '다음 레벨 →' : '결과 보기 🏆'}</button>
+            `;
+            
+            document.body.appendChild(popup);
+        }
+
+        function nextLevel() {
+            document.querySelector('.result-popup')?.remove();
+            
+            if (currentLevel < levels.length - 1) {
+                currentLevel++;
+                showLevel();
+            } else {
+                showGameOver(true);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('level').textContent = currentLevel + 1;
+            document.getElementById('score').textContent = score;
+            document.getElementById('combo').textContent = combo + 'x';
+        }
+
+        function updateProgress() {
+            const progress = ((currentLevel) / levels.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function showGameOver(won) {
+            clearInterval(timerInterval);
+            const bonus = won ? timeLeft * 10 : 0;
+            const finalScore = score + bonus;
+            
+            const gameArea = document.getElementById('gameArea');
+            gameArea.innerHTML = `
+                <div class="game-over-screen">
+                    <div class="game-over-title" style="color: ${won ? '#7ee787' : '#ff7b72'}">
+                        ${won ? '🏆 MISSION COMPLETE! 🏆' : '⏰ TIME OVER! ⏰'}
+                    </div>
+                    
+                    <div class="final-stats">
+                        <div class="final-stat-item">
+                            <span>완료한 레벨</span>
+                            <span class="final-stat-value">${currentLevel + (won ? 1 : 0)} / ${levels.length}</span>
+                        </div>
+                        <div class="final-stat-item">
+                            <span>획득 점수</span>
+                            <span class="final-stat-value">${score}</span>
+                        </div>
+                        ${won ? `
+                            <div class="final-stat-item">
+                                <span>시간 보너스</span>
+                                <span class="final-stat-value">+${bonus}</span>
+                            </div>
+                        ` : ''}
+                        <div class="final-stat-item" style="border-top: 2px solid rgba(255,255,255,0.2); padding-top: 15px; margin-top: 15px;">
+                            <span style="font-size: 24px;">최종 점수</span>
+                            <span class="final-stat-value" style="font-size: 32px;">${finalScore}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="scenario-text" style="margin: 30px 0;">
+                        ${won ? 
+                            '축하합니다! 당신은 Git 마스터가 되었습니다! 🎓<br>모든 Git 명령어를 완벽하게 익혔습니다!' : 
+                            '시간이 초과되었습니다! 다시 도전해보세요! 💪<br>연습하면 더 빨라질 수 있습니다!'}
+                    </div>
+                    
+                    <button class="next-btn" onclick="location.reload()">🔄 다시 도전하기</button>
+                </div>
+            `;
+        }
+
+        // 게임 시작
+        showLevel();
+        startTimer();

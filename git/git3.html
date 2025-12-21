@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Graph Art - Git 그래프 아트 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .game-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 30px;
+            padding: 40px;
+        }
+
+        @media (max-width: 1400px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .panel-title {
+            font-size: 24px;
+            color: #6dd5ed;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(109, 213, 237, 0.5);
+        }
+
+        .graph-container {
+            position: relative;
+            min-height: 500px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .graph-svg {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+        }
+
+        .commit-node {
+            fill: #7ee787;
+            stroke: #2ea043;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .commit-node:hover {
+            fill: #96f0a3;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 10px #7ee787);
+        }
+
+        .commit-node.current {
+            fill: #ffd93d;
+            stroke: #ff6b35;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .commit-node.merge {
+            fill: #6dd5ed;
+            stroke: #2193b0;
+        }
+
+        .branch-line {
+            stroke: #7ee787;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .branch-line.merge-line {
+            stroke: #6dd5ed;
+            stroke-dasharray: 5,5;
+        }
+
+        .commit-label {
+            fill: white;
+            font-size: 11px;
+            font-weight: bold;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .branch-label {
+            fill: #6dd5ed;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: start;
+        }
+
+        .head-indicator {
+            fill: #ffd93d;
+            font-size: 12px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+
+        .command-input-area {
+            margin-top: 20px;
+        }
+
+        .command-prompt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #7ee787;
+            margin-bottom: 15px;
+        }
+
+        .prompt-symbol {
+            color: #7ee787;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #7ee787;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 16px;
+            outline: none;
+            padding: 5px;
+        }
+
+        .command-input::placeholder {
+            color: rgba(126, 231, 135, 0.5);
+        }
+
+        .command-history {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .history-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .history-item.success {
+            border-left: 3px solid #7ee787;
+            color: #7ee787;
+        }
+
+        .history-item.error {
+            border-left: 3px solid #ff7b72;
+            color: #ff7b72;
+        }
+
+        .help-section {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .help-title {
+            color: #ffd93d;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .help-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .help-command {
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            border-left: 3px solid #6dd5ed;
+        }
+
+        .help-command-name {
+            color: #6dd5ed;
+            font-weight: bold;
+        }
+
+        .help-command-desc {
+            color: #ccc;
+            font-size: 11px;
+            margin-top: 3px;
+        }
+
+        .error-message {
+            color: #ff7b72;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(255, 123, 114, 0.1);
+            border-radius: 5px;
+            border-left: 3px solid #ff7b72;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-title {
+            color: #ffd93d;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .info-content {
+            color: #e0e0e0;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .branch-list {
+            margin-top: 15px;
+        }
+
+        .branch-item {
+            padding: 5px 10px;
+            margin: 5px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            border-left: 3px solid #6dd5ed;
+        }
+
+        .branch-item.current {
+            border-left-color: #ffd93d;
+            background: rgba(255, 217, 61, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="title">🎨 Git Graph Art</div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">COMMITS</div>
+                    <div class="stat-value" id="commitCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">BRANCHES</div>
+                    <div class="stat-value" id="branchCount">1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">COMMANDS</div>
+                    <div class="stat-value" id="commandCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <div class="panel-title">📊 Git Graph</div>
+                <div class="graph-container">
+                    <svg class="graph-svg" id="graphSvg"></svg>
+                </div>
+                <div class="command-input-area">
+                    <div class="command-prompt">
+                        <span class="prompt-symbol">$</span>
+                        <input type="text" class="command-input" id="commandInput" 
+                               placeholder="git 명령어를 입력하세요... (예: git commit -m 'message')" 
+                               autocomplete="off">
+                    </div>
+                    <div class="error-message" id="errorMessage"></div>
+                    <div class="command-history" id="commandHistory"></div>
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="clearHistory()">🗑️ 히스토리 지우기</button>
+                        <button class="action-btn" onclick="resetRepo()">🔄 저장소 초기화</button>
+                        <button class="action-btn" onclick="toggleHelp()">📖 도움말</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">ℹ️ 저장소 정보</div>
+                <div class="info-panel">
+                    <div class="info-title">현재 브랜치</div>
+                    <div class="info-content" id="currentBranch">main</div>
+                </div>
+                <div class="info-panel">
+                    <div class="info-title">브랜치 목록</div>
+                    <div class="branch-list" id="branchList"></div>
+                </div>
+                <div class="help-section" id="helpSection" style="display: none;">
+                    <div class="help-title">📖 Git 명령어 도움말</div>
+                    <div class="help-commands" id="helpCommands"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Git 저장소 상태
+        let repo = {
+            branches: [
+                {
+                    name: 'main',
+                    commits: ['C1'],
+                    current: true
+                }
+            ],
+            commitCounter: 1,
+            commandHistory: []
+        };
+
+        // Git 명령어 도움말
+        const gitCommands = {
+            'init': '저장소 초기화',
+            'add': '파일 스테이징 (add . 또는 add <file>)',
+            'commit': '커밋 생성 (commit -m "message")',
+            'branch': '브랜치 생성/조회 (branch <name> 또는 branch)',
+            'checkout': '브랜치 전환 (checkout <branch> 또는 checkout -b <branch>)',
+            'switch': '브랜치 전환 (switch <branch> 또는 switch -c <branch>)',
+            'merge': '브랜치 병합 (merge <branch>)',
+            'rebase': '리베이스 (rebase <branch>)',
+            'reset': '리셋 (reset --soft/--mixed/--hard <commit>)',
+            'revert': '커밋 되돌리기 (revert <commit>)',
+            'stash': '변경사항 임시 저장 (stash 또는 stash pop)',
+            'tag': '태그 생성 (tag <name> 또는 tag -a <name> -m "message")',
+            'log': '커밋 히스토리 보기',
+            'status': '저장소 상태 확인',
+            'diff': '변경사항 확인',
+            'show': '커밋 상세 보기 (show <commit>)',
+            'remote': '원격 저장소 관리 (remote add origin <url>)',
+            'push': '원격 저장소에 푸시 (push origin <branch>)',
+            'pull': '원격 저장소에서 가져오기 (pull origin <branch>)',
+            'fetch': '원격 저장소 정보 가져오기 (fetch origin)',
+            'clone': '저장소 복제 (clone <url>)'
+        };
+
+        // 도움말 표시/숨기기
+        function toggleHelp() {
+            const helpSection = document.getElementById('helpSection');
+            const isVisible = helpSection.style.display !== 'none';
+            helpSection.style.display = isVisible ? 'none' : 'block';
+            
+            if (!isVisible) {
+                renderHelpCommands();
+            }
+        }
+
+        function renderHelpCommands() {
+            const helpCommands = document.getElementById('helpCommands');
+            helpCommands.innerHTML = '';
+            
+            Object.entries(gitCommands).forEach(([cmd, desc]) => {
+                const div = document.createElement('div');
+                div.className = 'help-command';
+                div.innerHTML = `
+                    <div class="help-command-name">git ${cmd}</div>
+                    <div class="help-command-desc">${desc}</div>
+                `;
+                helpCommands.appendChild(div);
+            });
+        }
+
+        // Git 명령어 파싱 및 실행
+        function executeCommand(command) {
+            const trimmed = command.trim();
+            if (!trimmed) return { success: false, message: '명령어를 입력하세요.' };
+            
+            if (!trimmed.startsWith('git ')) {
+                return { success: false, message: 'git 명령어로 시작해야 합니다.' };
+            }
+
+            const parts = trimmed.substring(4).trim().split(/\s+/);
+            const cmd = parts[0];
+            const args = parts.slice(1);
+
+            try {
+                switch (cmd) {
+                    case 'init':
+                        return initRepo();
+                    case 'add':
+                        return { success: true, message: '파일이 스테이징 영역에 추가되었습니다. (시뮬레이션)' };
+                    case 'commit':
+                        return executeCommit(args);
+                    case 'branch':
+                        return executeBranch(args);
+                    case 'checkout':
+                        return executeCheckout(args);
+                    case 'switch':
+                        return executeSwitch(args);
+                    case 'merge':
+                        return executeMerge(args);
+                    case 'rebase':
+                        return executeRebase(args);
+                    case 'reset':
+                        return executeReset(args);
+                    case 'revert':
+                        return executeRevert(args);
+                    case 'stash':
+                        return { success: true, message: '변경사항이 임시 저장되었습니다. (시뮬레이션)' };
+                    case 'tag':
+                        return executeTag(args);
+                    case 'log':
+                        return executeLog();
+                    case 'status':
+                        return executeStatus();
+                    case 'diff':
+                        return { success: true, message: '변경사항이 없습니다. (시뮬레이션)' };
+                    case 'show':
+                        return { success: true, message: '커밋 정보를 표시합니다. (시뮬레이션)' };
+                    case 'remote':
+                        return { success: true, message: '원격 저장소가 추가되었습니다. (시뮬레이션)' };
+                    case 'push':
+                    case 'pull':
+                    case 'fetch':
+                    case 'clone':
+                        return { success: true, message: `${cmd} 명령어는 시뮬레이션되지 않습니다.` };
+                    default:
+                        return { success: false, message: `알 수 없는 명령어: ${cmd}` };
+                }
+            } catch (error) {
+                return { success: false, message: error.message };
+            }
+        }
+
+        function initRepo() {
+            repo = {
+                branches: [{ name: 'main', commits: ['C1'], current: true }],
+                commitCounter: 1,
+                commandHistory: []
+            };
+            updateUI();
+            return { success: true, message: '저장소가 초기화되었습니다.' };
+        }
+
+        function executeCommit(args) {
+            const currentBranch = repo.branches.find(b => b.current);
+            if (!currentBranch) {
+                return { success: false, message: '현재 브랜치를 찾을 수 없습니다.' };
+            }
+
+            repo.commitCounter++;
+            const newCommit = 'C' + repo.commitCounter;
+            currentBranch.commits.push(newCommit);
+            updateUI();
+            
+            const message = args.includes('-m') ? args[args.indexOf('-m') + 1] || '커밋' : '커밋';
+            return { success: true, message: `커밋 생성됨: ${newCommit} - "${message}"` };
+        }
+
+        function executeBranch(args) {
+            if (args.length === 0) {
+                // 브랜치 목록 조회
+                const branchList = repo.branches.map(b => 
+                    (b.current ? '* ' : '  ') + b.name
+                ).join('\n');
+                return { success: true, message: `브랜치 목록:\n${branchList}` };
+            }
+
+            const branchName = args[0];
+            if (repo.branches.find(b => b.name === branchName)) {
+                return { success: false, message: `브랜치 '${branchName}'가 이미 존재합니다.` };
+            }
+
+            const currentBranch = repo.branches.find(b => b.current);
+            repo.branches.push({
+                name: branchName,
+                commits: [...currentBranch.commits],
+                current: false
+            });
+            updateUI();
+            return { success: true, message: `브랜치 '${branchName}' 생성됨` };
+        }
+
+        function executeCheckout(args) {
+            if (args.length === 0) {
+                return { success: false, message: '브랜치 이름을 지정하세요.' };
+            }
+
+            if (args[0] === '-b') {
+                // 새 브랜치 생성 및 전환
+                const branchName = args[1];
+                if (!branchName) {
+                    return { success: false, message: '브랜치 이름을 지정하세요.' };
+                }
+                if (repo.branches.find(b => b.name === branchName)) {
+                    return { success: false, message: `브랜치 '${branchName}'가 이미 존재합니다.` };
+                }
+                const currentBranch = repo.branches.find(b => b.current);
+                repo.branches.forEach(b => b.current = false);
+                repo.branches.push({
+                    name: branchName,
+                    commits: [...currentBranch.commits],
+                    current: true
+                });
+                updateUI();
+                return { success: true, message: `브랜치 '${branchName}' 생성 및 전환됨` };
+            } else {
+                // 브랜치 전환
+                const branchName = args[0];
+                const branch = repo.branches.find(b => b.name === branchName);
+                if (!branch) {
+                    return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+                }
+                repo.branches.forEach(b => b.current = false);
+                branch.current = true;
+                updateUI();
+                return { success: true, message: `브랜치 '${branchName}'로 전환됨` };
+            }
+        }
+
+        function executeSwitch(args) {
+            if (args.length === 0) {
+                return { success: false, message: '브랜치 이름을 지정하세요.' };
+            }
+
+            if (args[0] === '-c' || args[0] === '--create') {
+                const branchName = args[1];
+                if (!branchName) {
+                    return { success: false, message: '브랜치 이름을 지정하세요.' };
+                }
+                if (repo.branches.find(b => b.name === branchName)) {
+                    return { success: false, message: `브랜치 '${branchName}'가 이미 존재합니다.` };
+                }
+                const currentBranch = repo.branches.find(b => b.current);
+                repo.branches.forEach(b => b.current = false);
+                repo.branches.push({
+                    name: branchName,
+                    commits: [...currentBranch.commits],
+                    current: true
+                });
+                updateUI();
+                return { success: true, message: `브랜치 '${branchName}' 생성 및 전환됨` };
+            } else {
+                const branchName = args[0];
+                const branch = repo.branches.find(b => b.name === branchName);
+                if (!branch) {
+                    return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+                }
+                repo.branches.forEach(b => b.current = false);
+                branch.current = true;
+                updateUI();
+                return { success: true, message: `브랜치 '${branchName}'로 전환됨` };
+            }
+        }
+
+        function executeMerge(args) {
+            if (args.length === 0) {
+                return { success: false, message: '병합할 브랜치 이름을 지정하세요.' };
+            }
+
+            const branchName = args[0];
+            const branch = repo.branches.find(b => b.name === branchName);
+            if (!branch) {
+                return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+            }
+
+            const currentBranch = repo.branches.find(b => b.current);
+            if (branch.current) {
+                return { success: false, message: '현재 브랜치를 병합할 수 없습니다.' };
+            }
+
+            // 병합 커밋 추가
+            repo.commitCounter++;
+            const mergeCommit = 'M' + repo.commitCounter;
+            
+            // 병합: 현재 브랜치에 다른 브랜치의 새로운 커밋들 추가
+            const commonAncestor = findCommonAncestor(currentBranch, branch);
+            const newCommits = branch.commits.slice(commonAncestor);
+            currentBranch.commits.push(...newCommits);
+            currentBranch.commits.push(mergeCommit);
+            
+            updateUI();
+            return { success: true, message: `브랜치 '${branchName}' 병합됨 (${mergeCommit})` };
+        }
+
+        function executeRebase(args) {
+            if (args.length === 0) {
+                return { success: false, message: 'rebase할 브랜치 이름을 지정하세요.' };
+            }
+
+            const branchName = args[0];
+            const branch = repo.branches.find(b => b.name === branchName);
+            if (!branch) {
+                return { success: false, message: `브랜치 '${branchName}'를 찾을 수 없습니다.` };
+            }
+
+            const currentBranch = repo.branches.find(b => b.current);
+            if (branch.current) {
+                return { success: false, message: '현재 브랜치를 rebase할 수 없습니다.' };
+            }
+
+            // rebase: 현재 브랜치의 커밋을 다른 브랜치 위에 재배치
+            const commonAncestor = findCommonAncestor(currentBranch, branch);
+            const rebaseCommits = currentBranch.commits.slice(commonAncestor);
+            currentBranch.commits = [...branch.commits, ...rebaseCommits];
+            
+            updateUI();
+            return { success: true, message: `브랜치 '${branchName}' 위에 rebase됨` };
+        }
+
+        function executeReset(args) {
+            if (args.length < 2) {
+                return { success: false, message: 'reset 옵션과 커밋을 지정하세요.' };
+            }
+
+            const option = args[0];
+            const commitRef = args[1];
+            
+            // 커밋 찾기
+            const commitIndex = findCommitIndex(commitRef);
+            if (commitIndex === -1) {
+                return { success: false, message: `커밋 '${commitRef}'를 찾을 수 없습니다.` };
+            }
+
+            const currentBranch = repo.branches.find(b => b.current);
+            
+            if (option === '--hard') {
+                currentBranch.commits = currentBranch.commits.slice(0, commitIndex + 1);
+            } else if (option === '--soft' || option === '--mixed') {
+                // 시뮬레이션에서는 동일하게 처리
+                currentBranch.commits = currentBranch.commits.slice(0, commitIndex + 1);
+            } else {
+                return { success: false, message: '알 수 없는 reset 옵션입니다.' };
+            }
+
+            updateUI();
+            return { success: true, message: `리셋됨: ${commitRef}` };
+        }
+
+        function executeRevert(args) {
+            if (args.length === 0) {
+                return { success: false, message: '되돌릴 커밋을 지정하세요.' };
+            }
+
+            const commitRef = args[0];
+            const commitIndex = findCommitIndex(commitRef);
+            if (commitIndex === -1) {
+                return { success: false, message: `커밋 '${commitRef}'를 찾을 수 없습니다.` };
+            }
+
+            const currentBranch = repo.branches.find(b => b.current);
+            repo.commitCounter++;
+            const revertCommit = 'R' + repo.commitCounter;
+            currentBranch.commits.push(revertCommit);
+            
+            updateUI();
+            return { success: true, message: `커밋 '${commitRef}' 되돌림 (${revertCommit})` };
+        }
+
+        function executeTag(args) {
+            if (args.length === 0) {
+                return { success: true, message: '태그 목록 (시뮬레이션에서는 표시되지 않음)' };
+            }
+
+            const tagName = args[0];
+            return { success: true, message: `태그 '${tagName}' 생성됨 (시뮬레이션)` };
+        }
+
+        function executeLog() {
+            const currentBranch = repo.branches.find(b => b.current);
+            const log = currentBranch.commits.reverse().map(c => `* ${c}`).join('\n');
+            return { success: true, message: `커밋 히스토리:\n${log}` };
+        }
+
+        function executeStatus() {
+            const currentBranch = repo.branches.find(b => b.current);
+            return { 
+                success: true, 
+                message: `현재 브랜치: ${currentBranch.name}\n커밋 수: ${currentBranch.commits.length}` 
+            };
+        }
+
+        // 유틸리티 함수들
+        function findCommonAncestor(branch1, branch2) {
+            let i = 0;
+            while (i < branch1.commits.length && i < branch2.commits.length) {
+                if (branch1.commits[i] !== branch2.commits[i]) {
+                    break;
+                }
+                i++;
+            }
+            return i;
+        }
+
+        function findCommitIndex(commitRef) {
+            const currentBranch = repo.branches.find(b => b.current);
+            return currentBranch.commits.findIndex(c => c === commitRef);
+        }
+
+        // UI 업데이트
+        function updateUI() {
+            drawGraph();
+            updateBranchList();
+            updateStats();
+        }
+
+        function updateStats() {
+            const totalCommits = repo.branches.reduce((sum, b) => sum + b.commits.length, 0);
+            document.getElementById('commitCount').textContent = totalCommits;
+            document.getElementById('branchCount').textContent = repo.branches.length;
+            document.getElementById('commandCount').textContent = repo.commandHistory.length;
+            
+            const currentBranch = repo.branches.find(b => b.current);
+            document.getElementById('currentBranch').textContent = currentBranch ? currentBranch.name : '없음';
+        }
+
+        function updateBranchList() {
+            const branchList = document.getElementById('branchList');
+            branchList.innerHTML = '';
+            
+            repo.branches.forEach(branch => {
+                const div = document.createElement('div');
+                div.className = `branch-item ${branch.current ? 'current' : ''}`;
+                div.textContent = (branch.current ? '★ ' : '  ') + branch.name + ` (${branch.commits.length} commits)`;
+                branchList.appendChild(div);
+            });
+        }
+
+        // 그래프 그리기
+        function drawGraph() {
+            const svg = document.getElementById('graphSvg');
+            svg.innerHTML = '';
+
+            const padding = 50;
+            const commitRadius = 18;
+            const branchSpacing = 120;
+            const commitSpacing = 70;
+
+            // 최대 커밋 수 계산
+            let maxCommits = 0;
+            repo.branches.forEach(branch => {
+                maxCommits = Math.max(maxCommits, branch.commits.length);
+            });
+
+            const width = Math.max(600, repo.branches.length * branchSpacing + padding * 2);
+            const height = Math.max(400, maxCommits * commitSpacing + padding * 2);
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+
+            // 브랜치별로 커밋 그리기
+            repo.branches.forEach((branch, branchIndex) => {
+                const x = padding + branchIndex * branchSpacing;
+
+                branch.commits.forEach((commit, commitIndex) => {
+                    const y = padding + commitIndex * commitSpacing;
+                    
+                    // 커밋 노드
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', commitRadius);
+                    
+                    let className = 'commit-node';
+                    if (branch.current && commitIndex === branch.commits.length - 1) {
+                        className += ' current';
+                    }
+                    if (commit.startsWith('M')) {
+                        className += ' merge';
+                    }
+                    circle.setAttribute('class', className);
+                    svg.appendChild(circle);
+
+                    // 커밋 라벨
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y + 5);
+                    text.setAttribute('class', 'commit-label');
+                    text.textContent = commit;
+                    svg.appendChild(text);
+
+                    // 브랜치 라인 (수직)
+                    if (commitIndex > 0) {
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', x);
+                        line.setAttribute('y1', y - commitRadius);
+                        line.setAttribute('x2', x);
+                        line.setAttribute('y2', y - commitSpacing + commitRadius);
+                        line.setAttribute('class', 'branch-line');
+                        svg.appendChild(line);
+                    }
+                });
+
+                // 브랜치 이름
+                const branchText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                branchText.setAttribute('x', x);
+                branchText.setAttribute('y', padding - 20);
+                branchText.setAttribute('class', 'branch-label');
+                branchText.textContent = branch.name + (branch.current ? ' *' : '');
+                svg.appendChild(branchText);
+
+                // HEAD 표시
+                if (branch.current && branch.commits.length > 0) {
+                    const lastCommit = branch.commits[branch.commits.length - 1];
+                    const lastIndex = branch.commits.length - 1;
+                    const headY = padding + lastIndex * commitSpacing;
+                    const headText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    headText.setAttribute('x', x);
+                    headText.setAttribute('y', headY - commitRadius - 10);
+                    headText.setAttribute('class', 'head-indicator');
+                    headText.textContent = 'HEAD';
+                    svg.appendChild(headText);
+                }
+
+                // 브랜치 간 연결선 (같은 커밋끼리)
+                if (branchIndex > 0) {
+                    const prevBranch = repo.branches[branchIndex - 1];
+                    branch.commits.forEach((commit, commitIndex) => {
+                        const prevCommitIndex = prevBranch.commits.indexOf(commit);
+                        if (prevCommitIndex !== -1) {
+                            const x1 = padding + (branchIndex - 1) * branchSpacing;
+                            const x2 = padding + branchIndex * branchSpacing;
+                            const y = padding + commitIndex * commitSpacing;
+                            
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', x1 + commitRadius);
+                            line.setAttribute('y1', y);
+                            line.setAttribute('x2', x2 - commitRadius);
+                            line.setAttribute('y2', y);
+                            line.setAttribute('class', 'branch-line');
+                            line.setAttribute('stroke-dasharray', '5,5');
+                            svg.appendChild(line);
+                        }
+                    });
+                }
+            });
+        }
+
+        // 명령어 처리
+        function handleCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            const result = executeCommand(command);
+            repo.commandHistory.push({ command, result });
+            
+            // 명령어 히스토리 추가
+            const historyDiv = document.getElementById('commandHistory');
+            const historyItem = document.createElement('div');
+            historyItem.className = `history-item ${result.success ? 'success' : 'error'}`;
+            historyItem.textContent = `$ ${command} - ${result.message}`;
+            historyDiv.appendChild(historyItem);
+            historyDiv.scrollTop = historyDiv.scrollHeight;
+            
+            // 에러 메시지 표시
+            const errorDiv = document.getElementById('errorMessage');
+            if (!result.success) {
+                errorDiv.textContent = result.message;
+                errorDiv.classList.add('show');
+                setTimeout(() => errorDiv.classList.remove('show'), 3000);
+            } else {
+                errorDiv.classList.remove('show');
+            }
+            
+            input.value = '';
+        }
+
+        function clearHistory() {
+            document.getElementById('commandHistory').innerHTML = '';
+            repo.commandHistory = [];
+        }
+
+        function resetRepo() {
+            if (confirm('저장소를 초기화하시겠습니까? 모든 변경사항이 사라집니다.')) {
+                initRepo();
+                clearHistory();
+            }
+        }
+
+        // 이벤트 리스너
+        document.getElementById('commandInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleCommand();
+            }
+        });
+
+        // 초기화
+        updateUI();
+    </script>
+</body>
+</html>

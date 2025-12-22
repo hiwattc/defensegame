@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로또 6/45</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .header {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #667eea;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    .money-display {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .game-section {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .number-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        margin: 15px 0;
+    }
+
+    .number-btn {
+        aspect-ratio: 1;
+        border: 2px solid #ddd;
+        background: white;
+        border-radius: 50%;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .number-btn.selected {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+        transform: scale(1.1);
+    }
+
+    .number-btn:active {
+        transform: scale(0.95);
+    }
+
+    .selected-numbers {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin: 15px 0;
+        min-height: 50px;
+        align-items: center;
+    }
+
+    .selected-ball {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 18px;
+        animation: popIn 0.3s;
+    }
+
+    @keyframes popIn {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    .btn {
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 10px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+        color: white;
+    }
+
+    .btn:active {
+        transform: scale(0.98);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .lottery-tickets {
+        margin-top: 15px;
+    }
+
+    .ticket {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        border: 2px solid #e9ecef;
+    }
+
+    .ticket-numbers {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    .ticket-ball {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 14px;
+    }
+
+    .result-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .result-content {
+        background: white;
+        padding: 30px;
+        border-radius: 20px;
+        max-width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        animation: slideUp 0.5s;
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .winning-numbers {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin: 20px 0;
+    }
+
+    .winning-ball {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        font-size: 20px;
+        animation: bounce 0.6s;
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-20px); }
+    }
+
+    .result-item {
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 12px;
+        background: #f8f9fa;
+    }
+
+    .result-item.winner {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+
+    .match-ball {
+        background: #ffeaa7 !important;
+        border: 3px solid #fdcb6e;
+    }
+
+    .ladder-game {
+        padding: 20px;
+    }
+
+    .ladder-options {
+        display: flex;
+        justify-content: space-around;
+        margin: 20px 0;
+    }
+
+    .ladder-choice {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .ladder-choice:active {
+        transform: scale(0.9);
+    }
+
+    .ladder-svg {
+        width: 100%;
+        height: 300px;
+        margin: 20px 0;
+    }
+
+    .prize-display {
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+        color: #667eea;
+        margin: 20px 0;
+    }
+
+    .ball-color-1 { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); }
+    .ball-color-2 { background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); }
+    .ball-color-3 { background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); }
+    .ball-color-4 { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); }
+    .ball-color-5 { background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🎰 로또 6/45</div>
+            <div class="money-display" id="moneyDisplay">💰 1,000,000원</div>
+        </div>
+
+```
+    <div class="game-section" id="mainGame">
+        <h3 style="text-align: center; margin-bottom: 15px;">번호를 선택하세요 (6개)</h3>
+        <div class="selected-numbers" id="selectedNumbers"></div>
+        <div class="number-grid" id="numberGrid"></div>
+        <button class="btn btn-primary" id="quickBuyBtn">🎲 자동 선택 & 구매 (1,000원)</button>
+        <button class="btn btn-success" id="bulkBuyBtn">💸 잔액 전체 자동 구매</button>
+    </div>
+
+    <div class="game-section" id="ticketsSection" style="display: none;">
+        <h3 style="text-align: center; margin-bottom: 15px;">내 로또 용지</h3>
+        <div class="lottery-tickets" id="lotteryTickets"></div>
+        <button class="btn btn-primary" id="checkResultsBtn">🎊 당첨 확인</button>
+    </div>
+
+    <div class="game-section" id="ladderSection" style="display: none;">
+        <div class="ladder-game">
+            <h3 style="text-align: center; margin-bottom: 15px;">💸 돈이 떨어졌어요!</h3>
+            <p style="text-align: center; margin-bottom: 20px;">사다리 타기로 로또 용지를 받으세요!</p>
+            <div class="ladder-options" id="ladderOptions">
+                <button class="ladder-choice" data-choice="0">1</button>
+                <button class="ladder-choice" data-choice="1">2</button>
+                <button class="ladder-choice" data-choice="2">3</button>
+                <button class="ladder-choice" data-choice="3">4</button>
+            </div>
+            <svg class="ladder-svg" id="ladderSvg"></svg>
+            <div class="prize-display" id="prizeDisplay"></div>
+        </div>
+    </div>
+</div>
+
+<div class="result-modal" id="resultModal">
+    <div class="result-content" id="resultContent"></div>
+</div>
+
+<script>
+    var money = 1000000;
+    var selectedNumbers = [];
+    var tickets = [];
+
+    function getBallColor(num) {
+        if (num <= 10) return 'ball-color-1';
+        if (num <= 20) return 'ball-color-2';
+        if (num <= 30) return 'ball-color-3';
+        if (num <= 40) return 'ball-color-4';
+        return 'ball-color-5';
+    }
+
+    function initNumberGrid() {
+        var grid = document.getElementById('numberGrid');
+        for (var i = 1; i <= 45; i++) {
+            var btn = document.createElement('button');
+            btn.className = 'number-btn';
+            btn.textContent = i;
+            btn.setAttribute('data-number', i);
+            grid.appendChild(btn);
+        }
+    }
+
+    function updateSelectedDisplay() {
+        var display = document.getElementById('selectedNumbers');
+        display.innerHTML = '';
+        var sorted = selectedNumbers.slice().sort(function(a, b) { return a - b; });
+        for (var i = 0; i < sorted.length; i++) {
+            var ball = document.createElement('div');
+            ball.className = 'selected-ball ' + getBallColor(sorted[i]);
+            ball.textContent = sorted[i];
+            display.appendChild(ball);
+        }
+    }
+
+    function quickBuy() {
+        if (money < 1000) {
+            alert('돈이 부족합니다!');
+            return;
+        }
+        
+        selectedNumbers = [];
+        var buttons = document.querySelectorAll('.number-btn');
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].classList.remove('selected');
+        }
+        
+        while (selectedNumbers.length < 6) {
+            var num = Math.floor(Math.random() * 45) + 1;
+            if (selectedNumbers.indexOf(num) === -1) {
+                selectedNumbers.push(num);
+                buttons[num - 1].classList.add('selected');
+            }
+        }
+        updateSelectedDisplay();
+        
+        setTimeout(function() {
+            money -= 1000;
+            updateMoney();
+            tickets.push(selectedNumbers.slice());
+            
+            selectedNumbers = [];
+            var btns = document.querySelectorAll('.number-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('selected');
+            }
+            updateSelectedDisplay();
+            displayTickets();
+        }, 800);
+    }
+
+    function bulkAutoBuy() {
+        if (money < 1000) {
+            alert('돈이 부족합니다!');
+            return;
+        }
+
+        var count = Math.floor(money / 1000);
+        
+        var confirmMsg = count + '장의 로또를 자동으로 구매하시겠습니까?\n(총 ' + (count * 1000).toLocaleString() + '원)';
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+
+        for (var i = 0; i < count; i++) {
+            var numbers = [];
+            while (numbers.length < 6) {
+                var num = Math.floor(Math.random() * 45) + 1;
+                if (numbers.indexOf(num) === -1) {
+                    numbers.push(num);
+                }
+            }
+            tickets.push(numbers);
+        }
+
+        money -= count * 1000;
+        updateMoney();
+        displayTickets();
+
+        alert(count + '장의 로또를 구매했습니다! 🎰');
+    }
+
+    function displayTickets() {
+        var container = document.getElementById('lotteryTickets');
+        container.innerHTML = '';
+        
+        for (var i = 0; i < tickets.length; i++) {
+            var div = document.createElement('div');
+            div.className = 'ticket';
+            var sorted = tickets[i].slice().sort(function(a, b) { return a - b; });
+            var numbersHtml = '';
+            for (var j = 0; j < sorted.length; j++) {
+                numbersHtml += '<div class="ticket-ball ' + getBallColor(sorted[j]) + '">' + sorted[j] + '</div>';
+            }
+            div.innerHTML = '<div style="text-align: center; font-weight: bold; color: #667eea;">로또 용지 #' + (i + 1) + '</div><div class="ticket-numbers">' + numbersHtml + '</div>';
+            container.appendChild(div);
+        }
+        
+        document.getElementById('ticketsSection').style.display = tickets.length > 0 ? 'block' : 'none';
+    }
+
+    function generateWinningNumbers() {
+        var numbers = [];
+        while (numbers.length < 7) {
+            var num = Math.floor(Math.random() * 45) + 1;
+            if (numbers.indexOf(num) === -1) {
+                numbers.push(num);
+            }
+        }
+        return numbers;
+    }
+
+    function checkResults() {
+        var winning = generateWinningNumbers();
+        var winningMain = winning.slice(0, 6).sort(function(a, b) { return a - b; });
+        var bonus = winning[6];
+        
+        var modal = document.getElementById('resultModal');
+        var content = document.getElementById('resultContent');
+        
+        var totalWinnings = 0;
+        var resultHTML = '<h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">🎊 당첨 결과</h2><h3 style="text-align: center; margin-bottom: 10px;">당첨 번호</h3><div class="winning-numbers">';
+        
+        for (var i = 0; i < winningMain.length; i++) {
+            resultHTML += '<div class="winning-ball ' + getBallColor(winningMain[i]) + '" style="animation-delay: ' + (i * 0.1) + 's">' + winningMain[i] + '</div>';
+        }
+        resultHTML += '<div style="font-size: 24px; margin: 0 10px;">+</div><div class="winning-ball ' + getBallColor(bonus) + '" style="animation-delay: 0.6s">' + bonus + '</div></div><div style="margin-top: 30px;">';
+        
+        for (var i = 0; i < tickets.length; i++) {
+            var ticket = tickets[i];
+            var matches = 0;
+            for (var j = 0; j < ticket.length; j++) {
+                if (winningMain.indexOf(ticket[j]) !== -1) {
+                    matches++;
+                }
+            }
+            var hasBonus = ticket.indexOf(bonus) !== -1;
+            
+            var prize = 0;
+            var rank = '';
+            
+            if (matches === 6) {
+                prize = 2000000000;
+                rank = '🏆 1등';
+            } else if (matches === 5 && hasBonus) {
+                prize = 50000000;
+                rank = '🥈 2등';
+            } else if (matches === 5) {
+                prize = 1500000;
+                rank = '🥉 3등';
+            } else if (matches === 4) {
+                prize = 50000;
+                rank = '🎖️ 4등';
+            } else if (matches === 3) {
+                prize = 5000;
+                rank = '🎗️ 5등';
+            }
+            
+            totalWinnings += prize;
+            
+            var isWinner = prize > 0;
+            var sorted = ticket.slice().sort(function(a, b) { return a - b; });
+            var numbersHtml = '';
+            for (var k = 0; k < sorted.length; k++) {
+                var isMatch = winningMain.indexOf(sorted[k]) !== -1;
+                numbersHtml += '<div class="ticket-ball ' + getBallColor(sorted[k]) + (isMatch ? ' match-ball' : '') + '">' + sorted[k] + '</div>';
+            }
+            
+            resultHTML += '<div class="result-item' + (isWinner ? ' winner' : '') + '"><div style="font-weight: bold; margin-bottom: 10px;">로또 용지 #' + (i + 1) + ' ' + (isWinner ? rank : '❌ 낙첨') + '</div><div class="ticket-numbers">' + numbersHtml + '</div>';
+            if (prize > 0) {
+                resultHTML += '<div style="text-align: center; margin-top: 10px; font-size: 20px; font-weight: bold; color: #f5576c;">💰 ' + prize.toLocaleString() + '원</div>';
+            }
+            resultHTML += '</div>';
+        }
+        
+        resultHTML += '</div><div style="text-align: center; margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 15px;"><div style="font-size: 18px; margin-bottom: 10px;">총 당첨금</div><div style="font-size: 32px; font-weight: bold; color: #d63031;">💰 ' + totalWinnings.toLocaleString() + '원</div></div><button class="btn btn-primary" id="closeResultBtn" style="margin-top: 20px;">확인</button>';
+        
+        content.innerHTML = resultHTML;
+        modal.style.display = 'flex';
+        
+        document.getElementById('closeResultBtn').addEventListener('click', function() {
+            closeResults(totalWinnings);
+        });
+    }
+
+    function closeResults(winnings) {
+        money += winnings;
+        tickets = [];
+        updateMoney();
+        displayTickets();
+        document.getElementById('resultModal').style.display = 'none';
+        checkMoneyStatus();
+    }
+
+    function updateMoney() {
+        document.getElementById('moneyDisplay').textContent = '💰 ' + money.toLocaleString() + '원';
+    }
+
+    function checkMoneyStatus() {
+        if (money < 1000) {
+            document.getElementById('mainGame').style.display = 'none';
+            document.getElementById('ladderSection').style.display = 'block';
+        } else {
+            document.getElementById('mainGame').style.display = 'block';
+            document.getElementById('ladderSection').style.display = 'none';
+        }
+    }
+
+    function drawLadder() {
+        var svg = document.getElementById('ladderSvg');
+        var width = svg.clientWidth;
+        var height = 300;
+        var positions = 4;
+        var spacing = width / (positions + 1);
+        
+        var html = '';
+        
+        for (var i = 0; i < positions; i++) {
+            var x = spacing * (i + 1);
+            html += '<line x1="' + x + '" y1="20" x2="' + x + '" y2="280" stroke="#667eea" stroke-width="3"/>';
+        }
+        
+        var bridges = Math.floor(Math.random() * 8) + 10;
+        for (var i = 0; i < bridges; i++) {
+            var pos = Math.floor(Math.random() * (positions - 1));
+            var y = 40 + Math.random() * 220;
+            var x1 = spacing * (pos + 1);
+            var x2 = spacing * (pos + 2);
+            html += '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="#f5576c" stroke-width="3"/>';
+        }
+        
+        svg.innerHTML = html;
+    }
+
+    function playLadder(choice) {
+        var prizes = [1, 3, 5, 10];
+        prizes.sort(function() { return Math.random() - 0.5; });
+        var won = prizes[choice];
+        
+        document.getElementById('prizeDisplay').textContent = '🎉 ' + won + '장 획득!';
+        
+        for (var i = 0; i < won; i++) {
+            var numbers = [];
+            while (numbers.length < 6) {
+                var num = Math.floor(Math.random() * 45) + 1;
+                if (numbers.indexOf(num) === -1) {
+                    numbers.push(num);
+                }
+            }
+            tickets.push(numbers);
+        }
+        
+        setTimeout(function() {
+            displayTickets();
+            money = 1000;
+            updateMoney();
+            checkMoneyStatus();
+            document.getElementById('prizeDisplay').textContent = '';
+        }, 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initNumberGrid();
+        drawLadder();
+        
+        document.getElementById('numberGrid').addEventListener('click', function(e) {
+            if (e.target.classList.contains('number-btn')) {
+                var num = parseInt(e.target.getAttribute('data-number'));
+                var index = selectedNumbers.indexOf(num);
+                if (index > -1) {
+                    selectedNumbers.splice(index, 1);
+                    e.target.classList.remove('selected');
+                } else {
+                    if (selectedNumbers.length < 6) {
+                        selectedNumbers.push(num);
+                        e.target.classList.add('selected');
+                    }
+                }
+                updateSelectedDisplay();
+            }
+        });
+        
+        document.getElementById('quickBuyBtn').addEventListener('click', quickBuy);
+        document.getElementById('bulkBuyBtn').addEventListener('click', bulkAutoBuy);
+        document.getElementById('checkResultsBtn').addEventListener('click', checkResults);
+        
+        document.getElementById('ladderOptions').addEventListener('click', function(e) {
+            if (e.target.classList.contains('ladder-choice')) {
+                var choice = parseInt(e.target.getAttribute('data-choice'));
+                playLadder(choice);
+            }
+        });
+    });
+</script>
+```
+
+</body>
+</html>

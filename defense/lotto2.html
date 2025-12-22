@@ -152,7 +152,7 @@
             color: #ff4500;
             margin-bottom: 10px;
         }
-        /* 팝업 스타일 */
+        /* 모달 스타일 */
         .modal {
             display: none;
             position: fixed;
@@ -167,19 +167,32 @@
             background: white;
             padding: 20px;
             border-radius: 15px;
-            max-width: 90%;
+            width: 90%;
+            max-width: 500px;
             max-height: 90%;
-            overflow-y: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         .close {
+            align-self: flex-end;
             color: #aaa;
-            float: right;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
+            margin-bottom: 10px;
         }
         .close:hover { color: #000; }
+        #modalHeader {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        #ticketList {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
         .ticket-item {
             margin: 12px 0;
             padding: 10px;
@@ -193,6 +206,30 @@
         }
         .ticket-numbers {
             margin-top: 8px;
+        }
+        #pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        #pagination button {
+            background: #ff4500;
+            padding: 8px 12px;
+            font-size: 14px;
+            min-width: auto;
+            flex: none;
+        }
+        #pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #pageInfo {
+            font-size: 16px;
+            min-width: 120px;
         }
     </style>
 </head>
@@ -230,13 +267,20 @@
         </div>
     </div>
 
-    <!-- 당첨 상세 팝업 -->
+    <!-- 당첨 상세 모달 -->
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2 style="color:#ff4500;">당첨 상세 내역</h2>
-            <p><strong>이번 회차 구매:</strong> <span id="modalTicketCount"></span>장</p>
+            <div id="modalHeader">
+                <h2 style="color:#ff4500; margin:0;">당첨 상세 내역</h2>
+                <p style="margin:10px 0 0;"><strong>이번 회차 구매:</strong> <span id="modalTicketCount"></span>장</p>
+            </div>
             <div id="ticketList"></div>
+            <div id="pagination">
+                <button id="prevPage">‹ 이전</button>
+                <span id="pageInfo"></span>
+                <button id="nextPage">다음 ›</button>
+            </div>
         </div>
     </div>
 
@@ -244,12 +288,13 @@
         let balance = 1000000000; // 10억
         let totalSpent = 0;
         let totalWinnings = 0;
-        let tickets = [];           // 구매한 티켓들 보관
+        let tickets = [];
         let winningNumbers = [];
         let bonusNumber = 0;
-        let currentResults = [];    // 이번 회차 각 티켓의 결과 보관
+        let currentResults = [];    // {ticket, matches, hasBonus, prize}
 
         const ticketPrice = 1000;
+        const PAGE_SIZE = 100;     // 페이지당 100개 티켓
 
         const balanceP = document.getElementById('balance');
         const drawButton = document.getElementById('drawButton');
@@ -262,6 +307,12 @@
         const modalTicketCount = document.getElementById('modalTicketCount');
         const ticketList = document.getElementById('ticketList');
         const closeBtn = document.querySelector('.close');
+        const prevPageBtn = document.getElementById('prevPage');
+        const nextPageBtn = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+
+        let currentPage = 1;
+        let totalPages = 1;
 
         buyButtons.forEach(btn => {
             btn.addEventListener('click', () => buyTickets(parseInt(btn.dataset.amount)));
@@ -269,6 +320,8 @@
         drawButton.addEventListener('click', drawResults);
         detailButton.addEventListener('click', showDetailModal);
         closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        prevPageBtn.addEventListener('click', () => changePage(currentPage - 1));
+        nextPageBtn.addEventListener('click', () => changePage(currentPage + 1));
         window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 
         function buyTickets(amount) {
@@ -299,7 +352,7 @@
 
             let winnings = 0;
             let winCount = {1:0, 2:0, 3:0, 4:0, 5:0};
-            currentResults = []; // 이번 회차 결과 초기화
+            currentResults = [];
 
             tickets.forEach(ticket => {
                 const matches = countMatches(ticket, winningNumbers);
@@ -314,13 +367,7 @@
                 else if (matches === 4) winCount[4]++;
                 else if (matches === 3) winCount[5]++;
 
-                // 상세 결과 저장
-                currentResults.push({
-                    ticket,
-                    matches,
-                    hasBonus,
-                    prize
-                });
+                currentResults.push({ ticket, matches, hasBonus, prize });
             });
 
             totalWinnings += winnings;
@@ -357,15 +404,29 @@
 
         function showDetailModal() {
             modalTicketCount.textContent = tickets.length.toLocaleString();
+
+            // 당첨 티켓 먼저 정렬
+            const sortedResults = [
+                ...currentResults.filter(r => r.prize > 0),
+                ...currentResults.filter(r => r.prize === 0)
+            ];
+
+            totalPages = Math.ceil(sortedResults.length / PAGE_SIZE);
+            currentPage = 1;
+            renderPage(sortedResults, currentPage);
+
+            modal.style.display = 'flex';
+        }
+
+        function renderPage(allResults, page) {
             ticketList.innerHTML = '';
 
-            // 당첨된 티켓만 먼저, 나머지는 나중에
-            const winningTickets = currentResults.filter(r => r.prize > 0);
-            const losingTickets = currentResults.filter(r => r.prize === 0);
+            const start = (page - 1) * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+            const pageResults = allResults.slice(start, end);
 
-            const allTickets = [...winningTickets, ...losingTickets];
-
-            allTickets.forEach((res, idx) => {
+            pageResults.forEach((res, idx) => {
+                const globalIdx = start + idx;
                 const div = document.createElement('div');
                 div.className = 'ticket-item' + (res.prize > 0 ? ' win' : '');
 
@@ -374,30 +435,39 @@
                     : '<span style="color:#999;">미당첨</span>';
 
                 div.innerHTML = `
-                    <div><strong>티켓 ${idx + 1}</strong> ${prizeText}</div>
-                    <div class="ticket-numbers" id="nums-${idx}"></div>
+                    <div><strong>티켓 ${globalIdx + 1}</strong> ${prizeText}</div>
+                    <div class="ticket-numbers"></div>
                 `;
 
-                // 번호 표시
-                const numsDiv = div.querySelector(`#nums-${idx}`);
+                const numsDiv = div.querySelector('.ticket-numbers');
                 res.ticket.forEach(num => {
                     const span = document.createElement('span');
                     span.className = 'lotto-ball';
                     span.textContent = num;
 
-                    if (winningNumbers.includes(num)) {
-                        span.classList.add('match-ball'); // 기본 당첨번호 일치 빨강
-                    }
-                    if (num === bonusNumber && res.hasBonus) {
-                        span.classList.add('bonus-ball'); // 보너스 일치 파랑
-                    }
+                    if (winningNumbers.includes(num)) span.classList.add('match-ball');
+                    if (num === bonusNumber && res.hasBonus) span.classList.add('bonus-ball');
+
                     numsDiv.appendChild(span);
                 });
 
                 ticketList.appendChild(div);
             });
 
-            modal.style.display = 'flex';
+            // 페이징 정보 업데이트
+            pageInfo.textContent = `${page} / ${totalPages} 페이지`;
+            prevPageBtn.disabled = page <= 1;
+            nextPageBtn.disabled = page >= totalPages;
+            currentPage = page;
+        }
+
+        function changePage(newPage) {
+            if (newPage < 1 || newPage > totalPages) return;
+            const sortedResults = [
+                ...currentResults.filter(r => r.prize > 0),
+                ...currentResults.filter(r => r.prize === 0)
+            ];
+            renderPage(sortedResults, newPage);
         }
 
         function getRankText(matches, hasBonus) {

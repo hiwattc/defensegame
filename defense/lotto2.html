@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>아기자기 로또 게임</title>
+    <title>아기자기 로또 게임 🎰</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -11,56 +11,76 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            overflow: hidden;
+            overflow-x: hidden;
         }
         .container {
             background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
             text-align: center;
             max-width: 90%;
-            width: 400px;
+            width: 420px;
             position: relative;
             overflow: hidden;
         }
         h1 {
             color: #ff69b4;
-            font-size: 24px;
-            margin-bottom: 10px;
-            animation: bounce 1s infinite alternate;
+            font-size: 28px;
+            margin-bottom: 15px;
+            animation: bounce 1.2s infinite alternate;
         }
         @keyframes bounce {
             0% { transform: translateY(0); }
-            100% { transform: translateY(-5px); }
+            100% { transform: translateY(-8px); }
         }
         #balance {
-            font-size: 18px;
+            font-size: 22px;
             color: #32cd32;
-            margin-bottom: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .buy-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
         }
         button {
-            background: #ff4500;
+            background: linear-gradient(45deg, #ff4500, #ff6347);
             color: white;
             border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
+            padding: 12px 18px;
+            border-radius: 30px;
             font-size: 16px;
             cursor: pointer;
-            transition: transform 0.2s, background 0.3s;
-            margin: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(255, 69, 0, 0.3);
+            flex: 1 1 140px;
+            min-width: 130px;
         }
         button:hover {
-            transform: scale(1.05);
-            background: #ff6347;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(255, 69, 0, 0.4);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        #drawButton {
+            background: linear-gradient(45deg, #9b59b6, #8e44ad);
+            font-size: 18px;
+            padding: 15px;
+            margin: 20px 0;
         }
         #result {
             margin-top: 20px;
-            font-size: 16px;
+            font-size: 17px;
+            line-height: 1.6;
             color: #333;
-            animation: fadeIn 0.5s;
+            animation: fadeIn 0.8s;
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -68,31 +88,38 @@
         }
         .lotto-ball {
             display: inline-block;
-            width: 30px;
-            height: 30px;
-            line-height: 30px;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
             border-radius: 50%;
             background: #ffd700;
-            color: #fff;
+            color: white;
             font-weight: bold;
+            font-size: 18px;
             margin: 5px;
-            animation: spin 1s ease-in-out;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+            animation: spin 1.2s ease-in-out;
         }
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% { transform: rotate(0) scale(0.8); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        #winningNumbers {
+            margin: 25px 0;
+            font-size: 18px;
         }
         .confetti {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background: #ff69b4;
-            opacity: 0.8;
-            animation: confetti-fall 2s linear infinite;
+            opacity: 0.9;
+            animation: confetti-fall linear infinite;
         }
         @keyframes confetti-fall {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
+            0% { transform: translateY(-100vh) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(720deg); }
         }
         .hidden {
             display: none;
@@ -101,51 +128,64 @@
 </head>
 <body>
     <div class="container">
-        <h1>아기자기 로또 게임 🎉</h1>
-        <p id="balance">현재 잔액: 10,000,000 원</p>
-        <button id="buyButton">100장 구매 (100,000 원)</button>
-        <button id="drawButton" class="hidden">결과 확인</button>
-        <div id="result"></div>
+        <h1>아기자기 로또 게임 🎉🍀</h1>
+        <p id="balance">현재 잔액: 100,000,000 원</p>
+
+        <div class="buy-buttons">
+            <button data-amount="100">100장 구매<br>(100,000 원)</button>
+            <button data-amount="500">500장 구매<br>(500,000 원)</button>
+            <button data-amount="1000">1,000장 구매<br>(1,000,000 원)</button>
+            <button data-amount="2000">2,000장 구매<br>(2,000,000 원)</button>
+            <button data-amount="5000">5,000장 구매<br>(5,000,000 원)</button>
+            <button data-amount="10000">10,000장 구매<br>(10,000,000 원)</button>
+        </div>
+
+        <button id="drawButton" class="hidden">당첨 결과 확인 🎲</button>
+
         <div id="winningNumbers" class="hidden"></div>
+        <div id="result"></div>
     </div>
 
     <script>
-        let balance = 10000000;
+        let balance = 100000000; // 시작 자본금 1억
         let totalSpent = 0;
         let totalWinnings = 0;
         let tickets = [];
         let winningNumbers = [];
         let bonusNumber = 0;
 
-        const ticketPrice = 1000; // 한 장당 1000원
-        const batchSize = 100; // 100장씩 구매
+        const ticketPrice = 1000; // 한 장 1,000원
 
-        const buyButton = document.getElementById('buyButton');
+        const balanceP = document.getElementById('balance');
         const drawButton = document.getElementById('drawButton');
         const resultDiv = document.getElementById('result');
-        const balanceP = document.getElementById('balance');
         const winningNumbersDiv = document.getElementById('winningNumbers');
+        const buyButtons = document.querySelectorAll('.buy-buttons button');
 
-        buyButton.addEventListener('click', buyTickets);
+        buyButtons.forEach(btn => {
+            btn.addEventListener('click', () => buyTickets(parseInt(btn.dataset.amount)));
+        });
         drawButton.addEventListener('click', drawResults);
 
-        function buyTickets() {
-            const cost = batchSize * ticketPrice;
+        function buyTickets(amount) {
+            const cost = amount * ticketPrice;
             if (balance < cost) {
-                resultDiv.innerHTML = '잔액이 부족해요! 😢';
+                resultDiv.innerHTML = `<span style="color:red;">잔액이 부족해요! 😭</span>`;
                 return;
             }
+
             balance -= cost;
             totalSpent += cost;
-            balanceP.textContent = `현재 잔액: ${balance.toLocaleString()} 원`;
+            updateBalance();
 
             tickets = [];
-            for (let i = 0; i < batchSize; i++) {
+            for (let i = 0; i < amount; i++) {
                 tickets.push(generateLottoNumbers());
             }
-            resultDiv.innerHTML = `${batchSize}장 구매 완료! 🎟️<br>당첨 번호를 추첨할 준비가 됐어요.`;
-            buyButton.classList.add('hidden');
+
+            resultDiv.innerHTML = `<strong>${amount.toLocaleString()}장</strong> 구매 완료! 🎟️✨<br>이제 당첨 번호를 추첨해보세요!`;
             drawButton.classList.remove('hidden');
+            buyButtons.forEach(b => b.disabled = true);
         }
 
         function drawResults() {
@@ -153,81 +193,105 @@
             bonusNumber = generateBonusNumber(winningNumbers);
 
             let winnings = 0;
-            let winDetails = '';
+            let winCount = {1:0, 2:0, 3:0, 4:0, 5:0};
 
             tickets.forEach(ticket => {
                 const matches = countMatches(ticket, winningNumbers);
                 const hasBonus = ticket.includes(bonusNumber);
-                let prize = getPrize(matches, hasBonus);
+                const prize = getPrize(matches, hasBonus);
                 winnings += prize;
-                if (prize > 0) {
-                    winDetails += `<br>티켓: ${ticket.join(', ')} - ${matches}개 일치 ${hasBonus ? '(보너스 포함)' : ''} - 상금: ${prize.toLocaleString()} 원`;
-                }
+
+                if (matches === 6) winCount[1]++;
+                else if (matches === 5 && hasBonus) winCount[2]++;
+                else if (matches === 5) winCount[3]++;
+                else if (matches === 4) winCount[4]++;
+                else if (matches === 3) winCount[5]++;
             });
 
             totalWinnings += winnings;
             balance += winnings;
+            updateBalance();
 
-            const net = winnings - (batchSize * ticketPrice);
-            resultDiv.innerHTML = `총 구매 금액: ${totalSpent.toLocaleString()} 원<br>이번 당첨 금액: ${winnings.toLocaleString()} 원<br>누적 당첨 금액: ${totalWinnings.toLocaleString()} 원<br>순수익: ${net.toLocaleString()} 원${winDetails}`;
-            balanceP.textContent = `현재 잔액: ${balance.toLocaleString()} 원`;
+            const thisSpent = tickets.length * ticketPrice;
+            const net = winnings - thisSpent;
+
+            let detailText = '';
+            if (winCount[1] > 0) detailText += `<br>🎉 1등: ${winCount[1]}개`;
+            if (winCount[2] > 0) detailText += `<br>🥈 2등: ${winCount[2]}개`;
+            if (winCount[3] > 0) detailText += `<br>🥉 3등: ${winCount[3]}개`;
+            if (winCount[4] > 0) detailText += `<br>4등: ${winCount[4]}개`;
+            if (winCount[5] > 0) detailText += `<br>5등: ${winCount[5]}개`;
+
+            resultDiv.innerHTML = `
+                <strong>총 구매 금액 (누적): ${totalSpent.toLocaleString()} 원</strong><br>
+                이번 회차 구매: ${tickets.length.toLocaleString()}장 (${thisSpent.toLocaleString()} 원)<br>
+                이번 당첨 금액: <span style="color:#ff4500;font-size:20px;">${winnings.toLocaleString()} 원</span><br>
+                누적 당첨 금액: ${totalWinnings.toLocaleString()} 원<br>
+                이번 순수익: ${net >= 0 ? '<span style="color:green">' : '<span style="color:red">'}${net.toLocaleString()} 원</span>${detailText || '<br>아쉽게도 당첨 없음 😢'}
+            `;
 
             displayWinningNumbers();
             if (winnings > 0) createConfetti();
 
-            buyButton.classList.remove('hidden');
             drawButton.classList.add('hidden');
-            tickets = []; // 리셋
+            buyButtons.forEach(b => b.disabled = false);
+            tickets = [];
+        }
+
+        function updateBalance() {
+            balanceP.textContent = `현재 잔액: ${balance.toLocaleString()} 원`;
         }
 
         function generateLottoNumbers() {
-            let numbers = new Set();
+            const numbers = new Set();
             while (numbers.size < 6) {
                 numbers.add(Math.floor(Math.random() * 45) + 1);
             }
             return Array.from(numbers).sort((a, b) => a - b);
         }
 
-        function generateBonusNumber(winning) {
+        function generateBonusNumber(main) {
             let bonus;
             do {
                 bonus = Math.floor(Math.random() * 45) + 1;
-            } while (winning.includes(bonus));
+            } while (main.includes(bonus));
             return bonus;
         }
 
         function countMatches(ticket, winning) {
-            return ticket.filter(num => winning.includes(num)).length;
+            return ticket.filter(n => winning.includes(n)).length;
         }
 
         function getPrize(matches, hasBonus) {
-            if (matches === 6) return 1000000000; // 1등: 10억 (예시)
-            if (matches === 5 && hasBonus) return 50000000; // 2등: 5천만
-            if (matches === 5) return 1000000; // 3등: 100만
-            if (matches === 4) return 50000; // 4등: 5만
-            if (matches === 3) return 5000; // 5등: 5천
+            if (matches === 6) return 2000000000; // 1등 현실에 가까운 큰 금액
+            if (matches === 5 && hasBonus) return 60000000; // 2등
+            if (matches === 5) return 1500000; // 3등
+            if (matches === 4) return 50000; // 4등
+            if (matches === 3) return 5000; // 5등
             return 0;
         }
 
         function displayWinningNumbers() {
-            let html = '당첨 번호: ';
+            let html = '<strong>당첨 번호</strong>: ';
             winningNumbers.forEach(num => {
                 html += `<span class="lotto-ball">${num}</span>`;
             });
-            html += ` 보너스: <span class="lotto-ball" style="background: #00bfff;">${bonusNumber}</span>`;
+            html += `<br>보너스: <span class="lotto-ball" style="background:#00bfff;">${bonusNumber}</span>`;
             winningNumbersDiv.innerHTML = html;
             winningNumbersDiv.classList.remove('hidden');
         }
 
         function createConfetti() {
-            for (let i = 0; i < 50; i++) {
-                let confetti = document.createElement('div');
+            const colors = ['#ff69b4', '#ffd700', '#00ff7f', '#00bfff', '#ff4500', '#9b59b6'];
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
                 confetti.className = 'confetti';
-                confetti.style.left = `${Math.random() * 100}%`;
-                confetti.style.background = ['#ff69b4', '#ffd700', '#00ff00', '#00bfff'][Math.floor(Math.random() * 4)];
-                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                confetti.style.animationDelay = Math.random() * 2 + 's';
                 document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 3000);
+                setTimeout(() => confetti.remove(), 5000);
             }
         }
     </script>

@@ -77,23 +77,23 @@
         }
         #result {
             margin-top: 20px;
-            font-size: 18px; /* 시인성 위해 폰트 크기 증가 */
-            line-height: 1.8; /* 줄간격 넓혀 시인성 UP */
+            font-size: 18px;
+            line-height: 1.8;
             color: #333;
-            background: #f9f9f9; /* 배경색으로 구분 */
-            padding: 15px; /* 패딩 추가 */
-            border-radius: 10px; /* 모서리 둥글게 */
-            border: 1px solid #ddd; /* 테두리 추가 */
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
             animation: fadeIn 0.8s;
         }
         #result strong {
-            color: #ff4500; /* 강조 색상 */
-            font-size: 20px; /* 더 크게 */
+            color: #ff4500;
+            font-size: 20px;
         }
         #result .win-summary {
             margin-top: 10px;
             padding: 10px;
-            background: #e6ffe6; /* 당첨 요약 배경 */
+            background: #e6ffe6;
             border-radius: 8px;
         }
         #result .loss {
@@ -164,12 +164,22 @@
             list-style-type: disc;
             padding-left: 20px;
         }
+        .big-buy {
+            background: linear-gradient(45deg, #ffd700, #ffed4a) !important;
+            color: #ff4500 !important;
+            font-weight: bold;
+            font-size: 17px;
+        }
+        .big-buy:hover {
+            background: linear-gradient(45deg, #ffed4a, #ffd700) !important;
+            color: #ff4500 !important;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>아기자기 로또 게임 🎉🍀</h1>
-        <p id="balance">현재 잔액: 100,000,000 원</p>
+        <p id="balance">현재 잔액: 1,000,000,000 원</p>
 
         <div class="buy-buttons">
             <button data-amount="100">100장 구매<br>(100,000 원)</button>
@@ -178,6 +188,7 @@
             <button data-amount="2000">2,000장 구매<br>(2,000,000 원)</button>
             <button data-amount="5000">5,000장 구매<br>(5,000,000 원)</button>
             <button data-amount="10000">10,000장 구매<br>(10,000,000 원)</button>
+            <button data-amount="100000" class="big-buy">10만장 구매<br>(100,000,000 원)</button>
         </div>
 
         <button id="drawButton" class="hidden">당첨 결과 확인 🎲</button>
@@ -199,7 +210,7 @@
     </div>
 
     <script>
-        let balance = 100000000; // 시작 자본금 1억
+        let balance = 1000000000; // 시작 자본금 10억
         let totalSpent = 0;
         let totalWinnings = 0;
         let tickets = [];

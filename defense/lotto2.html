@@ -66,14 +66,11 @@
             transform: translateY(-3px) scale(1.05);
             box-shadow: 0 8px 20px rgba(255, 69, 0, 0.4);
         }
-        button:active {
-            transform: translateY(1px);
-        }
-        #drawButton {
+        #drawButton, #detailButton {
             background: linear-gradient(45deg, #9b59b6, #8e44ad);
             font-size: 18px;
             padding: 15px;
-            margin: 20px 0;
+            margin: 10px 0;
         }
         #result {
             margin-top: 20px;
@@ -84,7 +81,6 @@
             padding: 15px;
             border-radius: 10px;
             border: 1px solid #ddd;
-            animation: fadeIn 0.8s;
         }
         #result strong {
             color: #ff4500;
@@ -96,18 +92,8 @@
             background: #e6ffe6;
             border-radius: 8px;
         }
-        #result .loss {
-            color: red;
-            font-weight: bold;
-        }
-        #result .profit {
-            color: green;
-            font-weight: bold;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        #result .loss { color: red; font-weight: bold; }
+        #result .profit { color: green; font-weight: bold; }
         .lotto-ball {
             display: inline-block;
             width: 40px;
@@ -127,6 +113,8 @@
             50% { transform: rotate(180deg) scale(1.1); }
             100% { transform: rotate(360deg) scale(1); }
         }
+        .match-ball { background: #ff4500 !important; }
+        .bonus-ball { background: #00bfff !important; }
         #winningNumbers {
             margin: 25px 0;
             font-size: 18px;
@@ -143,8 +131,12 @@
             0% { transform: translateY(-100vh) rotate(0deg); }
             100% { transform: translateY(100vh) rotate(720deg); }
         }
-        .hidden {
-            display: none;
+        .hidden { display: none; }
+        .big-buy {
+            background: linear-gradient(45deg, #ffd700, #ffed4a) !important;
+            color: #ff4500 !important;
+            font-weight: bold;
+            font-size: 17px;
         }
         #rules {
             margin: 20px 0;
@@ -160,19 +152,47 @@
             color: #ff4500;
             margin-bottom: 10px;
         }
-        #rules ul {
-            list-style-type: disc;
-            padding-left: 20px;
+        /* 팝업 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            align-items: center;
+            justify-content: center;
         }
-        .big-buy {
-            background: linear-gradient(45deg, #ffd700, #ffed4a) !important;
-            color: #ff4500 !important;
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
             font-weight: bold;
-            font-size: 17px;
+            cursor: pointer;
         }
-        .big-buy:hover {
-            background: linear-gradient(45deg, #ffed4a, #ffd700) !important;
-            color: #ff4500 !important;
+        .close:hover { color: #000; }
+        .ticket-item {
+            margin: 12px 0;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .ticket-item.win {
+            background: #e6ffe6;
+            border: 2px solid #32cd32;
+        }
+        .ticket-numbers {
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -192,6 +212,7 @@
         </div>
 
         <button id="drawButton" class="hidden">당첨 결과 확인 🎲</button>
+        <button id="detailButton" class="hidden">당첨 상세 확인 📋</button>
 
         <div id="winningNumbers" class="hidden"></div>
         <div id="result"></div>
@@ -209,26 +230,46 @@
         </div>
     </div>
 
+    <!-- 당첨 상세 팝업 -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 style="color:#ff4500;">당첨 상세 내역</h2>
+            <p><strong>이번 회차 구매:</strong> <span id="modalTicketCount"></span>장</p>
+            <div id="ticketList"></div>
+        </div>
+    </div>
+
     <script>
-        let balance = 1000000000; // 시작 자본금 10억
+        let balance = 1000000000; // 10억
         let totalSpent = 0;
         let totalWinnings = 0;
-        let tickets = [];
+        let tickets = [];           // 구매한 티켓들 보관
         let winningNumbers = [];
         let bonusNumber = 0;
+        let currentResults = [];    // 이번 회차 각 티켓의 결과 보관
 
-        const ticketPrice = 1000; // 한 장 1,000원
+        const ticketPrice = 1000;
 
         const balanceP = document.getElementById('balance');
         const drawButton = document.getElementById('drawButton');
+        const detailButton = document.getElementById('detailButton');
         const resultDiv = document.getElementById('result');
         const winningNumbersDiv = document.getElementById('winningNumbers');
         const buyButtons = document.querySelectorAll('.buy-buttons button');
+
+        const modal = document.getElementById('detailModal');
+        const modalTicketCount = document.getElementById('modalTicketCount');
+        const ticketList = document.getElementById('ticketList');
+        const closeBtn = document.querySelector('.close');
 
         buyButtons.forEach(btn => {
             btn.addEventListener('click', () => buyTickets(parseInt(btn.dataset.amount)));
         });
         drawButton.addEventListener('click', drawResults);
+        detailButton.addEventListener('click', showDetailModal);
+        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 
         function buyTickets(amount) {
             const cost = amount * ticketPrice;
@@ -248,6 +289,7 @@
 
             resultDiv.innerHTML = `<strong>${amount.toLocaleString()}장</strong> 구매 완료! 🎟️✨<br>이제 당첨 번호를 추첨해보세요!`;
             drawButton.classList.remove('hidden');
+            detailButton.classList.add('hidden');
             buyButtons.forEach(b => b.disabled = true);
         }
 
@@ -257,11 +299,13 @@
 
             let winnings = 0;
             let winCount = {1:0, 2:0, 3:0, 4:0, 5:0};
+            currentResults = []; // 이번 회차 결과 초기화
 
             tickets.forEach(ticket => {
                 const matches = countMatches(ticket, winningNumbers);
                 const hasBonus = ticket.includes(bonusNumber);
                 const prize = getPrize(matches, hasBonus);
+
                 winnings += prize;
 
                 if (matches === 6) winCount[1]++;
@@ -269,6 +313,14 @@
                 else if (matches === 5) winCount[3]++;
                 else if (matches === 4) winCount[4]++;
                 else if (matches === 3) winCount[5]++;
+
+                // 상세 결과 저장
+                currentResults.push({
+                    ticket,
+                    matches,
+                    hasBonus,
+                    prize
+                });
             });
 
             totalWinnings += winnings;
@@ -299,8 +351,62 @@
             if (winnings > 0) createConfetti();
 
             drawButton.classList.add('hidden');
+            detailButton.classList.remove('hidden');
             buyButtons.forEach(b => b.disabled = false);
-            tickets = [];
+        }
+
+        function showDetailModal() {
+            modalTicketCount.textContent = tickets.length.toLocaleString();
+            ticketList.innerHTML = '';
+
+            // 당첨된 티켓만 먼저, 나머지는 나중에
+            const winningTickets = currentResults.filter(r => r.prize > 0);
+            const losingTickets = currentResults.filter(r => r.prize === 0);
+
+            const allTickets = [...winningTickets, ...losingTickets];
+
+            allTickets.forEach((res, idx) => {
+                const div = document.createElement('div');
+                div.className = 'ticket-item' + (res.prize > 0 ? ' win' : '');
+
+                let prizeText = res.prize > 0 
+                    ? `<strong style="color:#ff4500;">${getRankText(res.matches, res.hasBonus)} 당첨! ${res.prize.toLocaleString()}원</strong>`
+                    : '<span style="color:#999;">미당첨</span>';
+
+                div.innerHTML = `
+                    <div><strong>티켓 ${idx + 1}</strong> ${prizeText}</div>
+                    <div class="ticket-numbers" id="nums-${idx}"></div>
+                `;
+
+                // 번호 표시
+                const numsDiv = div.querySelector(`#nums-${idx}`);
+                res.ticket.forEach(num => {
+                    const span = document.createElement('span');
+                    span.className = 'lotto-ball';
+                    span.textContent = num;
+
+                    if (winningNumbers.includes(num)) {
+                        span.classList.add('match-ball'); // 기본 당첨번호 일치 빨강
+                    }
+                    if (num === bonusNumber && res.hasBonus) {
+                        span.classList.add('bonus-ball'); // 보너스 일치 파랑
+                    }
+                    numsDiv.appendChild(span);
+                });
+
+                ticketList.appendChild(div);
+            });
+
+            modal.style.display = 'flex';
+        }
+
+        function getRankText(matches, hasBonus) {
+            if (matches === 6) return '1등';
+            if (matches === 5 && hasBonus) return '2등';
+            if (matches === 5) return '3등';
+            if (matches === 4) return '4등';
+            if (matches === 3) return '5등';
+            return '';
         }
 
         function updateBalance() {
@@ -328,11 +434,11 @@
         }
 
         function getPrize(matches, hasBonus) {
-            if (matches === 6) return 2000000000; // 1등 20억
-            if (matches === 5 && hasBonus) return 60000000; // 2등 6천만
-            if (matches === 5) return 1500000; // 3등 150만
-            if (matches === 4) return 50000; // 4등 5만
-            if (matches === 3) return 5000; // 5등 5천
+            if (matches === 6) return 2000000000;
+            if (matches === 5 && hasBonus) return 60000000;
+            if (matches === 5) return 1500000;
+            if (matches === 4) return 50000;
+            if (matches === 3) return 5000;
             return 0;
         }
 
@@ -341,14 +447,14 @@
             winningNumbers.forEach(num => {
                 html += `<span class="lotto-ball">${num}</span>`;
             });
-            html += `<br>보너스: <span class="lotto-ball" style="background:#00bfff;">${bonusNumber}</span>`;
+            html += `<br>보너스: <span class="lotto-ball bonus-ball">${bonusNumber}</span>`;
             winningNumbersDiv.innerHTML = html;
             winningNumbersDiv.classList.remove('hidden');
         }
 
         function createConfetti() {
             const colors = ['#ff69b4', '#ffd700', '#00ff7f', '#00bfff', '#ff4500', '#9b59b6'];
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 150; i++) {
                 const confetti = document.createElement('div');
                 confetti.className = 'confetti';
                 confetti.style.left = Math.random() * 100 + 'vw';

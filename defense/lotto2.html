@@ -77,10 +77,32 @@
         }
         #result {
             margin-top: 20px;
-            font-size: 17px;
-            line-height: 1.6;
+            font-size: 18px; /* 시인성 위해 폰트 크기 증가 */
+            line-height: 1.8; /* 줄간격 넓혀 시인성 UP */
             color: #333;
+            background: #f9f9f9; /* 배경색으로 구분 */
+            padding: 15px; /* 패딩 추가 */
+            border-radius: 10px; /* 모서리 둥글게 */
+            border: 1px solid #ddd; /* 테두리 추가 */
             animation: fadeIn 0.8s;
+        }
+        #result strong {
+            color: #ff4500; /* 강조 색상 */
+            font-size: 20px; /* 더 크게 */
+        }
+        #result .win-summary {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e6ffe6; /* 당첨 요약 배경 */
+            border-radius: 8px;
+        }
+        #result .loss {
+            color: red;
+            font-weight: bold;
+        }
+        #result .profit {
+            color: green;
+            font-weight: bold;
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -124,6 +146,24 @@
         .hidden {
             display: none;
         }
+        #rules {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fffacd;
+            border-radius: 10px;
+            font-size: 16px;
+            line-height: 1.6;
+            text-align: left;
+        }
+        #rules h2 {
+            font-size: 20px;
+            color: #ff4500;
+            margin-bottom: 10px;
+        }
+        #rules ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
@@ -144,6 +184,18 @@
 
         <div id="winningNumbers" class="hidden"></div>
         <div id="result"></div>
+
+        <div id="rules">
+            <h2>당첨 기준 및 확률</h2>
+            <ul>
+                <li><strong>1등</strong>: 6개 번호 모두 일치 - 확률: 약 1/8,145,060 - 상금: 2,000,000,000 원</li>
+                <li><strong>2등</strong>: 5개 번호 일치 + 보너스 번호 - 확률: 약 1/1,357,510 - 상금: 60,000,000 원</li>
+                <li><strong>3등</strong>: 5개 번호 일치 - 확률: 약 1/35,724 - 상금: 1,500,000 원</li>
+                <li><strong>4등</strong>: 4개 번호 일치 - 확률: 약 1/733 - 상금: 50,000 원</li>
+                <li><strong>5등</strong>: 3개 번호 일치 - 확률: 약 1/45 - 상금: 5,000 원</li>
+            </ul>
+            <p>※ 확률은 실제 로또 6/45 기준이며, 게임 내 랜덤 추첨으로 현실과 동일하게 적용됩니다.</p>
+        </div>
     </div>
 
     <script>
@@ -215,19 +267,21 @@
             const thisSpent = tickets.length * ticketPrice;
             const net = winnings - thisSpent;
 
-            let detailText = '';
-            if (winCount[1] > 0) detailText += `<br>🎉 1등: ${winCount[1]}개`;
-            if (winCount[2] > 0) detailText += `<br>🥈 2등: ${winCount[2]}개`;
-            if (winCount[3] > 0) detailText += `<br>🥉 3등: ${winCount[3]}개`;
-            if (winCount[4] > 0) detailText += `<br>4등: ${winCount[4]}개`;
-            if (winCount[5] > 0) detailText += `<br>5등: ${winCount[5]}개`;
+            let detailText = '<div class="win-summary">';
+            if (winCount[1] > 0) detailText += `🎉 1등: ${winCount[1]}개<br>`;
+            if (winCount[2] > 0) detailText += `🥈 2등: ${winCount[2]}개<br>`;
+            if (winCount[3] > 0) detailText += `🥉 3등: ${winCount[3]}개<br>`;
+            if (winCount[4] > 0) detailText += `4등: ${winCount[4]}개<br>`;
+            if (winCount[5] > 0) detailText += `5등: ${winCount[5]}개<br>`;
+            detailText += '</div>';
 
             resultDiv.innerHTML = `
-                <strong>총 구매 금액 (누적): ${totalSpent.toLocaleString()} 원</strong><br>
-                이번 회차 구매: ${tickets.length.toLocaleString()}장 (${thisSpent.toLocaleString()} 원)<br>
-                이번 당첨 금액: <span style="color:#ff4500;font-size:20px;">${winnings.toLocaleString()} 원</span><br>
-                누적 당첨 금액: ${totalWinnings.toLocaleString()} 원<br>
-                이번 순수익: ${net >= 0 ? '<span style="color:green">' : '<span style="color:red">'}${net.toLocaleString()} 원</span>${detailText || '<br>아쉽게도 당첨 없음 😢'}
+                <strong>총 구매 금액 (누적):</strong> ${totalSpent.toLocaleString()} 원<br>
+                <strong>이번 회차 구매:</strong> ${tickets.length.toLocaleString()}장 (${thisSpent.toLocaleString()} 원)<br>
+                <strong>이번 당첨 금액:</strong> <span style="color:#ff4500;font-size:22px;">${winnings.toLocaleString()} 원</span><br>
+                <strong>누적 당첨 금액:</strong> ${totalWinnings.toLocaleString()} 원<br>
+                <strong>이번 순수익:</strong> <span class="${net >= 0 ? 'profit' : 'loss'}">${net.toLocaleString()} 원</span><br>
+                ${detailText || '<br><span class="loss">아쉽게도 당첨 없음 😢</span>'}
             `;
 
             displayWinningNumbers();
@@ -263,11 +317,11 @@
         }
 
         function getPrize(matches, hasBonus) {
-            if (matches === 6) return 2000000000; // 1등 현실에 가까운 큰 금액
-            if (matches === 5 && hasBonus) return 60000000; // 2등
-            if (matches === 5) return 1500000; // 3등
-            if (matches === 4) return 50000; // 4등
-            if (matches === 3) return 5000; // 5등
+            if (matches === 6) return 2000000000; // 1등 20억
+            if (matches === 5 && hasBonus) return 60000000; // 2등 6천만
+            if (matches === 5) return 1500000; // 3등 150만
+            if (matches === 4) return 50000; // 4등 5만
+            if (matches === 3) return 5000; // 5등 5천
             return 0;
         }
 

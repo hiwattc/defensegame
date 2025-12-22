@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아기자기 로또 게임</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        h1 {
+            color: #ff69b4;
+            font-size: 24px;
+            margin-bottom: 10px;
+            animation: bounce 1s infinite alternate;
+        }
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-5px); }
+        }
+        #balance {
+            font-size: 18px;
+            color: #32cd32;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #ff4500;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.3s;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            background: #ff6347;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .lotto-ball {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            border-radius: 50%;
+            background: #ffd700;
+            color: #fff;
+            font-weight: bold;
+            margin: 5px;
+            animation: spin 1s ease-in-out;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ff69b4;
+            opacity: 0.8;
+            animation: confetti-fall 2s linear infinite;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>아기자기 로또 게임 🎉</h1>
+        <p id="balance">현재 잔액: 10,000,000 원</p>
+        <button id="buyButton">100장 구매 (100,000 원)</button>
+        <button id="drawButton" class="hidden">결과 확인</button>
+        <div id="result"></div>
+        <div id="winningNumbers" class="hidden"></div>
+    </div>
+
+    <script>
+        let balance = 10000000;
+        let totalSpent = 0;
+        let totalWinnings = 0;
+        let tickets = [];
+        let winningNumbers = [];
+        let bonusNumber = 0;
+
+        const ticketPrice = 1000; // 한 장당 1000원
+        const batchSize = 100; // 100장씩 구매
+
+        const buyButton = document.getElementById('buyButton');
+        const drawButton = document.getElementById('drawButton');
+        const resultDiv = document.getElementById('result');
+        const balanceP = document.getElementById('balance');
+        const winningNumbersDiv = document.getElementById('winningNumbers');
+
+        buyButton.addEventListener('click', buyTickets);
+        drawButton.addEventListener('click', drawResults);
+
+        function buyTickets() {
+            const cost = batchSize * ticketPrice;
+            if (balance < cost) {
+                resultDiv.innerHTML = '잔액이 부족해요! 😢';
+                return;
+            }
+            balance -= cost;
+            totalSpent += cost;
+            balanceP.textContent = `현재 잔액: ${balance.toLocaleString()} 원`;
+
+            tickets = [];
+            for (let i = 0; i < batchSize; i++) {
+                tickets.push(generateLottoNumbers());
+            }
+            resultDiv.innerHTML = `${batchSize}장 구매 완료! 🎟️<br>당첨 번호를 추첨할 준비가 됐어요.`;
+            buyButton.classList.add('hidden');
+            drawButton.classList.remove('hidden');
+        }
+
+        function drawResults() {
+            winningNumbers = generateLottoNumbers();
+            bonusNumber = generateBonusNumber(winningNumbers);
+
+            let winnings = 0;
+            let winDetails = '';
+
+            tickets.forEach(ticket => {
+                const matches = countMatches(ticket, winningNumbers);
+                const hasBonus = ticket.includes(bonusNumber);
+                let prize = getPrize(matches, hasBonus);
+                winnings += prize;
+                if (prize > 0) {
+                    winDetails += `<br>티켓: ${ticket.join(', ')} - ${matches}개 일치 ${hasBonus ? '(보너스 포함)' : ''} - 상금: ${prize.toLocaleString()} 원`;
+                }
+            });
+
+            totalWinnings += winnings;
+            balance += winnings;
+
+            const net = winnings - (batchSize * ticketPrice);
+            resultDiv.innerHTML = `총 구매 금액: ${totalSpent.toLocaleString()} 원<br>이번 당첨 금액: ${winnings.toLocaleString()} 원<br>누적 당첨 금액: ${totalWinnings.toLocaleString()} 원<br>순수익: ${net.toLocaleString()} 원${winDetails}`;
+            balanceP.textContent = `현재 잔액: ${balance.toLocaleString()} 원`;
+
+            displayWinningNumbers();
+            if (winnings > 0) createConfetti();
+
+            buyButton.classList.remove('hidden');
+            drawButton.classList.add('hidden');
+            tickets = []; // 리셋
+        }
+
+        function generateLottoNumbers() {
+            let numbers = new Set();
+            while (numbers.size < 6) {
+                numbers.add(Math.floor(Math.random() * 45) + 1);
+            }
+            return Array.from(numbers).sort((a, b) => a - b);
+        }
+
+        function generateBonusNumber(winning) {
+            let bonus;
+            do {
+                bonus = Math.floor(Math.random() * 45) + 1;
+            } while (winning.includes(bonus));
+            return bonus;
+        }
+
+        function countMatches(ticket, winning) {
+            return ticket.filter(num => winning.includes(num)).length;
+        }
+
+        function getPrize(matches, hasBonus) {
+            if (matches === 6) return 1000000000; // 1등: 10억 (예시)
+            if (matches === 5 && hasBonus) return 50000000; // 2등: 5천만
+            if (matches === 5) return 1000000; // 3등: 100만
+            if (matches === 4) return 50000; // 4등: 5만
+            if (matches === 3) return 5000; // 5등: 5천
+            return 0;
+        }
+
+        function displayWinningNumbers() {
+            let html = '당첨 번호: ';
+            winningNumbers.forEach(num => {
+                html += `<span class="lotto-ball">${num}</span>`;
+            });
+            html += ` 보너스: <span class="lotto-ball" style="background: #00bfff;">${bonusNumber}</span>`;
+            winningNumbersDiv.innerHTML = html;
+            winningNumbersDiv.classList.remove('hidden');
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                let confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.background = ['#ff69b4', '#ffd700', '#00ff00', '#00bfff'][Math.floor(Math.random() * 4)];
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+    </script>
+</body>
+</html>

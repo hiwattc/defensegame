@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASDAQ Stocks with 3 Consecutive >3% Declines</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>NASDAQ Stocks with Market Cap > $100M and 3 Consecutive Trading Days of >3% Decline</h1>
+    <p>This program fetches NASDAQ stock data and identifies stocks meeting the criteria. Note: It uses Alpha Vantage for historical data, which requires a free API key. Sign up at <a href="https://www.alphavantage.co/support/#api-key">Alpha Vantage</a> and replace 'YOUR_ALPHA_VANTAGE_API_KEY' in the script.</p>
+    <p>Click the button to run the search. Due to API rate limits (5 calls/min), it processes with delays.</p>
+    <button onclick="findStocks()">Find Stocks</button>
+    <div id="results"></div>
+
+    <script>
+        async function findStocks() {
+            const apiKey = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your free Alpha Vantage API key
+            if (apiKey === 'YOUR_ALPHA_VANTAGE_API_KEY') {
+                alert('Please replace the API key in the script with your own.');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Loading...</p>';
+
+            try {
+                // Fetch all NASDAQ stocks
+                const nasdaqResponse = await fetch('https://api.nasdaq.com/api/screener/stocks?exchange=nasdaq&download=true', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0' // To mimic browser
+                    }
+                });
+                const nasdaqData = await nasdaqResponse.json();
+                const stocks = nasdaqData.data.table.rows;
+
+                // Filter by market cap > 100M and today's pctchange < -3%
+                const candidates = stocks.filter(stock => {
+                    const marketCap = parseInt(stock.marketCap.replace(/,/g, '')) || 0;
+                    const pctChange = parseFloat(stock.pctchange.replace('%', '')) || 0;
+                    return marketCap > 100000000 && pctChange < -3;
+                });
+
+                if (candidates.length === 0) {
+                    resultsDiv.innerHTML = '<p>No candidates found with today\'s decline >3% and market cap >$100M.</p>';
+                    return;
+                }
+
+                // Prepare table
+                let tableHTML = '<table><tr><th>Symbol</th><th>Name</th><th>Market Cap</th><th>Change 1 (Recent)</th><th>Change 2</th><th>Change 3 (Oldest)</th></tr>';
+
+                // Function to sleep
+                const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+                // Process each candidate with delay to respect rate limit (12s per call for 5/min)
+                for (const stock of candidates) {
+                    try {
+                        const avResponse = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${stock.symbol}&apikey=${apiKey}`);
+                        const avData = await avResponse.json();
+
+                        if (avData['Error Message']) {
+                            console.error(`Error for ${stock.symbol}: ${avData['Error Message']}`);
+                            continue;
+                        }
+
+                        const timeSeries = avData['Time Series (Daily)'];
+                        if (!timeSeries) continue;
+
+                        // Get the last 4 dates (sorted descending)
+                        const dates = Object.keys(timeSeries).sort((a, b) => new Date(b) - new Date(a)).slice(0, 4);
+                        if (dates.length < 4) continue;
+
+                        const c0 = parseFloat(timeSeries[dates[0]]['4. close']); // most recent
+                        const c1 = parseFloat(timeSeries[dates[1]]['4. close']);
+                        const c2 = parseFloat(timeSeries[dates[2]]['4. close']);
+                        const c3 = parseFloat(timeSeries[dates[3]]['4. close']);
+
+                        const change1 = (c0 - c1) / c1;
+                        const change2 = (c1 - c2) / c2;
+                        const change3 = (c2 - c3) / c3;
+
+                        if (change1 < -0.03 && change2 < -0.03 && change3 < -0.03) {
+                            const marketCapFormatted = '$' + stock.marketCap;
+                            tableHTML += `<tr><td>${stock.symbol}</td><td>${stock.name}</td><td>${marketCapFormatted}</td><td>${(change1 * 100).toFixed(2)}%</td><td>${(change2 * 100).toFixed(2)}%</td><td>${(change3 * 100).toFixed(2)}%</td></tr>`;
+                        }
+                    } catch (error) {
+                        console.error(`Error processing ${stock.symbol}: ${error}`);
+                    }
+
+                    // Delay 12 seconds to respect rate limit
+                    await sleep(12000);
+                }
+
+                tableHTML += '</table>';
+                resultsDiv.innerHTML = candidates.length > 0 ? tableHTML : '<p>No stocks found meeting the criteria.</p>';
+            } catch (error) {
+                resultsDiv.innerHTML = '<p>Error fetching data: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

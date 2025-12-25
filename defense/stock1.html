@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NASDAQ 스캐너: 시총≥$100M & 3거래일 연속 -3%↓</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Arial, sans-serif; }
+    body { margin: 0; background:#0b0f17; color:#e7eaf0; }
+    header { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    h1 { margin: 0; font-size: 18px; }
+    main { padding: 16px 20px; display: grid; gap: 12px; }
+    .card { background:#121a2a; border:1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 14px; }
+    label { display:block; font-size: 12px; opacity: .9; margin-bottom: 6px; }
+    input, select, button, textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 11px; border-radius: 10px;
+      border:1px solid rgba(255,255,255,.12); background:#0e1524; color:#e7eaf0;
+      outline: none;
+    }
+    input::placeholder, textarea::placeholder { color: rgba(231,234,240,.45); }
+    .row { display:grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    .row3 { display:grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
+    button { cursor:pointer; background:#2a68ff; border:none; font-weight:700; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .muted { font-size: 12px; opacity:.8; line-height: 1.4; }
+    .warn { color:#ffdf6e; }
+    .ok { color:#7dffb2; }
+    .err { color:#ff7d7d; }
+    table { width:100%; border-collapse: collapse; overflow: hidden; border-radius: 10px; }
+    th, td { padding: 10px; border-bottom:1px solid rgba(255,255,255,.08); text-align:left; font-size: 13px; }
+    th { font-size: 12px; opacity: .85; }
+    .pill { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size:12px; border:1px solid rgba(255,255,255,.15); }
+    .right { text-align:right; }
+    .progress { height: 10px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; }
+    .progress > div { height: 100%; width: 0%; background: #2a68ff; transition: width .2s linear; }
+    details summary { cursor:pointer; }
+    code { background: rgba(255,255,255,.06); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>NASDAQ 스캐너 — 시총 ≥ $100M & 3거래일 연속 -3% 이상 하락</h1>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="row">
+        <div>
+          <label>데이터 제공자(Provider)</label>
+          <select id="provider">
+            <option value="polygon">Polygon.io (권장: XNAS 필터 쉬움)</option>
+            <option value="finnhub">Finnhub</option>
+            <option value="demo">DEMO (샘플 데이터, 로직 테스트)</option>
+          </select>
+        </div>
+        <div>
+          <label>API Key</label>
+          <input id="apiKey" placeholder="예) polygon_... 또는 finnhub_..." />
+        </div>
+      </div>
+
+      <div class="row3" style="margin-top:10px;">
+        <div>
+          <label>시총 하한(달러)</label>
+          <input id="minMcap" type="number" value="100000000" min="0" step="1000000" />
+        </div>
+        <div>
+          <label>하락 기준(%) — 일간 수익률 ≤ -X%</label>
+          <input id="dropPct" type="number" value="3" min="0" step="0.1" />
+        </div>
+        <div>
+          <label>연속 거래일(일)</label>
+          <input id="streakDays" type="number" value="3" min="2" step="1" />
+        </div>
+      </div>
+
+      <div class="row3" style="margin-top:10px;">
+        <div>
+          <label>검색 대상 티커 수(상한)</label>
+          <input id="maxTickers" type="number" value="300" min="10" step="10" />
+        </div>
+        <div>
+          <label>동시 요청 수(너무 크면 차단/429)</label>
+          <input id="concurrency" type="number" value="6" min="1" step="1" />
+        </div>
+        <div>
+          <label>프록시 URL(선택)</label>
+          <input id="proxy" placeholder="예) http://localhost:8787/proxy?url=" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button id="runBtn">Scan</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="progress"><div id="bar"></div></div>
+        <div id="status" class="muted" style="margin-top:8px;">대기 중</div>
+      </div>
+
+      <details style="margin-top: 10px;">
+        <summary class="muted">⚙️ CORS 때문에 막힐 때(권장: 로컬 프록시)</summary>
+        <div class="muted" style="margin-top:8px;">
+          브라우저에서 외부 API를 직접 호출하면 CORS로 막히는 경우가 많습니다.<br/>
+          가장 쉬운 해결은 로컬 프록시(중계) 서버를 한 번 띄우는 것입니다.<br/><br/>
+          <b>예시(Node.js, 15줄짜리 프록시)</b><br/>
+          1) <code>npm i express node-fetch cors</code><br/>
+          2) 아래 코드를 <code>proxy.js</code>로 저장 후 <code>node proxy.js</code><br/>
+<pre style="white-space:pre-wrap; background:rgba(255,255,255,.06); padding:10px; border-radius:10px;">
+const express = require("express");
+const fetch = require("node-fetch");
+const cors = require("cors");
+const app = express();
+app.use(cors());
+app.get("/proxy", async (req,res) => {
+  const url = req.query.url;
+  if(!url) return res.status(400).send("missing url");
+  const r = await fetch(url);
+  const text = await r.text();
+  res.status(r.status).send(text);
+});
+app.listen(8787, ()=>console.log("proxy on 8787"));
+</pre>
+          3) 이 HTML의 “프록시 URL”에 <code>http://localhost:8787/proxy?url=</code> 입력
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <div>
+          <div class="muted">
+            결과는 <span class="pill">시총≥기준</span> 이면서,
+            최근 거래일 기준으로 <span class="pill">연속 N일</span> 동안
+            <span class="pill">일간 수익률 ≤ -X%</span> 인 종목입니다.
+          </div>
+        </div>
+        <div class="right muted">
+          <span id="resultCount">0</span>개 발견
+        </div>
+      </div>
+
+      <div style="margin-top:12px; overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>티커</th>
+              <th>회사명</th>
+              <th class="right">시총(USD)</th>
+              <th class="right">연속하락(%) 목록</th>
+              <th>데이터일</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="muted">아직 실행하지 않았습니다.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <label>로그</label>
+      <textarea id="log" rows="9" readonly placeholder="여기에 진행 로그가 표시됩니다."></textarea>
+    </section>
+  </main>
+
+<script>
+/** =========================
+ *  유틸
+ *  ========================= */
+const $ = (id) => document.getElementById(id);
+const log = (s) => { $("log").value += s + "\\n"; $("log").scrollTop = $("log").scrollHeight; };
+const setStatus = (s, cls="") => { $("status").className = "muted " + cls; $("status").textContent = s; };
+const setProgress = (p) => { $("bar").style.width = Math.max(0, Math.min(100, p)) + "%"; };
+const fmtNum = (n) => {
+  if (n === null || n === undefined || Number.isNaN(n)) return "-";
+  return new Intl.NumberFormat("en-US").format(n);
+};
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/** 동시성 제한 실행 */
+async function mapLimit(items, limit, fn) {
+  const results = [];
+  let idx = 0;
+  const workers = new Array(limit).fill(0).map(async () => {
+    while (idx < items.length) {
+      const my = idx++;
+      results[my] = await fn(items[my], my);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/** 프록시 적용 fetch */
+async function fetchJson(url) {
+  const proxy = $("proxy").value.trim();
+  const finalUrl = proxy ? (proxy + encodeURIComponent(url)) : url;
+  const r = await fetch(finalUrl);
+  if (!r.ok) throw new Error(`HTTP ${r.status} - ${await r.text()}`);
+  return await r.json();
+}
+
+/** 최근 거래일 N+1개 정도 수익률 계산을 위해 캔들 가져오기 */
+function computeReturns(closes) {
+  const rets = [];
+  for (let i=1; i<closes.length; i++) {
+    const prev = closes[i-1], cur = closes[i];
+    if (!prev || !cur) { rets.push(null); continue; }
+    rets.push(((cur - prev) / prev) * 100);
+  }
+  return rets;
+}
+
+function streakDown(rets, thresholdNeg, streak) {
+  // rets: [day2vsday1, day3vsday2, ...] 최신순이 아니라 API에 따라 정렬 확인 필요
+  // 우리는 "날짜 오름차순" 캔들을 기준으로, 맨 뒤에서 streak개를 확인
+  const last = rets.slice(-streak);
+  if (last.length < streak) return null;
+  for (const r of last) {
+    if (r === null) return null;
+    if (!(r <= -thresholdNeg)) return null;
+  }
+  return last;
+}
+
+/** =========================
+ *  Provider 구현
+ *  ========================= */
+
+/**
+ * Polygon:
+ * - 티커 목록: /v3/reference/tickers?market=stocks&exchange=XNAS&active=true&limit=1000&apiKey=...
+ * - 시총: /v3/reference/tickers/{ticker}?apiKey=...
+ *   - results.market_cap (있을 때) 사용 (단, 모든 종목이 항상 제공되진 않음)
+ * - 일봉: /v2/aggs/ticker/{ticker}/range/1/day/{from}/{to}?adjusted=true&sort=asc&apiKey=...
+ */
+async function polygonListTickers(apiKey, maxTickers) {
+  const out = [];
+  let nextUrl = `https://api.polygon.io/v3/reference/tickers?market=stocks&exchange=XNAS&active=true&limit=1000&apiKey=${encodeURIComponent(apiKey)}`;
+  while (nextUrl && out.length < maxTickers) {
+    const j = await fetchJson(nextUrl);
+    if (j.results) out.push(...j.results.map(x => ({ ticker: x.ticker, name: x.name || "" })));
+    nextUrl = j.next_url ? (j.next_url + `&apiKey=${encodeURIComponent(apiKey)}`) : null;
+    // 과도 호출 방지
+    await sleep(120);
+  }
+  return out.slice(0, maxTickers);
+}
+
+async function polygonGetMcap(apiKey, ticker) {
+  const url = `https://api.polygon.io/v3/reference/tickers/${encodeURIComponent(ticker)}?apiKey=${encodeURIComponent(apiKey)}`;
+  const j = await fetchJson(url);
+  const mcap = j?.results?.market_cap ?? null;
+  const name = j?.results?.name ?? "";
+  return { mcap, name };
+}
+
+async function polygonGetDailyCloses(apiKey, ticker, from, to) {
+  const url = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/1/day/${from}/${to}?adjusted=true&sort=asc&limit=120&apiKey=${encodeURIComponent(apiKey)}`;
+  const j = await fetchJson(url);
+  const candles = (j.results || []).map(x => ({ t: x.t, c: x.c }));
+  return candles; // asc
+}
+
+/**
+ * Finnhub:
+ * - 목록: /stock/symbol?exchange=US (미국 전체라 NASDAQ 필터가 어려워, 여기서는 "DEMO/부분스캔" 용도로)
+ * - 시총: /stock/profile2?symbol=... (marketCapitalization: million USD)
+ * - 캔들: /stock/candle?symbol=...&resolution=D&from=...&to=...
+ */
+async function finnhubGetMcapAndName(apiKey, ticker) {
+  const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${encodeURIComponent(ticker)}&token=${encodeURIComponent(apiKey)}`;
+  const j = await fetchJson(url);
+  // marketCapitalization: million USD
+  const mcap = (j.marketCapitalization != null) ? Math.round(j.marketCapitalization * 1_000_000) : null;
+  const name = j.name || "";
+  return { mcap, name };
+}
+
+async function finnhubGetDailyCloses(apiKey, ticker, fromUnix, toUnix) {
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(ticker)}&resolution=D&from=${fromUnix}&to=${toUnix}&token=${encodeURIComponent(apiKey)}`;
+  const j = await fetchJson(url);
+  if (j.s !== "ok") return [];
+  // c: closes, t: unix seconds array
+  const candles = j.t.map((t, i) => ({ t: t*1000, c: j.c[i] }));
+  // Finnhub는 보통 asc
+  return candles;
+}
+
+/** DEMO 데이터 */
+function demoTickers(maxTickers) {
+  const sample = [
+    { ticker: "AAPL", name: "Apple Inc." },
+    { ticker: "TSLA", name: "Tesla, Inc." },
+    { ticker: "NVDA", name: "NVIDIA Corporation" },
+    { ticker: "PLTR", name: "Palantir Technologies Inc." },
+    { ticker: "ROKU", name: "Roku, Inc." },
+  ];
+  return sample.slice(0, maxTickers);
+}
+function demoMcap(ticker) {
+  const map = { AAPL: 2500000000000, TSLA: 700000000000, NVDA: 1800000000000, PLTR: 40000000000, ROKU: 2000000000 };
+  return { mcap: map[ticker] ?? null, name: "" };
+}
+function demoCandles(ticker) {
+  // 일부는 최근 3일 연속 -3% 이상 하락하도록 구성
+  const now = Date.now();
+  const day = 24*60*60*1000;
+  const base = [
+    {t: now-6*day, c: 100},
+    {t: now-5*day, c: 98},
+    {t: now-4*day, c: 95},
+    {t: now-3*day, c: 91.9}, // -3.26%
+    {t: now-2*day, c: 88.9}, // -3.26%
+    {t: now-1*day, c: 85.9}, // -3.37%
+  ];
+  if (ticker === "NVDA") return base;        // 통과
+  if (ticker === "AAPL") return base.map((x,i)=>({...x,c:x.c*(1 + (i%2?0.01:-0.005))})); // 불통과
+  if (ticker === "TSLA") return base.map((x)=>({...x,c:x.c*1.2})); // 불통과
+  if (ticker === "ROKU") return base.map((x)=>({...x,c:x.c*0.7})); // 통과는 가능하지만 시총 필터에서 걸릴 수도
+  return base;
+}
+
+/** =========================
+ *  스캔 로직
+ *  ========================= */
+function toYmd(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function clearTable() {
+  $("tbody").innerHTML = `<tr><td colspan="5" class="muted">검색 중...</td></tr>`;
+  $("resultCount").textContent = "0";
+}
+
+function renderResults(rows) {
+  if (!rows.length) {
+    $("tbody").innerHTML = `<tr><td colspan="5" class="muted">조건에 맞는 종목이 없습니다.</td></tr>`;
+    $("resultCount").textContent = "0";
+    return;
+  }
+  $("resultCount").textContent = String(rows.length);
+  $("tbody").innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${r.ticker}</b></td>
+      <td>${r.name || "-"}</td>
+      <td class="right">${fmtNum(r.mcap)}</td>
+      <td class="right">${r.streak.map(x => x.toFixed(2)).join(", ")}%</td>
+      <td>${r.dateRange}</td>
+    </tr>
+  `).join("");
+}
+
+async function runScan() {
+  const provider = $("provider").value;
+  const apiKey = $("apiKey").value.trim();
+  const minMcap = Number($("minMcap").value);
+  const dropPct = Number($("dropPct").value);
+  const streakDays = Number($("streakDays").value);
+  const maxTickers = Number($("maxTickers").value);
+  const concurrency = Number($("concurrency").value);
+
+  $("log").value = "";
+  clearTable();
+  setProgress(0);
+
+  if (provider !== "demo" && !apiKey) {
+    setStatus("API Key를 입력하세요.", "err");
+    return;
+  }
+
+  setStatus("티커 목록 가져오는 중...", "");
+  log(`[START] provider=${provider}, minMcap=${minMcap}, drop<=-${dropPct}%, streak=${streakDays}, maxTickers=${maxTickers}`);
+
+  // 가격 계산을 위해 최근 거래일 포함 넉넉히 10~14일 범위를 잡음(휴일/주말 대비)
+  const to = new Date();
+  const from = new Date(Date.now() - 18*24*60*60*1000);
+  const fromYmd = toYmd(from);
+  const toYmdStr = toYmd(to);
+  const fromUnix = Math.floor(from.getTime()/1000);
+  const toUnix = Math.floor(to.getTime()/1000);
+
+  let tickers = [];
+  try {
+    if (provider === "polygon") {
+      tickers = await polygonListTickers(apiKey, maxTickers);
+    } else if (provider === "finnhub") {
+      // Finnhub는 "나스닥 상장만" 필터가 브라우저 단에선 빡세서,
+      // 여기서는 사용자 입력 티커로 스캔하도록 간단 모드 제공.
+      // (원하면 아래에 티커 입력 UI 추가 가능)
+      tickers = [
+        { ticker: "AAPL", name: "" }, { ticker: "MSFT", name: "" }, { ticker: "NVDA", name: "" },
+        { ticker: "AMZN", name: "" }, { ticker: "META", name: "" }
+      ].slice(0, maxTickers);
+      log("[INFO] Finnhub는 나스닥 전체 티커를 한 번에 안정적으로 제공하기가 어려워 기본 티커 일부로 스캔합니다. (원하시면 티커 입력 기능 추가 가능)");
+    } else {
+      tickers = demoTickers(maxTickers);
+    }
+  } catch (e) {
+    setStatus(`티커 목록 실패: ${e.message}`, "err");
+    log("[ERROR] " + e.stack);
+    return;
+  }
+
+  setStatus(`티커 ${tickers.length}개 로딩 완료. 종목별 검사 중...`, "");
+  log(`[TICKERS] ${tickers.length} tickers loaded`);
+
+  const results = [];
+  let done = 0;
+
+  const scanned = await mapLimit(tickers, concurrency, async (item) => {
+    const ticker = item.ticker;
+
+    try {
+      // 1) 시총/이름
+      let mcap = null, name = item.name || "";
+      if (provider === "polygon") {
+        const r = await polygonGetMcap(apiKey, ticker);
+        mcap = r.mcap; name = r.name || name;
+      } else if (provider === "finnhub") {
+        const r = await finnhubGetMcapAndName(apiKey, ticker);
+        mcap = r.mcap; name = r.name || name;
+      } else {
+        const r = demoMcap(ticker);
+        mcap = r.mcap; name = name || r.name;
+      }
+
+      // 시총 정보가 없으면 스킵(공급자가 제공하지 않는 경우 존재)
+      if (mcap == null || mcap < minMcap) return null;
+
+      // 2) 캔들(일봉 종가)
+      let candles = [];
+      if (provider === "polygon") {
+        candles = await polygonGetDailyCloses(apiKey, ticker, fromYmd, toYmdStr);
+      } else if (provider === "finnhub") {
+        candles = await finnhubGetDailyCloses(apiKey, ticker, fromUnix, toUnix);
+      } else {
+        candles = demoCandles(ticker);
+      }
+      if (!candles || candles.length < (streakDays + 1)) return null;
+
+      // closes 추출
+      const closes = candles.map(x => x.c);
+      const rets = computeReturns(closes);
+      const streak = streakDown(rets, dropPct, streakDays);
+      if (!streak) return null;
+
+      const dateRange = `${fromYmd} ~ ${toYmdStr}`;
+      return { ticker, name, mcap, streak, dateRange };
+    } catch (e) {
+      // 종목별 오류는 로그만 남기고 계속 진행
+      log(`[WARN] ${ticker}: ${e.message}`);
+      return null;
+    } finally {
+      done++;
+      const pct = (done / tickers.length) * 100;
+      setProgress(pct);
+      setStatus(`진행: ${done}/${tickers.length} (발견: ${results.length}개)`, "");
+    }
+  });
+
+  for (const r of scanned) if (r) results.push(r);
+
+  // 정렬: 가장 최근 연속하락 합계가 큰 순(더 많이 빠진 순)
+  results.sort((a,b) => {
+    const sa = a.streak.reduce((x,y)=>x+y,0);
+    const sb = b.streak.reduce((x,y)=>x+y,0);
+    return sa - sb; // 음수(하락)가 더 큰(절대값) 것이 앞에 오도록
+  });
+
+  renderResults(results);
+  setProgress(100);
+  setStatus(`완료. 조건 충족 ${results.length}개`, results.length ? "ok" : "");
+  log(`[DONE] matched=${results.length}`);
+}
+
+$("runBtn").addEventListener("click", async () => {
+  $("runBtn").disabled = true;
+  try { await runScan(); }
+  finally { $("runBtn").disabled = false; }
+});
+</script>
+</body>
+</html>

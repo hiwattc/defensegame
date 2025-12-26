@@ -647,15 +647,15 @@
                 // 터치 이벤트
                 this.canvas.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    this.handlePointerDown(e);
+                    this.handleTouchStart(e);
                 });
                 this.canvas.addEventListener('touchmove', (e) => {
                     e.preventDefault();
-                    this.handlePointerMove(e);
+                    this.handleTouchMove(e);
                 });
                 this.canvas.addEventListener('touchend', (e) => {
                     e.preventDefault();
-                    this.handlePointerUp(e);
+                    this.handleTouchEnd(e);
                 });
             }
             
@@ -694,6 +694,71 @@
                 this.dragStart = null;
                 this.dragEnd = null;
             }
+
+            handleTouchStart(e) {
+                // 터치 시작 시점 기록
+                this.touchStartTime = Date.now();
+                this.touchStartPos = this.getPointerPosition(e);
+                this.isDragging = false;
+                this.hasMoved = false;
+            }
+
+            handleTouchMove(e) {
+                if (!this.touchStartPos) return;
+
+                const currentPos = this.getPointerPosition(e);
+                const moveThreshold = 10;
+
+                // 드래그로 간주되는 최소 이동 거리 체크
+                if (!this.isDragging &&
+                    (Math.abs(currentPos.x - this.touchStartPos.x) > moveThreshold ||
+                     Math.abs(currentPos.y - this.touchStartPos.y) > moveThreshold)) {
+                    // 드래그 시작
+                    this.isDragging = true;
+                    this.dragStart = this.touchStartPos;
+                }
+
+                if (this.isDragging) {
+                    this.dragEnd = currentPos;
+                }
+            }
+
+            handleTouchEnd(e) {
+                const touchDuration = Date.now() - this.touchStartTime;
+                const currentPos = this.getPointerPosition(e);
+
+                if (this.isDragging && this.dragStart && this.dragEnd) {
+                    // 드래그였다면 유닛 선택
+                    this.selectUnits();
+                } else if (touchDuration < 300) {
+                    // 짧은 탭
+                    if (this.selectedUnits.length > 0) {
+                        // 유닛이 선택되어 있다면 이동 명령
+                        this.selectedUnits.forEach(unit => {
+                            if (unit.owner === 'player') {
+                                unit.targetX = currentPos.x;
+                                unit.targetY = currentPos.y;
+                                unit.mining = false;
+                                unit.attackTarget = null;
+                                unit.isHolding = false;
+                            }
+                        });
+                    } else {
+                        // 선택된 유닛이 없다면 해당 위치 근처 유닛 선택
+                        this.selectUnitsAtPosition(currentPos);
+                    }
+                } else {
+                    // 긴 탭은 우클릭으로 처리
+                    this.handleRightClick(e);
+                }
+
+                // 상태 초기화
+                this.isDragging = false;
+                this.dragStart = null;
+                this.dragEnd = null;
+                this.touchStartTime = null;
+                this.touchStartPos = null;
+            }
             
             handleRightClick(e) {
                 e.preventDefault();
@@ -721,6 +786,20 @@
                     if (unit.owner === 'player' &&
                         unit.x >= minX && unit.x <= maxX &&
                         unit.y >= minY && unit.y <= maxY) {
+                        unit.selected = true;
+                        this.selectedUnits.push(unit);
+                    }
+                });
+            }
+
+            selectUnitsAtPosition(pos) {
+                // 특정 위치 근처의 유닛들을 선택 (터치 반경 내)
+                const touchRadius = 30; // 터치 선택 반경
+                this.selectedUnits = [];
+                this.units.forEach(unit => {
+                    unit.selected = false;
+                    const dist = this.distance(unit, pos);
+                    if (unit.owner === 'player' && dist <= touchRadius) {
                         unit.selected = true;
                         this.selectedUnits.push(unit);
                     }

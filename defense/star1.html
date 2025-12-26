@@ -58,7 +58,7 @@
         }
         
         .level-btn {
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-size: 13px;
             cursor: pointer;
             background: linear-gradient(to bottom, #3a3a3a, #2a2a2a);
@@ -66,7 +66,9 @@
             border: 1px solid #555;
             border-radius: 3px;
             transition: all 0.2s;
-            min-width: 40px;
+            min-width: 44px;
+            min-height: 36px;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .level-btn:hover {
@@ -92,8 +94,12 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             font-size: 14px;
+            background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
+            padding: 12px;
+            border: 2px solid #444;
+            border-radius: 5px;
         }
         
         .stat-box {
@@ -148,7 +154,7 @@
         }
         
         button {
-            padding: 10px 20px;
+            padding: 12px 24px;
             font-size: 14px;
             cursor: pointer;
             background: linear-gradient(to bottom, #4a4a4a, #2a2a2a);
@@ -159,6 +165,9 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            min-height: 44px; /* 터치 디바이스를 위한 최소 터치 타겟 크기 */
+            -webkit-tap-highlight-color: transparent; /* iOS 터치 하이라이트 제거 */
+            position: relative; /* 쿨타임 오버레이를 위한 상대 위치 */
         }
         
         button:hover {
@@ -169,6 +178,38 @@
         
         button:active {
             transform: translateY(1px);
+        }
+
+        .cooldown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        .cooldown-overlay.active {
+            display: flex;
+        }
+
+        .cooldown-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
         }
         
         .btn-supply {
@@ -259,65 +300,68 @@
             <div class="level-title">⭐ 레벨 바로가기</div>
             <div class="level-buttons" id="levelButtons"></div>
         </div>
-        
-        <canvas id="gameCanvas" width="1200" height="700"></canvas>
-        
-        <div id="ui">
-            <!-- 상태 정보 -->
-            <div class="stats-row">
-                <div class="stat-box player">
-                    <span class="stat-icon">👥</span>
-                    <span class="stat-value player" id="playerSupply">0/10</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">💎</span>
-                    <span class="stat-value player" id="playerMinerals">50</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">⚙️</span>
-                    <span class="stat-value player" id="playerScvs">1</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">🎯</span>
-                    <span class="stat-value player" id="playerMarines">0</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">⛏️</span>
-                    <span class="stat-value player" id="miningRate">+8/s</span>
-                </div>
-                
-                <div class="stat-box enemy">
-                    <span class="stat-icon">👥</span>
-                    <span class="stat-value enemy" id="enemySupply">0/10</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">💎</span>
-                    <span class="stat-value enemy" id="enemyMinerals">50</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">⚙️</span>
-                    <span class="stat-value enemy" id="enemyScvs">1</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">🎯</span>
-                    <span class="stat-value enemy" id="enemyMarines">0</span>
-                </div>
-                
-                <div class="stat-box info">
-                    <span class="stat-icon">💀</span>
-                    <span class="stat-value" id="enemyKills">0</span>
-                    <span class="stat-separator">|</span>
-                    <span class="stat-icon">⭐</span>
-                    <span class="stat-value" id="level">Lv.1</span>
-                </div>
+
+        <!-- 상태 정보 (상단으로 이동) -->
+        <div class="stats-row">
+            <div class="stat-box player">
+                <span class="stat-icon">👥</span>
+                <span class="stat-value player" id="playerSupply">0/10</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">💎</span>
+                <span class="stat-value player" id="playerMinerals">50</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">⚙️</span>
+                <span class="stat-value player" id="playerScvs">1</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">🎯</span>
+                <span class="stat-value player" id="playerMarines">0</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">⛏️</span>
+                <span class="stat-value player" id="miningRate">+8/s</span>
             </div>
-            
+
+            <div class="stat-box enemy">
+                <span class="stat-icon">👥</span>
+                <span class="stat-value enemy" id="enemySupply">0/10</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">💎</span>
+                <span class="stat-value enemy" id="enemyMinerals">50</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">⚙️</span>
+                <span class="stat-value enemy" id="enemyScvs">1</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">🎯</span>
+                <span class="stat-value enemy" id="enemyMarines">0</span>
+            </div>
+
+            <div class="stat-box info">
+                <span class="stat-icon">💀</span>
+                <span class="stat-value" id="enemyKills">0</span>
+                <span class="stat-separator">|</span>
+                <span class="stat-icon">⭐</span>
+                <span class="stat-value" id="level">Lv.1</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+
+        <div id="ui">
             <!-- 컨트롤 버튼 -->
             <div class="controls">
                 <button class="btn-supply" onclick="game.buildSupply('player')">
                     <span>🏗️</span>
                     <span>서플라이 (100)</span>
+                    <div class="cooldown-overlay" id="supplyCooldownOverlay"></div>
                 </button>
                 <button onclick="game.produceUnit('scv')">
                     <span>⚙️</span>
                     <span>SCV (50)</span>
+                    <div class="cooldown-overlay" id="scvCooldownOverlay"></div>
                 </button>
                 <button onclick="game.produceUnit('marine')">
                     <span>🎯</span>
                     <span>마린 (50)</span>
+                    <div class="cooldown-overlay" id="marineCooldownOverlay"></div>
                 </button>
                 <button class="btn-attack" onclick="game.attackCommand()">
                     <span>⚔️</span>
@@ -378,7 +422,15 @@
                 ];
                 
                 this.gameOver = false;
-                
+
+                // 쿨타임 관련 변수들
+                this.supplyCooldown = 0; // 서플라이 쿨타임 (5초)
+                this.supplyCooldownMax = 300; // 5초 * 60fps
+                this.scvCooldown = 0; // SCV 생산 쿨타임 (1초)
+                this.scvCooldownMax = 60; // 1초 * 60fps
+                this.marineCooldown = 0; // 마린 생산 쿨타임 (1초)
+                this.marineCooldownMax = 60; // 1초 * 60fps
+
                 this.init();
                 this.createLevelButtons();
                 this.setupEventListeners();
@@ -387,7 +439,7 @@
             
             createLevelButtons() {
                 const container = document.getElementById('levelButtons');
-                for (let i = 1; i <= 20; i++) {
+                for (let i = 1; i <= 10; i++) {
                     const btn = document.createElement('button');
                     btn.className = 'level-btn';
                     btn.textContent = i;
@@ -455,16 +507,28 @@
             produceUnit(type) {
                 if (this.gameOver) return;
                 const cost = 50;
-                
+
+                // 쿨타임 체크
+                if (type === 'scv' && this.scvCooldown > 0) return;
+                if (type === 'marine' && this.marineCooldown > 0) return;
+
                 if (this.playerSupply >= this.playerSupplyMax) {
                     return;
                 }
-                
+
                 if (this.playerMinerals >= cost) {
                     this.playerMinerals -= cost;
                     const spawnX = this.playerBase.x + (Math.random() - 0.5) * 60;
                     const spawnY = this.playerBase.y + (Math.random() - 0.5) * 60;
                     this.createUnit(type, spawnX, spawnY, 'player');
+
+                    // 쿨타임 시작
+                    if (type === 'scv') {
+                        this.scvCooldown = this.scvCooldownMax;
+                    } else if (type === 'marine') {
+                        this.marineCooldown = this.marineCooldownMax;
+                    }
+
                     this.updateUI();
                 }
             }
@@ -472,9 +536,11 @@
             buildSupply(owner) {
                 const cost = 100;
                 if (owner === 'player') {
+                    if (this.supplyCooldown > 0) return; // 쿨타임 중이면 리턴
                     if (this.playerMinerals >= cost) {
                         this.playerMinerals -= cost;
                         this.playerSupplyMax += 10;
+                        this.supplyCooldown = this.supplyCooldownMax; // 쿨타임 시작
                         this.updateUI();
                     }
                 } else {
@@ -523,37 +589,55 @@
             }
             
             setupEventListeners() {
-                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                // 마우스 이벤트
+                this.canvas.addEventListener('mousedown', (e) => this.handlePointerDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handlePointerMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.handlePointerUp(e));
                 this.canvas.addEventListener('contextmenu', (e) => this.handleRightClick(e));
+
+                // 터치 이벤트
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handlePointerDown(e);
+                });
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.handlePointerMove(e);
+                });
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.handlePointerUp(e);
+                });
             }
             
-            handleMouseDown(e) {
-                if (this.gameOver) return;
+            getPointerPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 const scaleX = this.width / rect.width;
                 const scaleY = this.height / rect.height;
-                this.isDragging = true;
-                this.dragStart = {
-                    x: (e.clientX - rect.left) * scaleX,
-                    y: (e.clientY - rect.top) * scaleY
+
+                // 터치 이벤트인지 마우스 이벤트인지 확인
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                return {
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY
                 };
             }
-            
-            handleMouseMove(e) {
+
+            handlePointerDown(e) {
+                if (this.gameOver) return;
+                this.isDragging = true;
+                this.dragStart = this.getPointerPosition(e);
+            }
+
+            handlePointerMove(e) {
                 if (this.isDragging && this.dragStart) {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const scaleX = this.width / rect.width;
-                    const scaleY = this.height / rect.height;
-                    this.dragEnd = {
-                        x: (e.clientX - rect.left) * scaleX,
-                        y: (e.clientY - rect.top) * scaleY
-                    };
+                    this.dragEnd = this.getPointerPosition(e);
                 }
             }
-            
-            handleMouseUp() {
+
+            handlePointerUp(e) {
                 if (this.isDragging && this.dragStart && this.dragEnd) {
                     this.selectUnits();
                 }
@@ -565,15 +649,11 @@
             handleRightClick(e) {
                 e.preventDefault();
                 if (this.gameOver) return;
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.width / rect.width;
-                const scaleY = this.height / rect.height;
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
+                const pos = this.getPointerPosition(e);
                 this.selectedUnits.forEach(unit => {
                     if (unit.owner === 'player') {
-                        unit.targetX = x;
-                        unit.targetY = y;
+                        unit.targetX = pos.x;
+                        unit.targetY = pos.y;
                         unit.mining = false;
                         unit.attackTarget = null;
                         unit.isHolding = false;
@@ -627,6 +707,11 @@
                     this.lastEnemyQuickCheck = now;
                 }
                 
+                // 쿨타임 업데이트
+                if (this.supplyCooldown > 0) this.supplyCooldown--;
+                if (this.scvCooldown > 0) this.scvCooldown--;
+                if (this.marineCooldown > 0) this.marineCooldown--;
+
                 this.units.forEach(unit => {
                     this.updateUnit(unit);
                 });
@@ -935,6 +1020,12 @@
                 this.enemyBase.hp = this.enemyBase.maxHp;
                 this.gameOver = false;
                 document.getElementById('gameOver').style.display = 'none';
+
+                // 쿨타임 초기화
+                this.supplyCooldown = 0;
+                this.scvCooldown = 0;
+                this.marineCooldown = 0;
+
                 this.init();
                 this.updateLevelButtons();
                 this.updateUI();
@@ -1082,9 +1173,41 @@
                 playerSupplyEl.className = `stat-value ${this.playerSupply >= this.playerSupplyMax ? 'warning' : 'player'}`;
                 
                 document.getElementById('enemySupply').textContent = `${this.enemySupply}/${this.enemySupplyMax}`;
+
+                // 쿨타임 오버레이 업데이트
+                this.updateCooldownOverlays();
+            }
+
+            updateCooldownOverlays() {
+                // 서플라이 쿨타임
+                const supplyOverlay = document.getElementById('supplyCooldownOverlay');
+                if (this.supplyCooldown > 0) {
+                    supplyOverlay.classList.add('active');
+                    supplyOverlay.textContent = Math.ceil(this.supplyCooldown / 60) + 's';
+                } else {
+                    supplyOverlay.classList.remove('active');
+                }
+
+                // SCV 쿨타임
+                const scvOverlay = document.getElementById('scvCooldownOverlay');
+                if (this.scvCooldown > 0) {
+                    scvOverlay.classList.add('active');
+                    scvOverlay.textContent = Math.ceil(this.scvCooldown / 60) + 's';
+                } else {
+                    scvOverlay.classList.remove('active');
+                }
+
+                // 마린 쿨타임
+                const marineOverlay = document.getElementById('marineCooldownOverlay');
+                if (this.marineCooldown > 0) {
+                    marineOverlay.classList.add('active');
+                    marineOverlay.textContent = Math.ceil(this.marineCooldown / 60) + 's';
+                } else {
+                    marineOverlay.classList.remove('active');
+                }
             }
         }
-        
+
         let game;
         window.addEventListener('load', () => {
             game = new Game();

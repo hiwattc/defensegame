@@ -49,6 +49,36 @@
             font-size: 12px;
             color: #888;
             margin-bottom: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .level-title:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-icon {
+            font-size: 10px;
+            transition: transform 0.3s;
+        }
+
+        .level-buttons {
+            max-height: 200px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out;
+        }
+
+        .level-buttons.collapsed {
+            max-height: 0;
+        }
+
+        #levelSelect.collapsed .toggle-icon {
+            transform: rotate(180deg);
         }
         
         .level-buttons {
@@ -297,7 +327,10 @@
     <div id="gameContainer">
         <!-- 레벨 선택 (상단) -->
         <div id="levelSelect">
-            <div class="level-title">⭐ 레벨 바로가기</div>
+            <div class="level-title" onclick="game.toggleLevelSelect()">
+                <span>⭐ 레벨 바로가기</span>
+                <span class="toggle-icon">▼</span>
+            </div>
             <div class="level-buttons" id="levelButtons"></div>
         </div>
 
@@ -431,6 +464,9 @@
                 this.marineCooldown = 0; // 마린 생산 쿨타임 (1초)
                 this.marineCooldownMax = 60; // 1초 * 60fps
 
+                // 레벨 선택 접힘 상태
+                this.levelSelectCollapsed = false;
+
                 this.init();
                 this.createLevelButtons();
                 this.setupEventListeners();
@@ -455,7 +491,20 @@
                     btn.classList.toggle('active', index + 1 === this.level);
                 });
             }
-            
+
+            toggleLevelSelect() {
+                this.levelSelectCollapsed = !this.levelSelectCollapsed;
+                const levelSelect = document.getElementById('levelSelect');
+                const levelButtons = document.getElementById('levelButtons');
+                if (this.levelSelectCollapsed) {
+                    levelSelect.classList.add('collapsed');
+                    levelButtons.classList.add('collapsed');
+                } else {
+                    levelSelect.classList.remove('collapsed');
+                    levelButtons.classList.remove('collapsed');
+                }
+            }
+
             jumpToLevel(level) {
                 this.level = level;
                 this.restart();
@@ -845,6 +894,37 @@
                 }
                 
                 if (unit.owner === 'enemy') {
+                    // 1단계에서는 적군 마린이 공격하지 않고 방어적으로 행동
+                    if (this.level === 1) {
+                        // 플레이어가 가까이 오면 약간 후퇴하지만 공격하지 않음
+                        let nearestPlayer = null;
+                        let nearestDist = Infinity;
+                        const targets = [...this.units.filter(u => u.owner === 'player')];
+                        targets.forEach(target => {
+                            const dist = this.distance(unit, target);
+                            if (dist < nearestDist) {
+                                nearestDist = dist;
+                                nearestPlayer = target;
+                            }
+                        });
+
+                        if (nearestPlayer && nearestDist < 150) {
+                            // 플레이어가 가까우면 약간 후퇴
+                            const angle = Math.atan2(unit.y - nearestPlayer.y, unit.x - nearestPlayer.x);
+                            unit.targetX = unit.x + Math.cos(angle) * 50;
+                            unit.targetY = unit.y + Math.sin(angle) * 50;
+                        } else {
+                            // 평상시에는 기지 주변을 순찰
+                            const dist = this.distance(unit, this.enemyBase);
+                            if (dist > 80) {
+                                unit.targetX = this.enemyBase.x + (Math.random() - 0.5) * 60;
+                                unit.targetY = this.enemyBase.y + (Math.random() - 0.5) * 60;
+                            }
+                        }
+                        unit.attackTarget = null;
+                        return;
+                    }
+
                     let nearestEnemy = null;
                     let nearestDist = Infinity;
                     const targets = [...this.units.filter(u => u.owner === 'player'), this.playerBase];
@@ -882,6 +962,25 @@
                 const enemyScvCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'scv').length;
                 const enemyMarineCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'marine').length;
                 const playerMarineCount = this.units.filter(u => u.owner === 'player' && u.type === 'marine').length;
+
+                // 1단계에서는 마린 생산하지 않음 (방어적 플레이)
+                if (this.level === 1) {
+                    // SCV만 생산하고 마린은 생산하지 않음
+                    if (enemyScvCount < 3 && this.enemyMinerals >= 50) {
+                        this.enemyMinerals -= 50;
+                        this.createUnit('scv', this.enemyBase.x + Math.random() * 40 - 20,
+                                              this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                        this.updateUI();
+                        return;
+                    }
+                    // 서플라이 확장
+                    if (this.enemySupply >= this.enemySupplyMax - 1 && this.enemyMinerals >= 100) {
+                        this.buildSupply('enemy');
+                        return;
+                    }
+                    return; // 1단계에서는 더 이상의 AI 로직 실행하지 않음
+                }
+
                 const baseTargetMarines = Math.floor(playerMarineCount * 0.6) + this.level + 2;
                 const targetMarineCount = Math.max(baseTargetMarines, 5);
                 
@@ -942,16 +1041,21 @@
             }
             
             enemyQuickProduction() {
+                // 1단계에서는 빠른 마린 생산하지 않음
+                if (this.level === 1) {
+                    return;
+                }
+
                 const enemyMarineCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'marine').length;
                 const playerMarineCount = this.units.filter(u => u.owner === 'player' && u.type === 'marine').length;
-                
+
                 if (this.enemySupply >= this.enemySupplyMax) {
                     return;
                 }
-                
+
                 if (enemyMarineCount < playerMarineCount && this.enemyMinerals >= 50) {
                     this.enemyMinerals -= 50;
-                    this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20, 
+                    this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20,
                                              this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
                     this.updateUI();
                 }

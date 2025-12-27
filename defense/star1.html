@@ -37,7 +37,7 @@
             cursor: crosshair;
         }
         
-        #levelSelect {
+        #levelSelect, #enemyCountSelect {
             background: linear-gradient(to bottom, #2a2a2a, #1a1a1a);
             padding: 12px;
             border: 2px solid #444;
@@ -334,6 +334,14 @@
             <div class="level-buttons" id="levelButtons"></div>
         </div>
 
+        <!-- 적군 수 선택 -->
+        <div id="enemyCountSelect">
+            <div class="level-title">
+                <span>👾 적군 수 선택</span>
+            </div>
+            <div class="level-buttons" id="enemyCountButtons"></div>
+        </div>
+
         <!-- 상태 정보 (상단으로 이동) -->
         <div class="stats-row">
             <div class="stat-box player">
@@ -428,47 +436,50 @@
                 
                 this.level = 1;
                 this.enemyKills = 0;
+                this.enemyCount = 1; // 적군 수 (1~3)
                 this.playerMinerals = 50;
-                this.enemyMinerals = 50;
                 this.playerSupply = 0;
                 this.playerSupplyMax = 10;
-                this.enemySupply = 0;
-                this.enemySupplyMax = 10;
                 
                 this.units = [];
                 this.selectedUnits = [];
+                this.supplies = []; // 타워 배열
                 this.isDragging = false;
                 this.dragStart = null;
                 this.dragEnd = null;
                 
                 this.playerBase = { x: 150, y: 150, hp: 500, maxHp: 500, owner: 'player' };
-                this.enemyBase = { x: 1050, y: 550, hp: 500, maxHp: 500, owner: 'enemy' };
                 
-                this.playerMinerals_patches = [
-                    { x: 250, y: 100, amount: 9999 },
-                    { x: 300, y: 120, amount: 9999 }
-                ];
+                // 적군을 배열로 관리
+                this.enemyBases = [];
+                this.enemyMinerals = [];
+                this.enemySupply = [];
+                this.enemySupplyMax = [];
+                this.enemyMinerals_patches = [];
                 
-                this.enemyMinerals_patches = [
-                    { x: 950, y: 600, amount: 9999 },
-                    { x: 900, y: 580, amount: 9999 }
-                ];
+                // 플레이어 미네랄은 init()에서 랜덤하게 배치됨
+                this.playerMinerals_patches = [];
                 
                 this.gameOver = false;
 
                 // 쿨타임 관련 변수들
-                this.supplyCooldown = 0; // 서플라이 쿨타임 (5초)
-                this.supplyCooldownMax = 300; // 5초 * 60fps
-                this.scvCooldown = 0; // SCV 생산 쿨타임 (1초)
-                this.scvCooldownMax = 60; // 1초 * 60fps
-                this.marineCooldown = 0; // 마린 생산 쿨타임 (1초)
-                this.marineCooldownMax = 60; // 1초 * 60fps
+                this.supplyCooldown = 0; // 서플라이 쿨타임 (0.5초)
+                this.supplyCooldownMax = 30; // 0.5초 * 60fps
+                this.scvCooldown = 0; // SCV 생산 쿨타임 (0.1초)
+                this.scvCooldownMax = 6; // 0.1초 * 60fps
+                this.marineCooldown = 0; // 마린 생산 쿨타임 (0.1초)
+                this.marineCooldownMax = 6; // 0.1초 * 60fps
 
                 // 레벨 선택 접힘 상태
                 this.levelSelectCollapsed = false;
 
+                // 공격/회군 버튼 상태 추적
+                this.isAttacking = false;
+                this.isRetreating = false;
+
                 this.init();
                 this.createLevelButtons();
+                this.createEnemyCountButtons();
                 this.setupEventListeners();
                 this.gameLoop();
             }
@@ -483,6 +494,31 @@
                     container.appendChild(btn);
                 }
                 this.updateLevelButtons();
+            }
+
+            createEnemyCountButtons() {
+                const container = document.getElementById('enemyCountButtons');
+                for (let i = 1; i <= 3; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'level-btn';
+                    btn.textContent = `${i}명`;
+                    btn.onclick = () => this.setEnemyCount(i);
+                    container.appendChild(btn);
+                }
+                this.updateEnemyCountButtons();
+            }
+
+            updateEnemyCountButtons() {
+                const buttons = document.querySelectorAll('#enemyCountButtons .level-btn');
+                buttons.forEach((btn, index) => {
+                    btn.classList.toggle('active', index + 1 === this.enemyCount);
+                });
+            }
+
+            setEnemyCount(count) {
+                this.enemyCount = count;
+                this.updateEnemyCountButtons();
+                this.restart();
             }
             
             updateLevelButtons() {
@@ -511,13 +547,82 @@
             }
             
             init() {
+                // 플레이어 미네랄 패치 1개를 동심원 테두리에 랜덤 배치
+                const playerMineralAngle = Math.random() * Math.PI * 2;
+                const playerMineralRadius = 100 + Math.random() * 50; // 100~150 거리
+                this.playerMinerals_patches = [
+                    { 
+                        x: this.playerBase.x + Math.cos(playerMineralAngle) * playerMineralRadius, 
+                        y: this.playerBase.y + Math.sin(playerMineralAngle) * playerMineralRadius, 
+                        amount: 9999 
+                    }
+                ];
+                
+                // 적군 초기화
+                this.initializeEnemies();
+                
                 this.createUnit('scv', 200, 200, 'player');
-                for (let i = 0; i < this.level; i++) {
-                    this.createUnit('scv', 1000, 500, 'enemy');
+                
+                // 각 적군마다 초기 SCV 생성
+                for (let i = 0; i < this.enemyCount; i++) {
+                    const base = this.enemyBases[i];
+                    for (let j = 0; j < this.level; j++) {
+                        this.createUnit('scv', base.x + (Math.random() - 0.5) * 40, 
+                                              base.y + (Math.random() - 0.5) * 40, `enemy${i}`);
+                    }
                 }
+                
                 this.lastMineralUpdate = Date.now();
-                this.lastEnemyProduction = Date.now();
+                this.lastEnemyProduction = [];
+                for (let i = 0; i < this.enemyCount; i++) {
+                    this.lastEnemyProduction[i] = Date.now();
+                }
+                this.lastEnemyQuickCheck = [];
+                for (let i = 0; i < this.enemyCount; i++) {
+                    this.lastEnemyQuickCheck[i] = Date.now();
+                }
                 this.updateUI();
+            }
+
+            initializeEnemies() {
+                // 적군 기지 위치 설정 (맵에 적절히 배치)
+                const enemyPositions = [
+                    { x: 1050, y: 550 },  // 우하단
+                    { x: 1050, y: 150 },  // 우상단
+                    { x: 600, y: 550 }    // 중하단
+                ];
+
+                this.enemyBases = [];
+                this.enemyMinerals = [];
+                this.enemySupply = [];
+                this.enemySupplyMax = [];
+                this.enemyMinerals_patches = [];
+
+                for (let i = 0; i < this.enemyCount; i++) {
+                    const pos = enemyPositions[i];
+                    this.enemyBases.push({ 
+                        x: pos.x, 
+                        y: pos.y, 
+                        hp: 500, 
+                        maxHp: 500, 
+                        owner: `enemy${i}`,
+                        index: i
+                    });
+                    this.enemyMinerals.push(50);
+                    this.enemySupply.push(0);
+                    this.enemySupplyMax.push(10);
+                    
+                    // 각 적군마다 미네랄 패치 1개를 동심원 테두리에 랜덤 배치
+                    const enemyMineralAngle = Math.random() * Math.PI * 2;
+                    const enemyMineralRadius = 100 + Math.random() * 50; // 100~150 거리
+                    this.enemyMinerals_patches.push([
+                        { 
+                            x: pos.x + Math.cos(enemyMineralAngle) * enemyMineralRadius, 
+                            y: pos.y + Math.sin(enemyMineralAngle) * enemyMineralRadius, 
+                            amount: 9999 
+                        }
+                    ]);
+                }
             }
             
             createUnit(type, x, y, owner) {
@@ -540,14 +645,19 @@
                     attackTarget: null,
                     returning: false,
                     supply: 1,
-                    isHolding: false
+                    isHolding: type === 'marine' && owner === 'player', // 플레이어 마린은 생성 시 자동으로 멈춤 상태
+                    isMovingToTarget: false
                 };
                 this.units.push(unit);
                 
                 if (owner === 'player') {
                     this.playerSupply += 1;
                 } else {
-                    this.enemySupply += 1;
+                    // enemy0, enemy1, enemy2 형식에서 인덱스 추출
+                    const enemyIndex = parseInt(owner.replace('enemy', ''));
+                    if (!isNaN(enemyIndex) && this.enemySupply[enemyIndex] !== undefined) {
+                        this.enemySupply[enemyIndex] += 1;
+                    }
                 }
                 
                 return unit;
@@ -593,46 +703,100 @@
                         this.updateUI();
                     }
                 } else {
-                    if (this.enemyMinerals >= cost) {
-                        this.enemyMinerals -= cost;
-                        this.enemySupplyMax += 10;
-                        this.updateUI();
+                    // enemy0, enemy1, enemy2 형식에서 인덱스 추출
+                    const enemyIndex = parseInt(owner.replace('enemy', ''));
+                    if (!isNaN(enemyIndex) && this.enemyMinerals[enemyIndex] !== undefined) {
+                        if (this.enemyMinerals[enemyIndex] >= cost) {
+                            this.enemyMinerals[enemyIndex] -= cost;
+                            this.enemySupplyMax[enemyIndex] += 10;
+                            this.updateUI();
+                        }
                     }
                 }
             }
             
             attackCommand() {
                 if (this.gameOver) return;
+                
+                // 이미 공격 중이면 멈춤 명령 실행
+                if (this.isAttacking) {
+                    this.holdCommand();
+                    this.isAttacking = false;
+                    return;
+                }
+                
+                this.isAttacking = true;
+                this.isRetreating = false;
+                
+                // 모든 마린을 선택 상태로 설정
+                this.selectedUnits = [];
                 this.units.forEach(unit => {
                     if (unit.owner === 'player' && unit.type === 'marine') {
-                        unit.targetX = this.enemyBase.x;
-                        unit.targetY = this.enemyBase.y;
+                        unit.selected = true;
+                        this.selectedUnits.push(unit);
+                        
+                        // 가장 가까운 적군 기지를 타겟으로 설정
+                        let nearestEnemyBase = null;
+                        let nearestDist = Infinity;
+                        this.enemyBases.forEach(base => {
+                            const dist = this.distance(unit, base);
+                            if (dist < nearestDist) {
+                                nearestDist = dist;
+                                nearestEnemyBase = base;
+                            }
+                        });
+                        if (nearestEnemyBase) {
+                            unit.targetX = nearestEnemyBase.x;
+                            unit.targetY = nearestEnemyBase.y;
+                        }
                         unit.mining = false;
                         unit.isHolding = false;
+                        unit.isMovingToTarget = true; // 타겟 이동 중 플래그
                     }
                 });
             }
             
             retreatCommand() {
                 if (this.gameOver) return;
+                
+                // 이미 회군 중이면 멈춤 명령 실행
+                if (this.isRetreating) {
+                    this.holdCommand();
+                    this.isRetreating = false;
+                    return;
+                }
+                
+                this.isRetreating = true;
+                this.isAttacking = false;
+                
+                // 모든 마린을 선택 상태로 설정
+                this.selectedUnits = [];
                 this.units.forEach(unit => {
+                    if (unit.owner === 'player' && unit.type === 'marine') {
+                        unit.selected = true;
+                        this.selectedUnits.push(unit);
+                    }
                     if (unit.owner === 'player') {
                         unit.targetX = this.playerBase.x + (Math.random() - 0.5) * 100;
                         unit.targetY = this.playerBase.y + (Math.random() - 0.5) * 100;
                         unit.mining = false;
                         unit.attackTarget = null;
                         unit.isHolding = false;
+                        unit.isMovingToTarget = true; // 타겟 이동 중 플래그
                     }
                 });
             }
             
             holdCommand() {
                 if (this.gameOver) return;
+                this.isAttacking = false;
+                this.isRetreating = false;
                 this.units.forEach(unit => {
                     if (unit.owner === 'player' && unit.type === 'marine') {
                         unit.targetX = unit.x;
                         unit.targetY = unit.y;
                         unit.isHolding = true;
+                        unit.isMovingToTarget = false;
                     }
                 });
             }
@@ -647,14 +811,55 @@
                 // 터치 이벤트
                 this.canvas.addEventListener('touchstart', (e) => {
                     e.preventDefault();
+                    // 두 손가락 터치 감지
+                    if (e.touches.length === 2) {
+                        // 두 손가락의 중간 지점 계산
+                        const rect = this.canvas.getBoundingClientRect();
+                        const scaleX = this.width / rect.width;
+                        const scaleY = this.height / rect.height;
+                        const touch1 = e.touches[0];
+                        const touch2 = e.touches[1];
+                        const midX = ((touch1.clientX + touch2.clientX) / 2 - rect.left) * scaleX;
+                        const midY = ((touch1.clientY + touch2.clientY) / 2 - rect.top) * scaleY;
+                        
+                        // 유닛이 선택된 경우 이동 명령
+                        if (this.selectedUnits.length > 0) {
+                            this.selectedUnits.forEach(unit => {
+                                if (unit.owner === 'player') {
+                                    unit.targetX = midX;
+                                    unit.targetY = midY;
+                                    unit.mining = false;
+                                    unit.attackTarget = null;
+                                    unit.isHolding = false;
+                                    if (unit.type === 'marine') {
+                                        unit.isMovingToTarget = true;
+                                    }
+                                }
+                            });
+                            this.isAttacking = false;
+                            this.isRetreating = false;
+                        } else {
+                            // 유닛이 선택되지 않은 경우 서플라이 생성
+                            this.createSupply(midX, midY);
+                        }
+                        return;
+                    }
                     this.handleTouchStart(e);
                 });
                 this.canvas.addEventListener('touchmove', (e) => {
                     e.preventDefault();
+                    // 두 손가락 터치 중이면 서플라이 생성하지 않음
+                    if (e.touches.length === 2) {
+                        return;
+                    }
                     this.handleTouchMove(e);
                 });
                 this.canvas.addEventListener('touchend', (e) => {
                     e.preventDefault();
+                    // 두 손가락 터치가 끝나면 처리하지 않음
+                    if (e.touches.length >= 2) {
+                        return;
+                    }
                     this.handleTouchEnd(e);
                 });
             }
@@ -741,8 +946,15 @@
                                 unit.mining = false;
                                 unit.attackTarget = null;
                                 unit.isHolding = false;
+                                // 마린 유닛은 타겟 이동 중 플래그 설정
+                                if (unit.type === 'marine') {
+                                    unit.isMovingToTarget = true;
+                                }
                             }
                         });
+                        // 공격/회군 상태 초기화
+                        this.isAttacking = false;
+                        this.isRetreating = false;
                     } else {
                         // 선택된 유닛이 없다면 해당 위치 근처 유닛 선택
                         this.selectUnitsAtPosition(currentPos);
@@ -764,15 +976,71 @@
                 e.preventDefault();
                 if (this.gameOver) return;
                 const pos = this.getPointerPosition(e);
-                this.selectedUnits.forEach(unit => {
-                    if (unit.owner === 'player') {
-                        unit.targetX = pos.x;
-                        unit.targetY = pos.y;
-                        unit.mining = false;
-                        unit.attackTarget = null;
-                        unit.isHolding = false;
+                
+                // 유닛이 선택된 경우 이동 명령
+                if (this.selectedUnits.length > 0) {
+                    this.selectedUnits.forEach(unit => {
+                        if (unit.owner === 'player') {
+                            unit.targetX = pos.x;
+                            unit.targetY = pos.y;
+                            unit.mining = false;
+                            unit.attackTarget = null;
+                            unit.isHolding = false;
+                            // 마린 유닛은 타겟 이동 중 플래그 설정
+                            if (unit.type === 'marine') {
+                                unit.isMovingToTarget = true;
+                            }
+                        }
+                    });
+                    // 공격/회군 상태 초기화
+                    this.isAttacking = false;
+                    this.isRetreating = false;
+                } else {
+                    // 유닛이 선택되지 않은 경우 서플라이 생성
+                    this.createSupply(pos.x, pos.y);
+                }
+            }
+
+            createSupply(x, y) {
+                // 생산비 체크 (200 미네랄)
+                const cost = 200;
+                if (this.playerMinerals < cost) {
+                    return;
+                }
+                
+                // 맵 경계 체크
+                if (x < 20 || x > this.width - 20 || y < 20 || y > this.height - 20) {
+                    return;
+                }
+                
+                // 다른 타워와 너무 가까운지 체크
+                const minDistance = 10;
+                let tooClose = false;
+                for (let supply of this.supplies) {
+                    const dist = Math.sqrt((x - supply.x) ** 2 + (y - supply.y) ** 2);
+                    if (dist < minDistance) {
+                        tooClose = true;
+                        break;
                     }
+                }
+                if (tooClose) return;
+                
+                // 타워 생성 (SCV 크기: 16x16, 기지 HP의 1/10, 마린과 동일한 공격력)
+                this.playerMinerals -= cost;
+                this.supplies.push({
+                    x: x,
+                    y: y,
+                    size: 16, // SCV와 동일한 크기
+                    radius: 8,  // 회피 반경
+                    hp: 50,     // 기지 HP(500)의 1/10
+                    maxHp: 50,
+                    owner: 'player', // 아군 타워
+                    damage: 6,  // 마린과 동일한 공격력
+                    range: 100, // 마린과 동일한 사거리
+                    attackCooldown: 0,
+                    attackTarget: null
                 });
+                this.updateUI();
             }
             
             selectUnits() {
@@ -818,21 +1086,28 @@
                 const now = Date.now();
                 if (now - this.lastMineralUpdate > 1000) {
                     const playerScvs = this.units.filter(u => u.owner === 'player' && u.type === 'scv').length;
-                    const enemyScvs = this.units.filter(u => u.owner === 'enemy' && u.type === 'scv').length;
                     this.playerMinerals += playerScvs * 8;
-                    this.enemyMinerals += enemyScvs * 8;
+                    
+                    // 각 적군마다 미네랄 수집
+                    for (let i = 0; i < this.enemyCount; i++) {
+                        const enemyScvs = this.units.filter(u => u.owner === `enemy${i}` && u.type === 'scv').length;
+                        this.enemyMinerals[i] += enemyScvs * 8;
+                    }
                     this.lastMineralUpdate = now;
                     this.updateUI();
                 }
                 
-                if (now - this.lastEnemyProduction > 5000) {
-                    this.enemyAI();
-                    this.lastEnemyProduction = now;
-                }
-                
-                if (now - (this.lastEnemyQuickCheck || 0) > 3000) {
-                    this.enemyQuickProduction();
-                    this.lastEnemyQuickCheck = now;
+                // 각 적군마다 AI 실행
+                for (let i = 0; i < this.enemyCount; i++) {
+                    if (now - (this.lastEnemyProduction[i] || 0) > 5000) {
+                        this.enemyAI(i);
+                        this.lastEnemyProduction[i] = now;
+                    }
+                    
+                    if (now - (this.lastEnemyQuickCheck[i] || 0) > 3000) {
+                        this.enemyQuickProduction(i);
+                        this.lastEnemyQuickCheck[i] = now;
+                    }
                 }
                 
                 // 쿨타임 업데이트
@@ -856,20 +1131,35 @@
                     }
                 });
                 
+                // 타워 공격 로직
+                this.supplies.forEach(tower => {
+                    if (tower.owner === 'player' && tower.hp > 0) {
+                        this.towerBehavior(tower);
+                    }
+                });
+                
                 this.units = this.units.filter(unit => {
                     if (unit.hp <= 0) {
-                        if (unit.owner === 'enemy') {
+                        if (unit.owner.startsWith('enemy')) {
                             this.enemyKills++;
                             this.updateUI();
                         }
                         if (unit.owner === 'player') {
                             this.playerSupply -= unit.supply;
                         } else {
-                            this.enemySupply -= unit.supply;
+                            const enemyIndex = parseInt(unit.owner.replace('enemy', ''));
+                            if (!isNaN(enemyIndex) && this.enemySupply[enemyIndex] !== undefined) {
+                                this.enemySupply[enemyIndex] -= unit.supply;
+                            }
                         }
                         return false;
                     }
                     return true;
+                });
+                
+                // 파괴된 타워 제거
+                this.supplies = this.supplies.filter(tower => {
+                    return tower.hp > 0;
                 });
                 
                 this.checkGameOver();
@@ -885,20 +1175,91 @@
                     const avoidance = this.calculateAvoidance(unit);
                     moveX += avoidance.x;
                     moveY += avoidance.y;
+                    
+                    // 이동 전 위치 저장
+                    const oldX = unit.x;
+                    const oldY = unit.y;
+                    
+                    // 이동 시도
                     unit.x += moveX;
                     unit.y += moveY;
+                    
+                    // 타워와의 충돌 체크 및 처리
+                    this.resolveSupplyCollision(unit, oldX, oldY);
+                    
+                    // 맵 경계 체크
                     unit.x = Math.max(20, Math.min(this.width - 20, unit.x));
                     unit.y = Math.max(20, Math.min(this.height - 20, unit.y));
+                } else {
+                    // 타겟 지점에 도착했을 때
+                    if (unit.isMovingToTarget && unit.owner === 'player' && unit.type === 'marine') {
+                        // 멈추고 적을 공격할 수 있도록 설정
+                        unit.isHolding = true;
+                        unit.isMovingToTarget = false;
+                        unit.targetX = unit.x;
+                        unit.targetY = unit.y;
+                    }
                 }
                 if (unit.attackCooldown > 0) {
                     unit.attackCooldown--;
                 }
+            }
+
+            resolveSupplyCollision(unit, oldX, oldY) {
+                const unitRadius = 8; // 유닛 반경
+                
+                this.supplies.forEach(tower => {
+                    // 파괴된 타워는 무시
+                    if (tower.hp <= 0) return;
+                    const dx = unit.x - tower.x;
+                    const dy = unit.y - tower.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = tower.radius + unitRadius; // 타워 반경 + 유닛 반경
+                    
+                    // 타워와 충돌하는 경우
+                    if (dist < minDist && dist > 0) {
+                        // 타워 밖으로 밀어내기
+                        const pushDistance = minDist - dist;
+                        const pushX = (dx / dist) * pushDistance;
+                        const pushY = (dy / dist) * pushDistance;
+                        unit.x += pushX;
+                        unit.y += pushY;
+                        
+                        // 경로가 타워를 통과하는 경우 우회 경로 계산
+                        const targetDx = unit.targetX - tower.x;
+                        const targetDy = unit.targetY - tower.y;
+                        const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                        
+                        if (targetDist < minDist + 20) {
+                            // 타겟이 타워 너머에 있으면 우회 경로 설정
+                            const angle = Math.atan2(targetDy, targetDx);
+                            const bypassRadius = minDist + 30;
+                            const bypassX = tower.x + Math.cos(angle) * bypassRadius;
+                            const bypassY = tower.y + Math.sin(angle) * bypassRadius;
+                            
+                            // 우회 지점을 임시 타겟으로 설정 (직접 타겟으로 설정하지 않고 회피만)
+                            const bypassDx = bypassX - unit.x;
+                            const bypassDy = bypassY - unit.y;
+                            const bypassDist = Math.sqrt(bypassDx * bypassDx + bypassDy * bypassDy);
+                            
+                            if (bypassDist > 5) {
+                                // 우회 방향으로 약간 이동
+                                const bypassMoveX = (bypassDx / bypassDist) * unit.speed * 0.5;
+                                const bypassMoveY = (bypassDy / bypassDist) * unit.speed * 0.5;
+                                unit.x += bypassMoveX;
+                                unit.y += bypassMoveY;
+                            }
+                        }
+                    }
+                });
             }
             
             calculateAvoidance(unit) {
                 let avoidX = 0;
                 let avoidY = 0;
                 const minDist = 18;
+                
+                // 다른 유닛 회피
                 this.units.forEach(other => {
                     if (other !== unit) {
                         const dx = unit.x - other.x;
@@ -910,12 +1271,76 @@
                         }
                     }
                 });
+                
+                // 타워 회피 (더 강력하게)
+                const unitRadius = 8;
+                this.supplies.forEach(tower => {
+                    // 파괴된 타워는 무시
+                    if (tower.hp <= 0) return;
+                    const dx = unit.x - tower.x;
+                    const dy = unit.y - tower.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const avoidRadius = tower.radius + unitRadius + 15; // 타워 반경 + 유닛 반경 + 여유 공간
+                    
+                    if (dist < avoidRadius && dist > 0) {
+                        // 거리가 가까울수록 더 강하게 회피
+                        const avoidStrength = (avoidRadius - dist) / avoidRadius;
+                        // 타워는 절대 통과할 수 없으므로 매우 강하게 회피
+                        avoidX += (dx / dist) * avoidStrength * 3.0;
+                        avoidY += (dy / dist) * avoidStrength * 3.0;
+                    }
+                    
+                    // 경로가 타워를 통과하는지 체크
+                    const targetDx = unit.targetX - unit.x;
+                    const targetDy = unit.targetY - unit.y;
+                    const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                    
+                    if (targetDist > 0) {
+                        // 유닛에서 타겟까지의 선분이 타워와 교차하는지 체크
+                        const toTowerDx = tower.x - unit.x;
+                        const toTowerDy = tower.y - unit.y;
+                        const projection = (toTowerDx * targetDx + toTowerDy * targetDy) / (targetDist * targetDist);
+                        
+                        if (projection > 0 && projection < 1) {
+                            // 경로상의 가장 가까운 점
+                            const closestX = unit.x + targetDx * projection;
+                            const closestY = unit.y + targetDy * projection;
+                            const closestDx = closestX - tower.x;
+                            const closestDy = closestY - tower.y;
+                            const closestDist = Math.sqrt(closestDx * closestDx + closestDy * closestDy);
+                            
+                            if (closestDist < avoidRadius) {
+                                // 경로가 타워를 통과하므로 강하게 회피
+                                const sideX = -targetDy / targetDist; // 수직 방향
+                                const sideY = targetDx / targetDist;
+                                const side = (closestDx * sideX + closestDy * sideY) > 0 ? 1 : -1;
+                                avoidX += sideX * side * 2.0;
+                                avoidY += sideY * side * 2.0;
+                            }
+                        }
+                    }
+                });
+                
                 return { x: avoidX, y: avoidY };
             }
             
             scvBehavior(unit) {
                 if (unit.attackTarget) return;
-                const mineralPatches = unit.owner === 'player' ? this.playerMinerals_patches : this.enemyMinerals_patches;
+                
+                let mineralPatches, base;
+                if (unit.owner === 'player') {
+                    mineralPatches = this.playerMinerals_patches;
+                    base = this.playerBase;
+                } else {
+                    const enemyIndex = parseInt(unit.owner.replace('enemy', ''));
+                    if (!isNaN(enemyIndex) && this.enemyMinerals_patches[enemyIndex]) {
+                        mineralPatches = this.enemyMinerals_patches[enemyIndex];
+                        base = this.enemyBases[enemyIndex];
+                    } else {
+                        return;
+                    }
+                }
+                
                 if (!unit.mining && !unit.returning) {
                     const nearest = this.findNearest(unit, mineralPatches);
                     if (nearest) {
@@ -930,13 +1355,11 @@
                     if (dist < 30) {
                         unit.returning = true;
                         unit.mining = false;
-                        const base = unit.owner === 'player' ? this.playerBase : this.enemyBase;
                         unit.targetX = base.x;
                         unit.targetY = base.y;
                     }
                 }
                 if (unit.returning) {
-                    const base = unit.owner === 'player' ? this.playerBase : this.enemyBase;
                     const dist = this.distance(unit, base);
                     if (dist < 40) {
                         unit.returning = false;
@@ -944,13 +1367,61 @@
                 }
             }
             
+            towerBehavior(tower) {
+                // 타워 쿨타임 업데이트
+                if (tower.attackCooldown > 0) {
+                    tower.attackCooldown--;
+                }
+                
+                // 가장 가까운 적 찾기
+                let nearestEnemy = null;
+                let nearestDist = Infinity;
+                const targets = [...this.units.filter(u => u.owner.startsWith('enemy'))];
+                this.enemyBases.forEach(base => targets.push(base));
+                
+                targets.forEach(target => {
+                    const dist = this.distance(tower, target);
+                    if (dist < nearestDist && dist < tower.range) {
+                        nearestDist = dist;
+                        nearestEnemy = target;
+                    }
+                });
+                
+                // 공격
+                if (nearestEnemy && nearestDist < tower.range) {
+                    if (tower.attackCooldown === 0) {
+                        if (nearestEnemy.hp !== undefined) {
+                            nearestEnemy.hp -= tower.damage;
+                        }
+                        tower.attackCooldown = 15; // 마린과 동일한 공격 속도
+                    }
+                    tower.attackTarget = nearestEnemy;
+                } else {
+                    tower.attackTarget = null;
+                }
+            }
+            
             marineBehavior(unit) {
                 if (unit.isHolding) {
                     let nearestEnemy = null;
                     let nearestDist = Infinity;
-                    const targets = unit.owner === 'player' ? 
-                        [...this.units.filter(u => u.owner === 'enemy'), this.enemyBase] :
-                        [...this.units.filter(u => u.owner === 'player'), this.playerBase];
+                    let targets = [];
+                    
+                    if (unit.owner === 'player') {
+                        // 플레이어 마린: 모든 적군 유닛과 기지 타겟
+                        targets = [...this.units.filter(u => u.owner.startsWith('enemy'))];
+                        this.enemyBases.forEach(base => targets.push(base));
+                    } else {
+                        // 적군 마린: 플레이어 유닛, 기지, 그리고 아군 타워 타겟
+                        targets = [...this.units.filter(u => u.owner === 'player'), this.playerBase];
+                        // 아군 타워도 공격 타겟에 추가
+                        this.supplies.forEach(tower => {
+                            if (tower.owner === 'player' && tower.hp > 0) {
+                                targets.push(tower);
+                            }
+                        });
+                    }
+                    
                     targets.forEach(target => {
                         const dist = this.distance(unit, target);
                         if (dist < nearestDist && dist < unit.range) {
@@ -972,7 +1443,9 @@
                     return;
                 }
                 
-                if (unit.owner === 'enemy') {
+                if (unit.owner.startsWith('enemy')) {
+                    const enemyIndex = parseInt(unit.owner.replace('enemy', ''));
+                    const enemyBase = this.enemyBases[enemyIndex];
                     // 1단계에서는 적군 마린이 공격하지 않고 방어적으로 행동
                     if (this.level === 1) {
                         // 플레이어가 가까이 오면 약간 후퇴하지만 공격하지 않음
@@ -994,10 +1467,10 @@
                             unit.targetY = unit.y + Math.sin(angle) * 50;
                         } else {
                             // 평상시에는 기지 주변을 순찰
-                            const dist = this.distance(unit, this.enemyBase);
+                            const dist = this.distance(unit, enemyBase);
                             if (dist > 80) {
-                                unit.targetX = this.enemyBase.x + (Math.random() - 0.5) * 60;
-                                unit.targetY = this.enemyBase.y + (Math.random() - 0.5) * 60;
+                                unit.targetX = enemyBase.x + (Math.random() - 0.5) * 60;
+                                unit.targetY = enemyBase.y + (Math.random() - 0.5) * 60;
                             }
                         }
                         unit.attackTarget = null;
@@ -1007,6 +1480,35 @@
                     let nearestEnemy = null;
                     let nearestDist = Infinity;
                     const targets = [...this.units.filter(u => u.owner === 'player'), this.playerBase];
+                    // 아군 타워도 공격 타겟에 추가 (경로를 막는 경우 우선 공격)
+                    this.supplies.forEach(tower => {
+                        if (tower.owner === 'player' && tower.hp > 0) {
+                            // 유닛에서 플레이어 기지까지의 경로가 타워를 통과하는지 체크
+                            const toBaseDx = this.playerBase.x - unit.x;
+                            const toBaseDy = this.playerBase.y - unit.y;
+                            const toBaseDist = Math.sqrt(toBaseDx * toBaseDx + toBaseDy * toBaseDy);
+                            if (toBaseDist > 0) {
+                                const toTowerDx = tower.x - unit.x;
+                                const toTowerDy = tower.y - unit.y;
+                                const projection = (toTowerDx * toBaseDx + toTowerDy * toBaseDy) / (toBaseDist * toBaseDist);
+                                
+                                if (projection > 0 && projection < 1) {
+                                    // 경로상의 가장 가까운 점
+                                    const closestX = unit.x + toBaseDx * projection;
+                                    const closestY = unit.y + toBaseDy * projection;
+                                    const closestDx = closestX - tower.x;
+                                    const closestDy = closestY - tower.y;
+                                    const closestDist = Math.sqrt(closestDx * closestDx + closestDy * closestDy);
+                                    
+                                    // 경로를 막는 타워는 우선 타겟
+                                    if (closestDist < tower.radius + 20) {
+                                        targets.push(tower);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
                     targets.forEach(target => {
                         const dist = this.distance(unit, target);
                         if (dist < nearestDist) {
@@ -1037,24 +1539,26 @@
                 }
             }
             
-            enemyAI() {
-                const enemyScvCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'scv').length;
-                const enemyMarineCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'marine').length;
+            enemyAI(enemyIndex) {
+                const enemyOwner = `enemy${enemyIndex}`;
+                const enemyBase = this.enemyBases[enemyIndex];
+                const enemyScvCount = this.units.filter(u => u.owner === enemyOwner && u.type === 'scv').length;
+                const enemyMarineCount = this.units.filter(u => u.owner === enemyOwner && u.type === 'marine').length;
                 const playerMarineCount = this.units.filter(u => u.owner === 'player' && u.type === 'marine').length;
 
                 // 1단계에서는 마린 생산하지 않음 (방어적 플레이)
                 if (this.level === 1) {
                     // SCV만 생산하고 마린은 생산하지 않음
-                    if (enemyScvCount < 3 && this.enemyMinerals >= 50) {
-                        this.enemyMinerals -= 50;
-                        this.createUnit('scv', this.enemyBase.x + Math.random() * 40 - 20,
-                                              this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                    if (enemyScvCount < 3 && this.enemyMinerals[enemyIndex] >= 50) {
+                        this.enemyMinerals[enemyIndex] -= 50;
+                        this.createUnit('scv', enemyBase.x + Math.random() * 40 - 20,
+                                              enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                         this.updateUI();
                         return;
                     }
                     // 서플라이 확장
-                    if (this.enemySupply >= this.enemySupplyMax - 1 && this.enemyMinerals >= 100) {
-                        this.buildSupply('enemy');
+                    if (this.enemySupply[enemyIndex] >= this.enemySupplyMax[enemyIndex] - 1 && this.enemyMinerals[enemyIndex] >= 100) {
+                        this.buildSupply(enemyOwner);
                         return;
                     }
                     return; // 1단계에서는 더 이상의 AI 로직 실행하지 않음
@@ -1063,79 +1567,81 @@
                 const baseTargetMarines = Math.floor(playerMarineCount * 0.6) + this.level + 2;
                 const targetMarineCount = Math.max(baseTargetMarines, 5);
                 
-                if (this.enemySupply >= this.enemySupplyMax - 2) {
-                    if (this.enemyMinerals >= 100) {
-                        this.buildSupply('enemy');
+                if (this.enemySupply[enemyIndex] >= this.enemySupplyMax[enemyIndex] - 2) {
+                    if (this.enemyMinerals[enemyIndex] >= 100) {
+                        this.buildSupply(enemyOwner);
                     }
                     return;
                 }
                 
-                if (this.enemyMinerals >= 200) {
+                if (this.enemyMinerals[enemyIndex] >= 200) {
                     if (enemyMarineCount < targetMarineCount * 1.5) {
-                        this.enemyMinerals -= 50;
-                        this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20, 
-                                                 this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                        this.enemyMinerals[enemyIndex] -= 50;
+                        this.createUnit('marine', enemyBase.x + Math.random() * 40 - 20, 
+                                                 enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                         this.updateUI();
                         return;
                     }
                     if (enemyScvCount < 8) {
-                        this.enemyMinerals -= 50;
-                        this.createUnit('scv', this.enemyBase.x + Math.random() * 40 - 20, 
-                                              this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                        this.enemyMinerals[enemyIndex] -= 50;
+                        this.createUnit('scv', enemyBase.x + Math.random() * 40 - 20, 
+                                              enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                         this.updateUI();
                         return;
                     }
                 }
                 
-                if (enemyScvCount < 4 && this.enemyMinerals >= 50) {
-                    this.enemyMinerals -= 50;
-                    this.createUnit('scv', this.enemyBase.x + Math.random() * 40 - 20, 
-                                          this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                if (enemyScvCount < 4 && this.enemyMinerals[enemyIndex] >= 50) {
+                    this.enemyMinerals[enemyIndex] -= 50;
+                    this.createUnit('scv', enemyBase.x + Math.random() * 40 - 20, 
+                                          enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                     this.updateUI();
                     return;
                 }
                 
-                if (enemyMarineCount < targetMarineCount && this.enemyMinerals >= 50) {
-                    this.enemyMinerals -= 50;
-                    this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20, 
-                                             this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                if (enemyMarineCount < targetMarineCount && this.enemyMinerals[enemyIndex] >= 50) {
+                    this.enemyMinerals[enemyIndex] -= 50;
+                    this.createUnit('marine', enemyBase.x + Math.random() * 40 - 20, 
+                                             enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                     this.updateUI();
                     return;
                 }
                 
-                if (enemyScvCount < 7 && this.enemyMinerals >= 50) {
-                    this.enemyMinerals -= 50;
-                    this.createUnit('scv', this.enemyBase.x + Math.random() * 40 - 20, 
-                                          this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                if (enemyScvCount < 7 && this.enemyMinerals[enemyIndex] >= 50) {
+                    this.enemyMinerals[enemyIndex] -= 50;
+                    this.createUnit('scv', enemyBase.x + Math.random() * 40 - 20, 
+                                          enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                     this.updateUI();
                     return;
                 }
                 
-                if (this.enemyMinerals >= 100 && enemyMarineCount < targetMarineCount + 5) {
-                    this.enemyMinerals -= 50;
-                    this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20, 
-                                             this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                if (this.enemyMinerals[enemyIndex] >= 100 && enemyMarineCount < targetMarineCount + 5) {
+                    this.enemyMinerals[enemyIndex] -= 50;
+                    this.createUnit('marine', enemyBase.x + Math.random() * 40 - 20, 
+                                             enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                     this.updateUI();
                 }
             }
             
-            enemyQuickProduction() {
+            enemyQuickProduction(enemyIndex) {
                 // 1단계에서는 빠른 마린 생산하지 않음
                 if (this.level === 1) {
                     return;
                 }
 
-                const enemyMarineCount = this.units.filter(u => u.owner === 'enemy' && u.type === 'marine').length;
+                const enemyOwner = `enemy${enemyIndex}`;
+                const enemyBase = this.enemyBases[enemyIndex];
+                const enemyMarineCount = this.units.filter(u => u.owner === enemyOwner && u.type === 'marine').length;
                 const playerMarineCount = this.units.filter(u => u.owner === 'player' && u.type === 'marine').length;
 
-                if (this.enemySupply >= this.enemySupplyMax) {
+                if (this.enemySupply[enemyIndex] >= this.enemySupplyMax[enemyIndex]) {
                     return;
                 }
 
-                if (enemyMarineCount < playerMarineCount && this.enemyMinerals >= 50) {
-                    this.enemyMinerals -= 50;
-                    this.createUnit('marine', this.enemyBase.x + Math.random() * 40 - 20,
-                                             this.enemyBase.y + Math.random() * 40 - 20, 'enemy');
+                if (enemyMarineCount < playerMarineCount && this.enemyMinerals[enemyIndex] >= 50) {
+                    this.enemyMinerals[enemyIndex] -= 50;
+                    this.createUnit('marine', enemyBase.x + Math.random() * 40 - 20,
+                                             enemyBase.y + Math.random() * 40 - 20, enemyOwner);
                     this.updateUI();
                 }
             }
@@ -1162,8 +1668,12 @@
             checkGameOver() {
                 if (this.playerBase.hp <= 0) {
                     this.endGame(false);
-                } else if (this.enemyBase.hp <= 0) {
-                    this.endGame(true);
+                } else {
+                    // 모든 적군 기지가 파괴되었는지 확인
+                    const allEnemiesDefeated = this.enemyBases.every(base => base.hp <= 0);
+                    if (allEnemiesDefeated) {
+                        this.endGame(true);
+                    }
                 }
             }
             
@@ -1192,15 +1702,12 @@
             restart() {
                 this.units = [];
                 this.selectedUnits = [];
+                this.supplies = []; // 타워 초기화
                 this.playerMinerals = 50;
-                this.enemyMinerals = 50;
                 this.enemyKills = 0;
                 this.playerSupply = 0;
                 this.playerSupplyMax = 10;
-                this.enemySupply = 0;
-                this.enemySupplyMax = 10;
                 this.playerBase.hp = this.playerBase.maxHp;
-                this.enemyBase.hp = this.enemyBase.maxHp;
                 this.gameOver = false;
                 document.getElementById('gameOver').style.display = 'none';
 
@@ -1217,38 +1724,73 @@
             render() {
                 this.ctx.clearRect(0, 0, this.width, this.height);
                 
+                // 플레이어 기지 영역
                 this.ctx.fillStyle = '#2d4a2d';
                 this.ctx.beginPath();
                 this.ctx.ellipse(150, 150, 120, 100, 0, 0, Math.PI * 2);
                 this.ctx.fill();
                 
-                this.ctx.fillStyle = '#4a2d2d';
-                this.ctx.beginPath();
-                this.ctx.ellipse(1050, 550, 120, 100, 0, 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                this.playerMinerals_patches.forEach(mineral => {
-                    this.ctx.fillStyle = '#4488ff';
+                // 각 적군 기지 영역
+                this.enemyBases.forEach((base, index) => {
+                    this.ctx.fillStyle = '#4a2d2d';
                     this.ctx.beginPath();
-                    this.ctx.arc(mineral.x, mineral.y, 15, 0, Math.PI * 2);
+                    this.ctx.ellipse(base.x, base.y, 120, 100, 0, 0, Math.PI * 2);
                     this.ctx.fill();
-                    this.ctx.strokeStyle = '#6699ff';
-                    this.ctx.lineWidth = 2;
-                    this.ctx.stroke();
                 });
                 
-                this.enemyMinerals_patches.forEach(mineral => {
-                    this.ctx.fillStyle = '#4488ff';
-                    this.ctx.beginPath();
-                    this.ctx.arc(mineral.x, mineral.y, 15, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    this.ctx.strokeStyle = '#6699ff';
-                    this.ctx.lineWidth = 2;
-                    this.ctx.stroke();
+                // 플레이어 미네랄 패치 (이모티콘으로 표시)
+                this.playerMinerals_patches.forEach(mineral => {
+                    this.ctx.font = '30px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText('💎', mineral.x, mineral.y);
+                });
+                
+                // 각 적군 미네랄 패치 (이모티콘으로 표시)
+                this.enemyMinerals_patches.forEach(patches => {
+                    patches.forEach(mineral => {
+                        this.ctx.font = '30px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText('💎', mineral.x, mineral.y);
+                    });
                 });
                 
                 this.drawBase(this.playerBase, '#00ff00');
-                this.drawBase(this.enemyBase, '#ff4444');
+                this.enemyBases.forEach(base => {
+                    this.drawBase(base, '#ff4444');
+                });
+                
+                // 타워 렌더링 (파란색, SCV 크기)
+                this.supplies.forEach(tower => {
+                    this.ctx.fillStyle = '#4488ff'; // 파란색
+                    this.ctx.fillRect(tower.x - tower.size / 2, tower.y - tower.size / 2, tower.size, tower.size);
+                    this.ctx.strokeStyle = '#6699ff';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(tower.x - tower.size / 2, tower.y - tower.size / 2, tower.size, tower.size);
+                    
+                    // HP 바 표시
+                    const hpPercent = tower.hp / tower.maxHp;
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(tower.x - tower.size / 2, tower.y - tower.size / 2 - 8, tower.size, 4);
+                    this.ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : hpPercent > 0.25 ? '#ffff00' : '#ff0000';
+                    this.ctx.fillRect(tower.x - tower.size / 2, tower.y - tower.size / 2 - 8, tower.size * hpPercent, 4);
+                    
+                    // 공격 애니메이션 (아군 타워는 빨간색)
+                    if (tower.attackTarget && tower.attackCooldown > 10) {
+                        this.ctx.strokeStyle = '#ff0000'; // 빨간색
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(tower.x, tower.y);
+                        this.ctx.lineTo(tower.attackTarget.x, tower.attackTarget.y);
+                        this.ctx.stroke();
+                        
+                        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'; // 빨간색 반투명
+                        this.ctx.beginPath();
+                        this.ctx.arc(tower.attackTarget.x, tower.attackTarget.y, 10, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                });
                 
                 this.units.forEach(unit => {
                     this.drawUnit(unit);
@@ -1321,14 +1863,18 @@
                 this.ctx.fillRect(unit.x - 10, unit.y - 15, 20 * hpPercent, 3);
                 
                 if (unit.attackTarget && unit.attackCooldown > 10) {
-                    this.ctx.strokeStyle = '#ffff00';
+                    // 아군은 빨간색, 적군은 노란색
+                    const attackColor = unit.owner === 'player' ? '#ff0000' : '#ffff00';
+                    const attackFillColor = unit.owner === 'player' ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 255, 0, 0.5)';
+                    
+                    this.ctx.strokeStyle = attackColor;
                     this.ctx.lineWidth = 2;
                     this.ctx.beginPath();
                     this.ctx.moveTo(unit.x, unit.y);
                     this.ctx.lineTo(unit.attackTarget.x, unit.attackTarget.y);
                     this.ctx.stroke();
                     
-                    this.ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                    this.ctx.fillStyle = attackFillColor;
                     this.ctx.beginPath();
                     this.ctx.arc(unit.attackTarget.x, unit.attackTarget.y, 10, 0, Math.PI * 2);
                     this.ctx.fill();
@@ -1338,15 +1884,29 @@
             updateUI() {
                 const playerScvs = this.units.filter(u => u.owner === 'player' && u.type === 'scv').length;
                 const playerMarines = this.units.filter(u => u.owner === 'player' && u.type === 'marine').length;
-                const enemyScvs = this.units.filter(u => u.owner === 'enemy' && u.type === 'scv').length;
-                const enemyMarines = this.units.filter(u => u.owner === 'enemy' && u.type === 'marine').length;
+                
+                // 모든 적군 통계 합산
+                let totalEnemyScvs = 0;
+                let totalEnemyMarines = 0;
+                let totalEnemyMinerals = 0;
+                let totalEnemySupply = 0;
+                let totalEnemySupplyMax = 0;
+                
+                for (let i = 0; i < this.enemyCount; i++) {
+                    const enemyOwner = `enemy${i}`;
+                    totalEnemyScvs += this.units.filter(u => u.owner === enemyOwner && u.type === 'scv').length;
+                    totalEnemyMarines += this.units.filter(u => u.owner === enemyOwner && u.type === 'marine').length;
+                    totalEnemyMinerals += this.enemyMinerals[i] || 0;
+                    totalEnemySupply += this.enemySupply[i] || 0;
+                    totalEnemySupplyMax += this.enemySupplyMax[i] || 0;
+                }
                 
                 document.getElementById('playerMinerals').textContent = Math.floor(this.playerMinerals);
-                document.getElementById('enemyMinerals').textContent = Math.floor(this.enemyMinerals);
+                document.getElementById('enemyMinerals').textContent = Math.floor(totalEnemyMinerals);
                 document.getElementById('playerScvs').textContent = playerScvs;
                 document.getElementById('playerMarines').textContent = playerMarines;
-                document.getElementById('enemyScvs').textContent = enemyScvs;
-                document.getElementById('enemyMarines').textContent = enemyMarines;
+                document.getElementById('enemyScvs').textContent = totalEnemyScvs;
+                document.getElementById('enemyMarines').textContent = totalEnemyMarines;
                 document.getElementById('miningRate').textContent = `+${playerScvs * 8}/s`;
                 document.getElementById('enemyKills').textContent = this.enemyKills;
                 document.getElementById('level').textContent = `Lv.${this.level}`;
@@ -1355,7 +1915,7 @@
                 playerSupplyEl.textContent = `${this.playerSupply}/${this.playerSupplyMax}`;
                 playerSupplyEl.className = `stat-value ${this.playerSupply >= this.playerSupplyMax ? 'warning' : 'player'}`;
                 
-                document.getElementById('enemySupply').textContent = `${this.enemySupply}/${this.enemySupplyMax}`;
+                document.getElementById('enemySupply').textContent = `${totalEnemySupply}/${totalEnemySupplyMax}`;
 
                 // 쿨타임 오버레이 업데이트
                 this.updateCooldownOverlays();

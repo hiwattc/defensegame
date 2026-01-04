@@ -125,6 +125,7 @@
             <option value="satellite">항공지도 (Esri)</option>
         </select>
         <button id="labelToggleBtn" style="margin-left: 10px; padding: 5px 10px; display: none;">라벨 켜기</button>
+        <span id="zoomLevel" style="margin-left: 10px; padding: 5px; font-size: 12px; background: #f0f0f0; border-radius: 3px; display: none;">줌: 19</span>
     </div>
     
     <div id="info">
@@ -307,6 +308,9 @@
                 attribution: tileConfig.attribution
             }).addTo(map);
 
+            // 실제 지원되는 최대 줌 레벨 (18레벨까지)
+            map.setMaxZoom(18);
+
             // 라벨 버튼 표시/숨김 처리
             const labelBtn = document.getElementById('labelToggleBtn');
             if (newMapType === 'satellite' || newMapType === 'osm') {
@@ -372,10 +376,11 @@
                 // 라벨 끄기 → 라벨 켜기
                 if (tileConfig.referenceUrl) {
                     if (!labelLayer) {
+                        const maxZoomLevel = 18; // 실제 지원되는 최대 줌 레벨
                         labelLayer = L.tileLayer(tileConfig.referenceUrl, {
                             attribution: tileConfig.attribution,
                             minZoom: 0,
-                            maxZoom: 20,
+                            maxZoom: maxZoomLevel,
                             opacity: 0.4
                         }).addTo(map);
                     }
@@ -440,6 +445,7 @@
                 mapContainer.style.display = 'none';
                 document.getElementById('mapTypeSelect').style.display = 'none';
                 document.getElementById('labelToggleBtn').style.display = 'none';
+                document.getElementById('zoomLevel').style.display = 'none';
 
                 // 기존 차량 요소 제거
                 const existingCar = document.getElementById('fixedCar');
@@ -494,10 +500,10 @@
             const seoulCenter = [37.5665, 126.9780];
             const mapType = document.getElementById('mapTypeSelect').value;
 
-            // Leaflet 지도 생성 - 키보드 조작 비활성화
+            // Leaflet 지도 생성 - 키보드 조작 비활성화, 드래그 활성화
             map = L.map('mapContainer', {
                 keyboard: false,  // 키보드 조작 비활성화
-                dragging: false,  // 드래그 비활성화
+                dragging: true,   // 드래그 활성화 (패닝 가능)
                 zoomControl: true,
                 scrollWheelZoom: true
             }).setView(seoulCenter, 13);
@@ -769,7 +775,18 @@
             mapCarAngle = 0; // 북쪽 방향으로 시작
 
             // 지도를 최대 확대하고 플레이어 차량을 중앙에 위치
-            map.setView(seoulPath[0], 18); // 최대 확대 레벨
+            map.setView(seoulPath[0], 19); // 더 확대된 레벨
+            map.setMaxZoom(18); // 실제 지원되는 최대 줌 레벨
+
+            // 줌 레벨 표시기 초기화 및 이벤트 리스너
+            document.getElementById('zoomLevel').textContent = '줌: ' + map.getZoom();
+            document.getElementById('zoomLevel').style.display = 'inline-block';
+
+            // 줌 레벨 변경 이벤트 리스너
+            map.on('zoomend', function() {
+                const currentZoom = map.getZoom();
+                document.getElementById('zoomLevel').textContent = '줌: ' + currentZoom;
+            });
         }
 
         // 지도 모드용 차량 위치 초기화

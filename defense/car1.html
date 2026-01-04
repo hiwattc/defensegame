@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>레이싱 게임</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #gameContainer {
+            position: relative;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+        }
+        
+        #rankings {
+            width: 300px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 850px;
+            overflow-y: auto;
+        }
+        
+        #gameCanvas {
+            display: block;
+            border: 2px solid #333;
+        }
+        
+        #controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        #info {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        #instructions {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 5px;
+            max-width: 600px;
+        }
+
+        /* 지도 모드 스타일 */
+        .car-marker {
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+            position: absolute !important;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* 차량을 화면 중앙에 절대 고정 */
+        .leaflet-container .car-marker {
+            position: absolute !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            margin: 0 !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏎️ 레이싱 게임</h1>
+    
+    <div id="gameContainer">
+        <div id="rankings">
+            <h3 style="margin: 0 0 10px 0; text-align: center;">🏆 실시간 순위</h3>
+            <div id="rankingList"></div>
+        </div>
+        <canvas id="gameCanvas" width="850" height="850"></canvas>
+        <!-- 지도 모드용 컨테이너 -->
+        <div id="mapContainer" style="width: 850px; height: 850px; display: none; border: 2px solid #333;"></div>
+    </div>
+    
+    <div id="controls">
+        <button id="startBtn">게임 시작</button>
+        <button id="resetBtn">다시 시작</button>
+        <button id="firstPersonBtn">1인칭 모드</button>
+        <button id="mapBtn">지도 모드</button>
+        <select id="mapTypeSelect" style="margin-left: 10px; padding: 5px; display: none;">
+            <option value="osm">OpenStreetMap</option>
+            <option value="cartodb_dark">CartoDB Dark</option>
+            <option value="cartodb_positron">CartoDB Positron</option>
+            <option value="satellite">항공지도 (Esri)</option>
+        </select>
+        <button id="labelToggleBtn" style="margin-left: 10px; padding: 5px 10px; display: none;">라벨 켜기</button>
+    </div>
+    
+    <div id="info">
+        <div>⏱️ 시간: <span id="timer">0.0</span>초</div>
+        <div>🏁 랩: <span id="lap">0</span>/10</div>
+        <div>⚡ 속도: <span id="speed">0</span> / <span id="speedKmh">0</span> km/h</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 게임 상태
+        let gameState = {
+            running: false,
+            firstPersonMode: false, // 1인칭 모드 상태
+            mapMode: false, // 지도 모드 상태
+            car: {
+                x: 720,
+                y: 430,
+                angle: Math.PI,
+                speed: 0,
+                maxSpeed: 3, // 50% 감소
+                acceleration: 0.1,
+                friction: 0.05,
+                turnSpeed: 0.028, // 30% 더 세밀하게 (0.04 → 0.028)
+                collisionCooldown: 0,
+                name: '플레이어',
+                color: '#e74c3c',
+                lap: 0,
+                passedCheckpoint: false
+            },
+            timer: 0,
+            lap: 0,
+            maxLaps: 3, // 3바퀴로 변경
+            passedCheckpoint: false,
+            startTime: 0,
+            aiCars: []
+        };
+
+        // 카메라 오프셋 (1인칭 모드용)
+        let cameraOffsetX = 0;
+        let cameraOffsetY = 0;
+
+        // 지도 모드 변수들
+        let map = null;
+        let currentMapSpeed = 0; // 현재 지도 모드 속도
+        let acceleration = 0.0006 / (10 * 60); // 10초 동안 최고속도 도달하는 가속도 (500 km/h)
+        let deceleration = acceleration * 0.2; // 감속을 20%로 줄임 (더 긴 관성 주행)
+        let currentTileLayer = null;
+        let labelLayer = null; // 라벨 레이어
+        let labelsEnabled = false; // 라벨 표시 상태
+        let labelsOnlyMode = false; // 라벨만 모드 상태
+        
+        // AI 차량 초기화
+        function initAICars() {
+            // 헤드라이트 색상 옵션
+            const headlightColors = ['#00ff00', '#ff0000', '#0000ff', '#ffffff'];
+
+            const aiCarConfigs = [
+                { color: '#3498db', name: 'Blue', maxSpeed: 2.25, accel: 0.08, startOffset: { x: 0, y: -20 }, pathIndex: 0 },
+                { color: '#2ecc71', name: 'Green', maxSpeed: 2.1, accel: 0.075, startOffset: { x: 0, y: 20 }, pathIndex: 5 },
+                { color: '#f39c12', name: 'Yellow', maxSpeed: 2.4, accel: 0.085, startOffset: { x: -20, y: 0 }, pathIndex: 10 },
+                { color: '#9b59b6', name: 'Purple', maxSpeed: 2.3, accel: 0.082, startOffset: { x: -40, y: -10 }, pathIndex: 15 },
+                { color: '#e91e63', name: 'Pink', maxSpeed: 2.2, accel: 0.078, startOffset: { x: -40, y: 10 }, pathIndex: 20 },
+                { color: '#00bcd4', name: 'Cyan', maxSpeed: 2.35, accel: 0.083, startOffset: { x: -60, y: 0 }, pathIndex: 25 },
+                { color: '#ff5722', name: 'Orange', maxSpeed: 2.15, accel: 0.076, startOffset: { x: -60, y: -20 }, pathIndex: 30 },
+                { color: '#795548', name: 'Brown', maxSpeed: 2.0, accel: 0.073, startOffset: { x: -60, y: 20 }, pathIndex: 35 },
+                { color: '#607d8b', name: 'Gray', maxSpeed: 2.28, accel: 0.081, startOffset: { x: -80, y: -10 }, pathIndex: 40 },
+                { color: '#cddc39', name: 'Lime', maxSpeed: 2.18, accel: 0.077, startOffset: { x: -80, y: 10 }, pathIndex: 45 },
+                // 추가 10대 AI 차량 (총 20대)
+                { color: '#ff9800', name: 'Amber', maxSpeed: 2.32, accel: 0.084, startOffset: { x: -100, y: -20 }, pathIndex: 50 },
+                { color: '#8bc34a', name: 'LightGreen', maxSpeed: 2.22, accel: 0.079, startOffset: { x: -100, y: 20 }, pathIndex: 55 },
+                { color: '#673ab7', name: 'DeepPurple', maxSpeed: 2.26, accel: 0.080, startOffset: { x: -120, y: 0 }, pathIndex: 60 },
+                { color: '#3f51b5', name: 'Indigo', maxSpeed: 2.29, accel: 0.083, startOffset: { x: -120, y: -30 }, pathIndex: 65 },
+                { color: '#009688', name: 'Teal', maxSpeed: 2.21, accel: 0.078, startOffset: { x: -120, y: 30 }, pathIndex: 70 },
+                { color: '#ffc107', name: 'Gold', maxSpeed: 2.37, accel: 0.086, startOffset: { x: -140, y: -10 }, pathIndex: 75 },
+                { color: '#e91e63', name: 'HotPink', maxSpeed: 2.19, accel: 0.077, startOffset: { x: -140, y: 10 }, pathIndex: 80 },
+                { color: '#2196f3', name: 'LightBlue', maxSpeed: 2.33, accel: 0.085, startOffset: { x: -160, y: 0 }, pathIndex: 85 },
+                { color: '#4caf50', name: 'MediumGreen', maxSpeed: 2.24, accel: 0.081, startOffset: { x: -160, y: -25 }, pathIndex: 90 },
+                { color: '#ffeb3b', name: 'BrightYellow', maxSpeed: 2.16, accel: 0.075, startOffset: { x: -160, y: 25 }, pathIndex: 95 }
+            ];
+            
+            gameState.aiCars = aiCarConfigs.map(config => ({
+                x: 720 + config.startOffset.x,
+                y: 430 + config.startOffset.y,
+                angle: Math.PI,
+                speed: 0,
+                maxSpeed: config.maxSpeed,
+                acceleration: config.accel,
+                friction: 0.05,
+                turnSpeed: 0.042, // 30% 더 세밀하게 (0.06 → 0.042)
+                color: config.color,
+                name: config.name,
+                pathIndex: config.pathIndex,
+                lap: 0,
+                passedCheckpoint: false,
+                recoveryTime: 0,
+                collisionCooldown: 0,
+                headlightColor: headlightColors[Math.floor(Math.random() * headlightColors.length)] // 랜덤 헤드라이트 색상
+            }));
+        }
+        
+        // 키보드 입력
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+        
+        // 트랙 경로 (대략적인 중심선)
+        const trackPath = [
+            {x: 720, y: 430}, {x: 650, y: 430}, {x: 580, y: 430},
+            {x: 520, y: 410}, {x: 470, y: 370}, {x: 440, y: 320},
+            {x: 430, y: 260}, {x: 430, y: 200}, {x: 430, y: 140},
+            {x: 450, y: 90}, {x: 490, y: 60}, {x: 540, y: 50},
+            {x: 600, y: 60}, {x: 650, y: 90}, {x: 680, y: 130},
+            {x: 690, y: 180}, {x: 680, y: 230}, {x: 650, y: 270},
+            {x: 600, y: 290}, {x: 540, y: 280}, {x: 490, y: 250},
+            {x: 470, y: 200}, {x: 480, y: 150}, {x: 520, y: 120},
+            {x: 250, y: 120}, {x: 200, y: 140}, {x: 170, y: 180},
+            {x: 160, y: 230}, {x: 160, y: 290}, {x: 160, y: 350},
+            {x: 160, y: 410}, {x: 180, y: 460}, {x: 220, y: 490},
+            {x: 270, y: 500}, {x: 330, y: 490}, {x: 380, y: 460},
+            {x: 410, y: 420}, {x: 420, y: 370}, {x: 410, y: 320},
+            {x: 380, y: 280}, {x: 330, y: 260}, {x: 270, y: 260},
+            {x: 220, y: 280}, {x: 190, y: 320}, {x: 180, y: 370},
+            {x: 180, y: 430}, {x: 180, y: 490}, {x: 180, y: 550},
+            {x: 200, y: 600}, {x: 240, y: 630}, {x: 290, y: 650},
+            {x: 350, y: 660}, {x: 410, y: 660}, {x: 470, y: 660},
+            {x: 530, y: 660}, {x: 590, y: 650}, {x: 640, y: 620},
+            {x: 680, y: 580}, {x: 700, y: 530}, {x: 710, y: 470},
+            {x: 720, y: 430}
+        ];
+        
+        const trackWidth = 84; // 트랙 폭 (30% 감소)
+        
+        // 이벤트 리스너
+        document.addEventListener('keydown', (e) => {
+            // 지도 모드에서는 화살표 키의 기본 동작 방지
+            if (gameState.mapMode && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                e.preventDefault();
+            }
+
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+        });
+        
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+        document.getElementById('firstPersonBtn').addEventListener('click', toggleFirstPersonMode);
+        document.getElementById('mapBtn').addEventListener('click', toggleMapMode);
+        document.getElementById('mapTypeSelect').addEventListener('change', changeMapType);
+        document.getElementById('labelToggleBtn').addEventListener('click', toggleLabels);
+
+        // 지도 타입 변경 함수
+        function changeMapType() {
+            if (!map) return;
+
+            const newMapType = document.getElementById('mapTypeSelect').value;
+            const tileConfig = getTileLayerConfig(newMapType);
+
+            // 기존 타일 레이어 제거
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+
+            // 새로운 타일 레이어 추가
+            currentTileLayer = L.tileLayer(tileConfig.url, {
+                attribution: tileConfig.attribution
+            }).addTo(map);
+
+            // 라벨 버튼 표시/숨김 처리
+            const labelBtn = document.getElementById('labelToggleBtn');
+            if (newMapType === 'satellite' || newMapType === 'osm') {
+                labelBtn.style.display = 'inline-block';
+                // 지도 타입 변경 시 라벨 상태 초기화
+                if (labelsEnabled && labelLayer) {
+                    map.removeLayer(labelLayer);
+                    labelLayer = null;
+                }
+                if (currentTileLayer) {
+                    currentTileLayer.setOpacity(1);
+                }
+                labelsEnabled = false;
+                labelsOnlyMode = false;
+                labelBtn.textContent = '라벨 켜기';
+            } else {
+                labelBtn.style.display = 'none';
+                // 다른 지도에서는 라벨 강제 끄기
+                if (labelLayer) {
+                    map.removeLayer(labelLayer);
+                    labelLayer = null;
+                }
+                if (currentTileLayer) {
+                    currentTileLayer.setOpacity(1);
+                }
+                labelsEnabled = false;
+                labelsOnlyMode = false;
+            }
+        }
+
+        // 라벨 토글 함수 (3가지 상태: 끄기 → 켜기 → 라벨만)
+        function toggleLabels() {
+            if (!map) return;
+
+            const btn = document.getElementById('labelToggleBtn');
+            const mapType = document.getElementById('mapTypeSelect').value;
+            const tileConfig = getTileLayerConfig(mapType);
+
+            if (labelsOnlyMode) {
+                // 라벨만 모드 → 라벨 끄기
+                if (labelLayer) {
+                    map.removeLayer(labelLayer);
+                    labelLayer = null;
+                }
+                // 지도 타일 다시 표시
+                if (currentTileLayer) {
+                    currentTileLayer.setOpacity(1);
+                }
+                labelsOnlyMode = false;
+                labelsEnabled = false;
+                btn.textContent = '라벨 켜기';
+
+            } else if (labelsEnabled) {
+                // 라벨 켜기 → 라벨만 모드
+                if (currentTileLayer && tileConfig.referenceUrl) {
+                    // 지도 타일을 투명하게 만들고 라벨만 표시
+                    currentTileLayer.setOpacity(0);
+                    labelsOnlyMode = true;
+                    btn.textContent = '라벨 끄기';
+                }
+
+            } else {
+                // 라벨 끄기 → 라벨 켜기
+                if (tileConfig.referenceUrl) {
+                    if (!labelLayer) {
+                        labelLayer = L.tileLayer(tileConfig.referenceUrl, {
+                            attribution: tileConfig.attribution,
+                            minZoom: 0,
+                            maxZoom: 20,
+                            opacity: 0.4
+                        }).addTo(map);
+                    }
+                    // 지도 타일 불투명하게 유지
+                    if (currentTileLayer) {
+                        currentTileLayer.setOpacity(1);
+                    }
+                    labelsEnabled = true;
+                    labelsOnlyMode = false;
+                    btn.textContent = '라벨만';
+                }
+            }
+        }
+
+        // 1인칭 모드 토글 함수
+        function toggleFirstPersonMode() {
+            gameState.firstPersonMode = !gameState.firstPersonMode;
+            const btn = document.getElementById('firstPersonBtn');
+            btn.textContent = gameState.firstPersonMode ? '3인칭 모드' : '1인칭 모드';
+
+            // 모드 변경 시 카메라 리셋
+            cameraOffsetX = 0;
+            cameraOffsetY = 0;
+
+            // 화면 즉시 업데이트
+            if (!gameState.running) {
+                drawTrack();
+                drawCar();
+                gameState.aiCars.forEach(aiCar => drawAICar(aiCar));
+                updateUI();
+            }
+        }
+
+        // 지도 모드 토글 함수
+        function toggleMapMode() {
+            gameState.mapMode = !gameState.mapMode;
+            const btn = document.getElementById('mapBtn');
+            btn.textContent = gameState.mapMode ? '트랙 모드' : '지도 모드';
+
+            const canvas = document.getElementById('gameCanvas');
+            const mapContainer = document.getElementById('mapContainer');
+
+            if (gameState.mapMode) {
+                // 지도 모드로 전환 - 항공사진을 기본으로 설정
+                canvas.style.display = 'none';
+                mapContainer.style.display = 'block';
+                document.getElementById('mapTypeSelect').style.display = 'inline-block';
+
+                // 항공사진을 기본으로 선택
+                document.getElementById('mapTypeSelect').value = 'satellite';
+                // 항공지도이므로 라벨 버튼 표시
+                document.getElementById('labelToggleBtn').style.display = 'inline-block';
+                // 라벨 상태 초기화
+                labelsEnabled = false;
+                labelsOnlyMode = false;
+                document.getElementById('labelToggleBtn').textContent = '라벨 켜기';
+
+                initMap();
+            } else {
+                // 트랙 모드로 전환
+                canvas.style.display = 'block';
+                mapContainer.style.display = 'none';
+                document.getElementById('mapTypeSelect').style.display = 'none';
+                document.getElementById('labelToggleBtn').style.display = 'none';
+
+                // 기존 차량 요소 제거
+                const existingCar = document.getElementById('fixedCar');
+                if (existingCar) {
+                    existingCar.remove();
+                }
+
+                if (map) {
+                    map.remove();
+                    map = null;
+                    currentTileLayer = null;
+                }
+                // 화면 즉시 업데이트
+                if (!gameState.running) {
+                    drawTrack();
+                    drawCar();
+                    gameState.aiCars.forEach(aiCar => drawAICar(aiCar));
+                    updateUI();
+                }
+            }
+        }
+
+        // 지도 타입별 타일 설정 함수
+        function getTileLayerConfig(mapType) {
+            const configs = {
+                osm: {
+                    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    attribution: '© OpenStreetMap contributors'
+                },
+                cartodb_dark: {
+                    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                    attribution: '© CartoDB contributors'
+                },
+                cartodb_positron: {
+                    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                    attribution: '© CartoDB contributors'
+                },
+                satellite: {
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    attribution: '© Esri contributors',
+                    referenceUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                }
+            };
+            return configs[mapType] || configs.osm;
+        }
+
+        // 지도 초기화 함수
+        function initMap() {
+            if (map) return;
+
+            // 서울 시청 좌표 (중심점)
+            const seoulCenter = [37.5665, 126.9780];
+            const mapType = document.getElementById('mapTypeSelect').value;
+
+            // Leaflet 지도 생성 - 키보드 조작 비활성화
+            map = L.map('mapContainer', {
+                keyboard: false,  // 키보드 조작 비활성화
+                dragging: false,  // 드래그 비활성화
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView(seoulCenter, 13);
+
+            // 선택된 지도 타입의 타일 추가
+            const tileConfig = getTileLayerConfig(mapType);
+            currentTileLayer = L.tileLayer(tileConfig.url, {
+                attribution: tileConfig.attribution
+            }).addTo(map);
+
+            // 서울시내 주행 경로 (시청 주변 도로)
+            const seoulPath = [
+                [37.5665, 126.9780], // 시청
+                [37.5675, 126.9800], // 시청 앞
+                [37.5690, 126.9820], // 청계천 방향
+                [37.5710, 126.9840], // 종로 방향
+                [37.5730, 126.9860], // 종로3가
+                [37.5750, 126.9880], // 종로5가
+                [37.5770, 126.9900], // 동대문 방향
+                [37.5790, 126.9920], // 동대문
+                [37.5810, 126.9940], // 신설동
+                [37.5830, 126.9960], // 청량리 방향
+                [37.5850, 126.9980], // 제기동
+                [37.5870, 127.0000], // 용두동
+                [37.5890, 127.0020], // 신답역
+                [37.5910, 127.0040], // 장안동
+                [37.5930, 127.0060], // 답십리
+                [37.5950, 127.0080], // 장한평
+                [37.5970, 127.0100], // 군자동
+                [37.5990, 127.0120], // 중곡동
+                [37.6010, 127.0140], // 광나루
+                [37.6030, 127.0160], // 구의동
+                [37.6050, 127.0180], // 강변역
+                [37.6070, 127.0200], // 뚝섬
+                [37.6090, 127.0220], // 성수동
+                [37.6110, 127.0240], // 금호동
+                [37.6130, 127.0260], // 옥수동
+                [37.6150, 127.0280], // 한강대교
+                [37.6170, 127.0300], // 이촌동
+                [37.6190, 127.0320], // 동작대교
+                [37.6210, 127.0340], // 노량진
+                [37.6230, 127.0360], // 상도동
+                [37.6250, 127.0380], // 숭실대
+                [37.6270, 127.0400], // 사당역
+                [37.6290, 127.0420], // 방배동
+                [37.6310, 127.0440], // 서초동
+                [37.6330, 127.0460], // 교대역
+                [37.6350, 127.0480], // 강남역
+                [37.6370, 127.0500], // 역삼동
+                [37.6390, 127.0520], // 선릉역
+                [37.6410, 127.0540], // 삼성동
+                [37.6430, 127.0560], // 청담동
+                [37.6450, 127.0580], // 압구정
+                [37.6470, 127.0600], // 신사역
+                [37.6490, 127.0620], // 가로수길
+                [37.6510, 127.0640], // 논현동
+                [37.6530, 127.0660], // 학동역
+                [37.6550, 127.0680], // 강남구청
+                [37.6570, 127.0700], // 개포동
+                [37.6590, 127.0720], // 일원동
+                [37.6610, 127.0740], // 수서역
+                [37.6630, 127.0760], // 가락동
+                [37.6650, 127.0780], // 문정동
+                [37.6670, 127.0800], // 장지역
+                [37.6690, 127.0820], // 복정역
+                [37.6710, 127.0840], // 위례신도시
+                [37.6730, 127.0860], // 거여동
+                [37.6750, 127.0880], // 마천동
+                [37.6770, 127.0900], // 송파구청
+                [37.6790, 127.0920], // 방이동
+                [37.6810, 127.0940], // 오금역
+                [37.6830, 127.0960], // 잠실역
+                [37.6850, 127.0980], // 석촌호수
+                [37.6870, 127.1000], // 송파나루
+                [37.6890, 127.1020], // 한강 방향
+                [37.6910, 127.1040], // 올림픽대교
+                [37.6930, 127.1060], // 광진구
+                [37.6950, 127.1080], // 중곡동
+                [37.6970, 127.1100], // 군자역
+                [37.6990, 127.1120], // 아차산
+                [37.7010, 127.1140], // 광나루역
+                [37.7030, 127.1160], // 구의역
+                [37.7050, 127.1180], // 강변역
+                [37.7070, 127.1200], // 뚝섬역
+                [37.7090, 127.1220], // 성수역
+                [37.7110, 127.1240], // 상왕십리
+                [37.7130, 127.1260], // 왕십리역
+                [37.7150, 127.1280], // 마장동
+                [37.7170, 127.1300], // 용마산
+                [37.7190, 127.1320], // 청량리역
+                [37.7210, 127.1340], // 회기역
+                [37.7230, 127.1360], // 외대앞
+                [37.7250, 127.1380], // 신이문
+                [37.7270, 127.1400], // 석계역
+                [37.7290, 127.1420], // 광운대
+                [37.7310, 127.1440], // 월계동
+                [37.7330, 127.1460], // 공릉동
+                [37.7350, 127.1480], // 태릉입구
+                [37.7370, 127.1500], // 화랑대
+                [37.7390, 127.1520], // 공릉역
+                [37.7410, 127.1540], // 먹골역
+                [37.7430, 127.1560], // 중화역
+                [37.7450, 127.1580], // 상봉역
+                [37.7470, 127.1600], // 면목역
+                [37.7490, 127.1620], // 사가정역
+                [37.7510, 127.1640], // 용마역
+                [37.7530, 127.1660], // 중곡역
+                [37.5665, 126.9780]  // 시청으로 돌아옴 (원형 코스)
+            ];
+
+            // 플레이어 차량 마커 초기화 (트랙 모드와 유사한 디자인)
+            const carIcon = L.divIcon({
+                html: `
+                    <div style="
+                        width: 30px;
+                        height: 20px;
+                        background: #e74c3c;
+                        border-radius: 2px;
+                        position: relative;
+                        transform-origin: center;
+                    ">
+                        <div style="
+                            width: 10px;
+                            height: 14px;
+                            background: #3498db;
+                            position: absolute;
+                            top: 3px;
+                            left: 10px;
+                            border-radius: 1px;
+                        "></div>
+                        <div style="
+                            width: 4px;
+                            height: 3px;
+                            background: #000;
+                            position: absolute;
+                            bottom: 0;
+                            left: 2px;
+                        "></div>
+                        <div style="
+                            width: 4px;
+                            height: 3px;
+                            background: #000;
+                            position: absolute;
+                            bottom: 0;
+                            right: 2px;
+                        "></div>
+                        <div style="
+                            width: 4px;
+                            height: 3px;
+                            background: #000;
+                            position: absolute;
+                            top: 0;
+                            left: 2px;
+                        "></div>
+                        <div style="
+                            width: 4px;
+                            height: 3px;
+                            background: #000;
+                            position: absolute;
+                            top: 0;
+                            right: 2px;
+                        "></div>
+                    </div>
+                `,
+                className: 'car-marker',
+                iconSize: [30, 20],
+                iconAnchor: [15, 10]
+            });
+
+            // 차량을 화면 중앙에 고정된 HTML 요소로 생성
+            const mapContainer = document.getElementById('mapContainer');
+            const carElement = document.createElement('div');
+            carElement.id = 'fixedCar';
+            carElement.innerHTML = `
+                <div style="
+                    width: 24px;
+                    height: 16px;
+                    background: #e74c3c;
+                    border-radius: 1.6px;
+                    position: relative;
+                    transform-origin: center;
+                ">
+                    <div style="
+                        width: 8px;
+                        height: 11.2px;
+                        background: #3498db;
+                        position: absolute;
+                        top: 2.4px;
+                        left: 8px;
+                        border-radius: 0.8px;
+                    "></div>
+                    <div style="
+                        width: 3.2px;
+                        height: 2.4px;
+                        background: #000;
+                        position: absolute;
+                        bottom: 0;
+                        left: 1.6px;
+                    "></div>
+                    <div style="
+                        width: 3.2px;
+                        height: 2.4px;
+                        background: #000;
+                        position: absolute;
+                        bottom: 0;
+                        right: 1.6px;
+                    "></div>
+                    <div style="
+                        width: 3.2px;
+                        height: 2.4px;
+                        background: #000;
+                        position: absolute;
+                        top: 0;
+                        left: 1.6px;
+                    "></div>
+                    <div style="
+                        width: 3.2px;
+                        height: 2.4px;
+                        background: #000;
+                        position: absolute;
+                        top: 0;
+                        right: 1.6px;
+                    "></div>
+                    <!-- 헤드라이트 (차량 좌측에 추가, 차량 길이 3배만큼 비춤) -->
+                    <div style="
+                        width: 2.4px;
+                        height: 2.4px;
+                        background: #ffff99;
+                        position: absolute;
+                        top: 6.4px;
+                        left: -2.4px;
+                        border-radius: 50%;
+                        box-shadow:
+                            0 0 6px #ffff99,
+                            -72px 0 24px 24px rgba(255, 255, 153, 0.3),
+                            -48px 0 18px 18px rgba(255, 255, 153, 0.4),
+                            -24px 0 12px 12px rgba(255, 255, 153, 0.5);
+                    "></div>
+                    <div style="
+                        width: 2.4px;
+                        height: 2.4px;
+                        background: #ffff99;
+                        position: absolute;
+                        bottom: 6.4px;
+                        left: -2.4px;
+                        border-radius: 50%;
+                        box-shadow:
+                            0 0 6px #ffff99,
+                            -72px 0 24px 24px rgba(255, 255, 153, 0.3),
+                            -48px 0 18px 18px rgba(255, 255, 153, 0.4),
+                            -24px 0 12px 12px rgba(255, 255, 153, 0.5);
+                    "></div>
+                </div>
+            `;
+            carElement.style.cssText = `
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 1000;
+                pointer-events: none;
+                transition: transform 0.1s ease-out;
+            `;
+            mapContainer.appendChild(carElement);
+
+            // 초기 차량 위치 설정 (지도 중앙)
+            const centerPos = map.getCenter();
+            mapCarPosition = { lat: centerPos.lat, lng: centerPos.lng };
+            mapCarAngle = 0; // 북쪽 방향으로 시작
+
+            // 지도를 최대 확대하고 플레이어 차량을 중앙에 위치
+            map.setView(seoulPath[0], 18); // 최대 확대 레벨
+        }
+
+        // 지도 모드용 차량 위치 초기화
+        let mapCarPosition = { lat: 37.5665, lng: 126.9780 }; // 서울 시청 시작점
+        let mapCarAngle = 0; // 차량 방향 (북쪽이 0도)
+
+        // 지도 좌표를 실제 거리로 변환 (km/h 계산용)
+        function calculateRealSpeed(moveDistance) {
+            // 서울 근처 위도 37.5°에서의 실제 거리 변환
+            // 경도 1° = 88.8km, 위도 1° = 111.1km
+            // 현재 moveDistance는 경도 변화량 (동서 이동이 주)
+            const metersPerLngDegree = 88800; // 경도 1° = 88.8km = 88800m
+            const metersMoved = Math.abs(moveDistance) * metersPerLngDegree;
+
+            // 프레임당 이동거리, 60 FPS 기준으로 시간당 속도 계산
+            const framesPerSecond = 60;
+            const metersPerHour = metersMoved * framesPerSecond * 3600;
+
+            // 실제 측정값 1575 km/h에 맞게 보정 (1575 / 11508.48 ≈ 0.1368)
+            const speedMultiplier = 0.1368;
+            return (metersPerHour / 1000) * speedMultiplier; // km/h로 변환
+        }
+
+        // 지도 모드에서 차량 위치 업데이트 (1인칭 운전)
+        function updateMapPositions() {
+            if (!gameState.mapMode || !map || !gameState.running) return;
+
+            // 1인칭 모드: 차량은 항상 지도 중앙에 고정, 지도가 움직임
+            const centerLatLng = map.getCenter();
+            mapCarPosition = { lat: centerLatLng.lat, lng: centerLatLng.lng };
+
+            // 키보드 입력에 따라 가속/감속 적용
+            let turnAmount = 0;
+
+            // 전진/후진 가속도 적용
+            if (keys.up) {
+                // 전진: 속도를 양수로 증가
+                currentMapSpeed = Math.min(currentMapSpeed + acceleration, 0.0006); // 최고속도 500 km/h
+            } else if (keys.down) {
+                // 후진: 속도를 음수로 감소
+                currentMapSpeed = Math.max(currentMapSpeed - acceleration, -0.0003); // 후진 최고속도
+            } else {
+                // 키를 떼면 감속 적용
+                if (currentMapSpeed > 0) {
+                    currentMapSpeed = Math.max(currentMapSpeed - deceleration, 0);
+                } else if (currentMapSpeed < 0) {
+                    currentMapSpeed = Math.min(currentMapSpeed + deceleration, 0);
+                }
+            }
+
+            // 회전은 즉시 적용
+            if (keys.left) turnAmount = -0.025; // 좌회전 (더 세밀하게)
+            if (keys.right) turnAmount = 0.025; // 우회전 (더 세밀하게)
+
+            const moveDistance = currentMapSpeed;
+
+            if (moveDistance !== 0 || turnAmount !== 0) {
+                // 방향 업데이트
+                mapCarAngle += turnAmount;
+
+                // 현재 지도 중심에서 상대적 이동 계산
+                const radAngle = mapCarAngle;
+                const deltaLat = Math.cos(radAngle) * moveDistance;
+                const deltaLng = Math.sin(radAngle) * moveDistance;
+
+                // 새로운 지도 중심 계산
+                const newCenter = L.latLng(
+                    centerLatLng.lat + deltaLat,
+                    centerLatLng.lng + deltaLng
+                );
+
+                // 지도 중심 이동 (차량이 중앙에 유지됨)
+                map.setView(newCenter, map.getZoom());
+
+                // 차량은 화면 중앙에 고정되어 있으므로 위치 업데이트 불필요
+
+                // 차량 회전 적용 (북쪽이 0도 기준)
+                const rotationDegrees = (mapCarAngle * 180 / Math.PI) + 90;
+                const carElement = document.getElementById('fixedCar');
+                if (carElement) {
+                    carElement.style.transform = `translate(-50%, -50%) rotate(${rotationDegrees}deg)`;
+                }
+
+                // 실제 속도 계산 및 표시 (km/h)
+                const realSpeedKmh = calculateRealSpeed(moveDistance);
+                document.getElementById('speedKmh').textContent = realSpeedKmh.toFixed(1);
+            } else {
+                // 정지 시 속도 0으로 표시
+                document.getElementById('speedKmh').textContent = '0.0';
+                // 차량은 항상 화면 중앙에 고정되어 있음
+                // 별도 처리 불필요
+            }
+        }
+
+        // 카메라 업데이트 (플레이어 차량을 항상 화면 중앙에 위치)
+        function updateCamera() {
+            if (!gameState.firstPersonMode) return;
+
+            const screenCenterX = canvas.width / 2;
+            const screenCenterY = canvas.height / 2;
+
+            // 플레이어 차량이 항상 화면 중앙에 오도록 카메라 오프셋 설정
+            cameraOffsetX = gameState.car.x - screenCenterX;
+            cameraOffsetY = gameState.car.y - screenCenterY;
+
+            // 카메라 오프셋이 너무 커지면 좌표계를 재설정 (부동소수점 정밀도 유지)
+            const maxOffsetBeforeReset = 10000; // 10000px 이상이면 리셋
+            if (Math.abs(cameraOffsetX) > maxOffsetBeforeReset || Math.abs(cameraOffsetY) > maxOffsetBeforeReset) {
+                console.log(`좌표계 재설정: 오프셋 (${cameraOffsetX.toFixed(1)}, ${cameraOffsetY.toFixed(1)})`);
+
+                // 모든 객체들의 좌표를 카메라 오프셋만큼 이동시켜 좌표계 재설정
+                const resetOffsetX = Math.round(cameraOffsetX);
+                const resetOffsetY = Math.round(cameraOffsetY);
+
+                // 플레이어 차량 좌표 재설정
+                gameState.car.x -= resetOffsetX;
+                gameState.car.y -= resetOffsetY;
+
+                // AI 차량 좌표 재설정
+                gameState.aiCars.forEach(aiCar => {
+                    aiCar.x -= resetOffsetX;
+                    aiCar.y -= resetOffsetY;
+                });
+
+                // 트랙 좌표 재설정
+                for (let i = 0; i < trackPath.length; i++) {
+                    trackPath[i].x -= resetOffsetX;
+                    trackPath[i].y -= resetOffsetY;
+                }
+
+                // 충돌 효과 좌표 재설정
+                collisionEffects.forEach(effect => {
+                    effect.x -= resetOffsetX;
+                    effect.y -= resetOffsetY;
+                });
+
+                // 카메라 오프셋 리셋
+                cameraOffsetX = 0;
+                cameraOffsetY = 0;
+
+                console.log(`재설정 완료: 차량 (${gameState.car.x.toFixed(1)}, ${gameState.car.y.toFixed(1)})`);
+            }
+        }
+
+        // 월드 좌표를 화면 좌표로 변환
+        function worldToScreen(worldX, worldY) {
+            if (!gameState.firstPersonMode) {
+                return { x: worldX, y: worldY };
+            }
+            return {
+                x: worldX - cameraOffsetX,
+                y: worldY - cameraOffsetY
+            };
+        }
+
+        function startGame() {
+            if (!gameState.running) {
+                gameState.running = true;
+                gameState.startTime = Date.now();
+                initAICars();
+
+                // 지도 모드인 경우 차량 위치 초기화
+                if (gameState.mapMode && map) {
+                    const centerPos = map.getCenter();
+                    mapCarPosition = { lat: centerPos.lat, lng: centerPos.lng };
+                    mapCarAngle = 0; // 북쪽 방향으로 시작
+                    currentMapSpeed = 0; // 속도 초기화
+
+                    // 차량 회전 초기화
+                    const carElement = document.getElementById('fixedCar');
+                    if (carElement) {
+                        carElement.style.transform = `translate(-50%, -50%) rotate(90deg)`;
+                    }
+                }
+
+                gameLoop();
+            }
+        }
+        
+        function resetGame() {
+            gameState.running = false;
+            gameState.car = {
+                x: 720,
+                y: 430,
+                angle: Math.PI,
+                speed: 0,
+                maxSpeed: 3,
+                acceleration: 0.1,
+                friction: 0.05,
+                turnSpeed: 0.028,
+                collisionCooldown: 0,
+                name: '플레이어',
+                color: '#e74c3c',
+                lap: 0,
+                passedCheckpoint: false
+            };
+            gameState.timer = 0;
+            gameState.lap = 0;
+            gameState.passedCheckpoint = false;
+            gameState.aiCars = [];
+
+            // 지도 모드인 경우 차량 위치 리셋
+            if (gameState.mapMode && map) {
+                const centerPos = map.getCenter();
+                mapCarPosition = { lat: centerPos.lat, lng: centerPos.lng };
+                mapCarAngle = 0; // 북쪽 방향으로 리셋
+                currentMapSpeed = 0; // 속도 리셋
+
+                // 차량 회전 리셋
+                const carElement = document.getElementById('fixedCar');
+                if (carElement) {
+                    carElement.style.transform = `translate(-50%, -50%) rotate(90deg)`;
+                }
+            }
+
+            updateUI();
+        }
+        
+        function updateCar() {
+            const car = gameState.car;
+            
+            // 충돌 쿨다운 감소
+            if (car.collisionCooldown > 0) {
+                car.collisionCooldown--;
+            }
+            
+            // 이전 위치 저장
+            const prevX = car.x;
+            const prevY = car.y;
+            const prevSpeed = car.speed;
+            
+            // 가속/감속
+            if (keys.up) {
+                car.speed = Math.min(car.speed + car.acceleration, car.maxSpeed);
+            } else if (keys.down) {
+                car.speed = Math.max(car.speed - car.acceleration, -car.maxSpeed / 2);
+            } else {
+                // 마찰력
+                if (car.speed > 0) {
+                    car.speed = Math.max(0, car.speed - car.friction);
+                } else if (car.speed < 0) {
+                    car.speed = Math.min(0, car.speed + car.friction);
+                }
+            }
+            
+            // 회전
+            if (keys.left && Math.abs(car.speed) > 0.5) {
+                car.angle -= car.turnSpeed;
+            }
+            if (keys.right && Math.abs(car.speed) > 0.5) {
+                car.angle += car.turnSpeed;
+            }
+            
+            // 이동
+            car.x += Math.cos(car.angle) * car.speed;
+            car.y += Math.sin(car.angle) * car.speed;
+            
+            // 충돌 감지 (쿨다운 중이면 충돌 무시)
+            if (checkCollision(car.x, car.y) && car.collisionCooldown <= 0) {
+                // 트랙 경계로부터의 반발력 계산
+                const nearestPoint = findNearestTrackPoint(car.x, car.y);
+                const bounceAngle = Math.atan2(car.y - nearestPoint.y, car.x - nearestPoint.x);
+
+                // 강한 튕김 효과
+                const bounceStrength = Math.abs(prevSpeed) * 1.5;
+                car.x = prevX + Math.cos(bounceAngle) * bounceStrength;
+                car.y = prevY + Math.sin(bounceAngle) * bounceStrength;
+
+                // 속도 반전 및 감소
+                car.speed = -prevSpeed * 0.6;
+
+                // 차량 방향도 약간 변경
+                car.angle += (Math.random() - 0.5) * 0.4;
+
+                // 1초 동안 추가 충돌 무시 (60프레임)
+                car.collisionCooldown = 60;
+
+                // 충돌 효과 표시
+                showCollisionEffect(car.x, car.y);
+            }
+            
+            // 체크포인트 확인
+            checkCheckpoint();
+        }
+        
+        function checkCollision(x, y) {
+            // 트랙 중심선까지의 최단 거리 계산
+            let minDistance = Infinity;
+            
+            for (let i = 0; i < trackPath.length; i++) {
+                const p1 = trackPath[i];
+                const p2 = trackPath[(i + 1) % trackPath.length];
+                
+                const distance = distanceToSegment(x, y, p1.x, p1.y, p2.x, p2.y);
+                minDistance = Math.min(minDistance, distance);
+            }
+            
+            // 트랙 폭의 절반보다 멀리 있으면 충돌
+            return minDistance > trackWidth / 2;
+        }
+        
+        function distanceToSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lengthSquared = dx * dx + dy * dy;
+            
+            if (lengthSquared === 0) {
+                return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1));
+            }
+            
+            let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared;
+            t = Math.max(0, Math.min(1, t));
+            
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            
+            return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+        }
+        
+        let collisionEffects = [];
+        
+        function showCollisionEffect(x, y) {
+            collisionEffects.push({
+                x: x,
+                y: y,
+                life: 20,
+                maxLife: 20
+            });
+        }
+        
+        function checkCheckpoint() {
+            const car = gameState.car;
+            
+            // 중간 체크포인트 (왼쪽 하단 부근)
+            if (!car.passedCheckpoint && 
+                car.x > 150 && car.x < 250 && 
+                car.y > 550 && car.y < 650) {
+                car.passedCheckpoint = true;
+                gameState.passedCheckpoint = true;
+            }
+            
+            // 결승선 (오른쪽 중간 부근)
+            if (car.passedCheckpoint && 
+                car.x > 680 && car.x < 750 && 
+                car.y > 400 && car.y < 460) {
+                car.lap++;
+                gameState.lap = car.lap;
+                car.passedCheckpoint = false;
+                gameState.passedCheckpoint = false;
+                
+                if (car.lap >= gameState.maxLaps) {
+                    gameState.running = false;
+                    const rankings = calculateRankings();
+                    const playerRank = rankings.findIndex(c => c.name === '플레이어') + 1;
+                    alert(`🏁 완주! ${playerRank}위로 피니시!\n기록: ${gameState.timer.toFixed(1)}초`);
+                }
+            }
+        }
+        
+        function drawTrack() {
+            // 배경
+            ctx.fillStyle = '#e8e8e8';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 트랙 그리기 (회색)
+            ctx.strokeStyle = '#6b6b6b';
+            ctx.lineWidth = trackWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            for (let i = 0; i < trackPath.length; i++) {
+                const point = trackPath[i];
+                const screenPos = worldToScreen(point.x, point.y);
+                if (i === 0) ctx.moveTo(screenPos.x, screenPos.y);
+                else ctx.lineTo(screenPos.x, screenPos.y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            
+            // 트랙 외곽 (검은색 테두리)
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = trackWidth + 12;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.setLineDash([15, 15]);
+            ctx.beginPath();
+            for (let i = 0; i < trackPath.length; i++) {
+                const point = trackPath[i];
+                const screenPos = worldToScreen(point.x, point.y);
+                if (i === 0) ctx.moveTo(screenPos.x, screenPos.y);
+                else ctx.lineTo(screenPos.x, screenPos.y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            
+            // 트랙 중심선 (하얀 점선)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([15, 15]);
+            ctx.beginPath();
+            for (let i = 0; i < trackPath.length; i++) {
+                const point = trackPath[i];
+                const screenPos = worldToScreen(point.x, point.y);
+                if (i === 0) ctx.moveTo(screenPos.x, screenPos.y);
+                else ctx.lineTo(screenPos.x, screenPos.y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 결승선
+            const finishX = 720;
+            const finishY = 430;
+            const finishScreenPos = worldToScreen(finishX, finishY);
+            ctx.fillStyle = '#000';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 2; j++) {
+                    if ((i + j) % 2 === 0) {
+                        ctx.fillStyle = '#000';
+                    } else {
+                        ctx.fillStyle = '#fff';
+                    }
+                    ctx.fillRect(finishScreenPos.x - 20 + j * 10, finishScreenPos.y - 40 + i * 10, 10, 10);
+                }
+            }
+
+            // 트랙 방향 화살표 표시
+            drawDirectionArrows();
+        }
+
+        // 트랙 방향 화살표를 그리는 함수
+        function drawDirectionArrows() {
+            ctx.fillStyle = '#ffff00'; // 노란색으로 더 잘 보이게
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3; // 선 굵기도 키움
+
+            // 시작점에 큰 방향 화살표 표시
+            if (trackPath.length > 1) {
+                const startPoint = trackPath[0];
+                const nextPoint = trackPath[1];
+                const angle = Math.atan2(nextPoint.y - startPoint.y, nextPoint.x - startPoint.x);
+                const arrowPos = worldToScreen(startPoint.x + 50, startPoint.y);
+
+                ctx.save();
+                ctx.translate(arrowPos.x, arrowPos.y); // 시작점에서 약간 떨어진 곳에
+                ctx.rotate(angle);
+
+                // 큰 시작 화살표 (2배 크기)
+                ctx.fillStyle = '#ff0000'; // 빨간색으로 시작점 강조
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 6; // 선 굵기도 2배
+
+                // 화살표 몸체
+                ctx.beginPath();
+                ctx.moveTo(-30, 0);
+                ctx.lineTo(30, 0);
+                ctx.stroke();
+
+                // 화살표 머리
+                ctx.beginPath();
+                ctx.moveTo(30, 0);
+                ctx.lineTo(10, -16);
+                ctx.lineTo(10, 16);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // 트랙을 따라 방향 화살표 표시 (일정 간격으로, 2배 크기)
+            const arrowSpacing = Math.max(4, Math.floor(trackPath.length / 12)); // 간격도 약간 넓힘
+
+            for (let i = 1; i < trackPath.length - 1; i += arrowSpacing) {
+                const currentPoint = trackPath[i];
+                const nextPoint = trackPath[i + 1] || trackPath[0];
+
+                // 두 점 사이의 중간 지점 계산
+                const midX = (currentPoint.x + nextPoint.x) / 2;
+                const midY = (currentPoint.y + nextPoint.y) / 2;
+                const arrowPos = worldToScreen(midX, midY);
+
+                // 방향 벡터 계산
+                const dx = nextPoint.x - currentPoint.x;
+                const dy = nextPoint.y - currentPoint.y;
+                const angle = Math.atan2(dy, dx);
+
+                // 화살표 그리기
+                ctx.save();
+                ctx.translate(arrowPos.x, arrowPos.y);
+                ctx.rotate(angle);
+
+                // 방향 화살표 (2배 크기)
+                ctx.fillStyle = '#ffff00'; // 노란색
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2; // 선 굵기도 키움
+
+                // 화살표 몸체
+                ctx.beginPath();
+                ctx.moveTo(-12, 0);
+                ctx.lineTo(12, 0);
+                ctx.stroke();
+
+                // 화살표 머리
+                ctx.beginPath();
+                ctx.moveTo(12, 0);
+                ctx.lineTo(4, -6);
+                ctx.lineTo(4, 6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+        
+        function drawCar() {
+            const car = gameState.car;
+
+            ctx.save();
+            if (gameState.firstPersonMode) {
+                // 1인칭 모드: 플레이어 차량을 화면 중앙에 고정
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(car.angle);
+            } else {
+                // 3인칭 모드: 기존 방식대로 월드 좌표 사용
+                const screenPos = worldToScreen(car.x, car.y);
+                ctx.translate(screenPos.x, screenPos.y);
+                ctx.rotate(car.angle);
+            }
+
+            // 자동차 몸체 (20% 감소)
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(-8.82, -5.88, 17.64, 11.76);
+
+            // 자동차 창문 (20% 감소)
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(-2.94, -4.116, 5.88, 8.232);
+
+            // 바퀴 (20% 감소)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-7.056, -7.056, 4.704, 2.94);
+            ctx.fillRect(-7.056, 4.116, 4.704, 2.94);
+            ctx.fillRect(2.352, -7.056, 4.704, 2.94);
+            ctx.fillRect(2.352, 4.116, 4.704, 2.94);
+
+            // 헤드라이트 (플레이어 차량 전면에 불켜진 라이트, 20% 감소)
+            ctx.fillStyle = '#ffff99';
+            ctx.beginPath();
+            ctx.arc(8.82, -3.92, 1.568, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(8.82, 3.92, 1.568, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 헤드라이트 빛 효과 (20% 감소)
+            const gradient = ctx.createRadialGradient(11.76, 0, 0, 11.76, 0, 9.8);
+            gradient.addColorStop(0, 'rgba(255, 255, 153, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 255, 153, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(11.76, 0, 9.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+        
+        function drawAICar(aiCar) {
+            ctx.save();
+            const screenPos = worldToScreen(aiCar.x, aiCar.y);
+            ctx.translate(screenPos.x, screenPos.y);
+            ctx.rotate(aiCar.angle);
+
+            // 자동차 몸체 (20% 감소)
+            ctx.fillStyle = aiCar.color;
+            ctx.fillRect(-8.82, -5.88, 17.64, 11.76);
+
+            // 자동차 창문 (20% 감소)
+            ctx.fillStyle = '#34495e';
+            ctx.fillRect(-2.94, -4.116, 5.88, 8.232);
+
+            // 바퀴 (20% 감소)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-7.056, -7.056, 4.704, 2.94);
+            ctx.fillRect(-7.056, 4.116, 4.704, 2.94);
+            ctx.fillRect(2.352, -7.056, 4.704, 2.94);
+            ctx.fillRect(2.352, 4.116, 4.704, 2.94);
+
+            // 헤드라이트 (AI 차량 전면에 랜덤 색상 라이트)
+            ctx.fillStyle = aiCar.headlightColor;
+            ctx.beginPath();
+            ctx.arc(11.025, -4.9, 1.96, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(11.025, 4.9, 1.96, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 헤드라이트 빛 효과
+            const gradient = ctx.createRadialGradient(14.7, 0, 0, 14.7, 0, 12.25);
+            gradient.addColorStop(0, aiCar.headlightColor + '66'); // 색상에 투명도 추가
+            gradient.addColorStop(1, aiCar.headlightColor + '00');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(14.7, 0, 12.25, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+        
+        function updateAICars() {
+            gameState.aiCars.forEach(aiCar => {
+                // 이전 위치 저장
+                const prevX = aiCar.x;
+                const prevY = aiCar.y;
+                const prevAngle = aiCar.angle;
+                const prevSpeed = aiCar.speed;
+                
+                // 복구 시간 감소
+                if (aiCar.recoveryTime > 0) {
+                    aiCar.recoveryTime--;
+                }
+                
+                // 충돌 쿨다운 감소
+                if (aiCar.collisionCooldown > 0) {
+                    aiCar.collisionCooldown--;
+                }
+                
+                // 현재 트랙 충돌 상태 확인
+                const isOffTrack = checkCollision(aiCar.x, aiCar.y);
+                
+                // 트랙 이탈 시 즉시 복구 모드
+                if (isOffTrack) {
+                    aiCar.recoveryTime = Math.max(aiCar.recoveryTime, 40);
+                }
+                
+                // 목표 지점 설정 (복구 모드에서는 훨씬 더 먼 지점)
+                const lookAhead = aiCar.recoveryTime > 0 ? 15 : 6;
+                const targetIndex = (aiCar.pathIndex + lookAhead) % trackPath.length;
+                const target = trackPath[targetIndex];
+                
+                // 가장 가까운 트랙 지점 찾기
+                const nearestTrackPoint = findNearestTrackPoint(aiCar.x, aiCar.y);
+                const distToNearestTrack = Math.sqrt(
+                    (nearestTrackPoint.x - aiCar.x) ** 2 + 
+                    (nearestTrackPoint.y - aiCar.y) ** 2
+                );
+                
+                // 복구 모드: 트랙에서 멀리 있으면 트랙으로 먼저 향함
+                let targetX, targetY;
+                if (aiCar.recoveryTime > 0 && distToNearestTrack > 20) {
+                    targetX = nearestTrackPoint.x;
+                    targetY = nearestTrackPoint.y;
+                } else {
+                    targetX = target.x;
+                    targetY = target.y;
+                }
+                
+                // 목표 방향 계산
+                const dx = targetX - aiCar.x;
+                const dy = targetY - aiCar.y;
+                const targetAngle = Math.atan2(dy, dx);
+                
+                // 각도 차이 계산 (-π ~ π 범위로 정규화)
+                let angleDiff = targetAngle - aiCar.angle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                
+                // 회전 속도 조정 (복구 중에는 훨씬 더 빠르게)
+                let turnMultiplier = 1;
+                if (aiCar.recoveryTime > 0) {
+                    turnMultiplier = isOffTrack ? 2.5 : 1.8;
+                }
+                
+                // 부드러운 회전
+                if (Math.abs(angleDiff) > 0.03) {
+                    const turnAmount = Math.min(Math.abs(angleDiff), aiCar.turnSpeed * turnMultiplier);
+                    aiCar.angle += Math.sign(angleDiff) * turnAmount;
+                }
+                
+                // 속도 조절
+                let targetSpeed;
+                if (isOffTrack) {
+                    // 트랙 이탈 시 속도 크게 감소
+                    targetSpeed = aiCar.maxSpeed * 0.3;
+                } else if (aiCar.recoveryTime > 0) {
+                    // 복구 중
+                    targetSpeed = aiCar.maxSpeed * 0.7;
+                } else if (Math.abs(angleDiff) > 0.5) {
+                    // 급커브
+                    targetSpeed = aiCar.maxSpeed * 0.6;
+                } else {
+                    // 정상 주행
+                    targetSpeed = aiCar.maxSpeed;
+                }
+                
+                // 가속/감속
+                if (aiCar.speed < targetSpeed) {
+                    const accelMultiplier = aiCar.recoveryTime > 0 ? 1.5 : 1;
+                    aiCar.speed = Math.min(aiCar.speed + aiCar.acceleration * accelMultiplier, targetSpeed);
+                } else {
+                    aiCar.speed = Math.max(aiCar.speed - aiCar.friction * 2, targetSpeed);
+                }
+                
+                // 이동
+                const moveDistance = Math.abs(aiCar.speed);
+                aiCar.x += Math.cos(aiCar.angle) * aiCar.speed;
+                aiCar.y += Math.sin(aiCar.angle) * aiCar.speed;
+                
+                // 이동 후 트랙 충돌 체크 (쿨다운 중이면 충돌 무시)
+                if (checkCollision(aiCar.x, aiCar.y) && aiCar.collisionCooldown <= 0) {
+                    // 트랙 경계로부터의 반발력 계산
+                    const bounceAngle = Math.atan2(aiCar.y - nearestTrackPoint.y, aiCar.x - nearestTrackPoint.x);
+
+                    // 강한 튕김 효과
+                    const bounceStrength = Math.abs(prevSpeed) * 1.2;
+                    aiCar.x = prevX + Math.cos(bounceAngle) * bounceStrength;
+                    aiCar.y = prevY + Math.sin(bounceAngle) * bounceStrength;
+
+                    // 속도 반전 및 감소
+                    aiCar.speed = -prevSpeed * 0.5;
+
+                    // 차량 방향 변경
+                    aiCar.angle += (Math.random() - 0.5) * 0.4;
+
+                    // 1초 동안 추가 충돌 무시 (60프레임)
+                    aiCar.collisionCooldown = 60;
+
+                    // 충돌 후 다시 트랙 밖이면 강제 트랙 중심 향하기
+                    if (checkCollision(aiCar.x, aiCar.y)) {
+                        aiCar.x = prevX;
+                        aiCar.y = prevY;
+                        const angleToTrack = Math.atan2(
+                            nearestTrackPoint.y - aiCar.y,
+                            nearestTrackPoint.x - aiCar.x
+                        );
+                        aiCar.angle = angleToTrack;
+                        aiCar.speed *= 0.3;
+                    }
+
+                    aiCar.recoveryTime = 50;
+                    showCollisionEffect(aiCar.x, aiCar.y);
+                }
+                
+                // 경로 포인트 업데이트
+                const distToTarget = Math.sqrt(
+                    (target.x - aiCar.x) ** 2 + 
+                    (target.y - aiCar.y) ** 2
+                );
+                if (distToTarget < 50) {
+                    aiCar.pathIndex = (aiCar.pathIndex + 1) % trackPath.length;
+                }
+                
+                // AI 체크포인트 확인
+                checkAICheckpoint(aiCar);
+            });
+            
+            // AI 차량 간 충돌 체크
+            for (let i = 0; i < gameState.aiCars.length; i++) {
+                for (let j = i + 1; j < gameState.aiCars.length; j++) {
+                    checkCarCollision(gameState.aiCars[i], gameState.aiCars[j]);
+                }
+                // 플레이어와 AI 차량 충돌
+                checkCarCollision(gameState.car, gameState.aiCars[i]);
+            }
+        }
+        
+        function findNearestTrackPoint(x, y) {
+            let nearestPoint = trackPath[0];
+            let minDist = Infinity;
+            
+            for (let i = 0; i < trackPath.length; i++) {
+                const point = trackPath[i];
+                const dist = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestPoint = point;
+                }
+            }
+            
+            return nearestPoint;
+        }
+        
+        function checkCarCollision(car1, car2) {
+            // 쿨다운 중이면 충돌 무시
+            if (car1.collisionCooldown > 0 || car2.collisionCooldown > 0) {
+                return;
+            }
+            
+            const dx = car1.x - car2.x;
+            const dy = car1.y - car2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // 차량 크기를 고려한 충돌 반경 (20% 감소)
+            const collisionRadius = 7.35;
+            
+            if (distance < collisionRadius && distance > 0) {
+                // 충돌 방향 계산
+                const angle = Math.atan2(dy, dx);
+                
+                // 강한 튕김 효과
+                const pushForce = (collisionRadius - distance) * 0.8;
+                const pushX = Math.cos(angle) * pushForce;
+                const pushY = Math.sin(angle) * pushForce;
+                
+                // 차량 강하게 분리
+                car1.x += pushX;
+                car1.y += pushY;
+                car2.x -= pushX;
+                car2.y -= pushY;
+                
+                // 속도 교환 및 튕김 (더 강한 효과)
+                const relativeVelocity = car1.speed - car2.speed;
+                const impactStrength = 1.2; // 튕김 강도
+                
+                car1.speed = (car2.speed + relativeVelocity * 0.3) * impactStrength;
+                car2.speed = (car1.speed - relativeVelocity * 0.3) * impactStrength;
+                
+                // 충돌 각도로 차량 방향 변경
+                car1.angle += (Math.random() - 0.5) * 0.3;
+                car2.angle += (Math.random() - 0.5) * 0.3;
+                
+                // 충돌 쿨다운 설정 (약 1초 = 60프레임)
+                car1.collisionCooldown = 60;
+                car2.collisionCooldown = 60;
+                
+                // AI 차량이면 복구 모드 활성화
+                if (car1.recoveryTime !== undefined) {
+                    car1.recoveryTime = 20;
+                }
+                if (car2.recoveryTime !== undefined) {
+                    car2.recoveryTime = 20;
+                }
+                
+                // 충돌 효과
+                showCollisionEffect((car1.x + car2.x) / 2, (car1.y + car2.y) / 2);
+            }
+        }
+        
+        function checkAICheckpoint(aiCar) {
+            // 중간 체크포인트
+            if (!aiCar.passedCheckpoint && 
+                aiCar.x > 150 && aiCar.x < 250 && 
+                aiCar.y > 550 && aiCar.y < 650) {
+                aiCar.passedCheckpoint = true;
+            }
+            
+            // 결승선
+            if (aiCar.passedCheckpoint && 
+                aiCar.x > 680 && aiCar.x < 750 && 
+                aiCar.y > 400 && aiCar.y < 460) {
+                aiCar.lap++;
+                aiCar.passedCheckpoint = false;
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('timer').textContent = gameState.timer.toFixed(1);
+            document.getElementById('lap').textContent = gameState.car.lap;
+            document.getElementById('speed').textContent = Math.abs(gameState.car.speed).toFixed(1);
+
+            // 지도 모드가 아닐 때는 km/h 표시를 0으로
+            if (!gameState.mapMode) {
+                document.getElementById('speedKmh').textContent = '0.0';
+            }
+
+            updateRankings();
+        }
+        
+        function calculateRankings() {
+            const allCars = [gameState.car, ...gameState.aiCars];
+            
+            // 각 차량의 진행도 계산
+            const carsWithProgress = allCars.map(car => {
+                // 랩 수가 높을수록 우선
+                // 같은 랩이면 pathIndex가 높을수록 우선 (AI만 해당)
+                // 플레이어는 현재 위치로 진행도 계산
+                let progress;
+                if (car.pathIndex !== undefined) {
+                    // AI 차량
+                    progress = car.lap * trackPath.length + car.pathIndex;
+                } else {
+                    // 플레이어: 가장 가까운 경로 포인트 찾기
+                    let closestIndex = 0;
+                    let minDist = Infinity;
+                    for (let i = 0; i < trackPath.length; i++) {
+                        const dist = Math.sqrt(
+                            (trackPath[i].x - car.x) ** 2 + 
+                            (trackPath[i].y - car.y) ** 2
+                        );
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestIndex = i;
+                        }
+                    }
+                    progress = car.lap * trackPath.length + closestIndex;
+                }
+                
+                return {
+                    name: car.name,
+                    color: car.color,
+                    lap: car.lap,
+                    progress: progress
+                };
+            });
+            
+            // 진행도 기준으로 정렬
+            carsWithProgress.sort((a, b) => b.progress - a.progress);
+            
+            return carsWithProgress;
+        }
+        
+        function updateRankings() {
+            const rankings = calculateRankings();
+            const rankingList = document.getElementById('rankingList');
+            
+            rankingList.innerHTML = rankings.map((car, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏁';
+                const isPlayer = car.name === '플레이어';
+                const style = isPlayer ? 'font-weight: bold; background: #fff3cd;' : '';
+                
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 4px 0; border-radius: 4px; ${style}">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">${medal}</span>
+                            <span style="font-size: 18px;">${index + 1}위</span>
+                            <span style="width: 15px; height: 15px; background: ${car.color}; border-radius: 50%; display: inline-block;"></span>
+                            <span>${car.name}</span>
+                        </div>
+                        <div style="font-weight: bold; color: #666;">
+                            ${car.lap}/${gameState.maxLaps} 랩
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function gameLoop() {
+            if (!gameState.running) return;
+
+            gameState.timer = (Date.now() - gameState.startTime) / 1000;
+
+            if (gameState.mapMode) {
+                // 지도 모드
+                updateMapPositions();
+            } else {
+                // 일반 트랙 모드
+                updateCar();
+                updateAICars();
+                updateCamera();
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawTrack();
+                drawCollisionEffects();
+
+                // AI 차량 먼저 그리기
+                gameState.aiCars.forEach(aiCar => drawAICar(aiCar));
+
+                // 플레이어 차량 위에 그리기
+                drawCar();
+            }
+
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function drawCollisionEffects() {
+            collisionEffects = collisionEffects.filter(effect => {
+                effect.life--;
+                
+                const alpha = effect.life / effect.maxLife;
+                const radius = 20 * (1 - alpha);
+                
+                const effectScreenPos = worldToScreen(effect.x, effect.y);
+
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(effectScreenPos.x, effectScreenPos.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // 충돌 파편 효과
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const distance = radius * 1.5;
+                    ctx.fillStyle = '#ff6b6b';
+                    ctx.beginPath();
+                    ctx.arc(
+                        effectScreenPos.x + Math.cos(angle) * distance,
+                        effectScreenPos.y + Math.sin(angle) * distance,
+                        2, 0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                ctx.restore();
+                
+                return effect.life > 0;
+            });
+        }
+        
+        // 초기 화면 그리기
+        drawTrack();
+        drawCar();
+        initAICars();
+        gameState.aiCars.forEach(aiCar => drawAICar(aiCar));
+        updateUI();
+    </script>
+</body>
+</html>

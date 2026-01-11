@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>확장 가능 기능 및 로드맵</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #slide-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #0d1117; /* GitHub Dark Background */
+            color: #c9d1d9; /* GitHub Text Color */
+            font-family: 'Noto Sans KR', sans-serif;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image:
+                linear-gradient(to right, rgba(48, 54, 61, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(48, 54, 61, 0.3) 1px, transparent 1px);
+        }
+        
+        /* Timeline Styling */
+        .roadmap-container {
+            position: relative;
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-top: 40px;
+        }
+        
+        /* Connecting Line */
+        .roadmap-line {
+            position: absolute;
+            top: 24px;
+            left: 60px;
+            right: 60px;
+            height: 4px;
+            background-color: #21262d;
+            border-radius: 2px;
+            z-index: 0;
+        }
+        .roadmap-progress {
+            position: absolute;
+            top: 24px;
+            left: 60px;
+            width: 40%; /* Progress to M2 */
+            height: 4px;
+            background: linear-gradient(to right, #238636, #1f6feb);
+            border-radius: 2px;
+            z-index: 0;
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+        }
+
+        /* Milestone Item */
+        .milestone {
+            position: relative;
+            z-index: 1;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Milestone Node (Circle) */
+        .node {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background-color: #0d1117;
+            border: 4px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: #8b949e;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0 4px #0d1117; /* Clear space around node */
+        }
+        
+        /* Status Styles */
+        .status-completed .node {
+            border-color: #238636;
+            color: #3fb950;
+            background-color: #0d1117;
+            box-shadow: 0 0 15px rgba(35, 134, 54, 0.2), 0 0 0 4px #0d1117;
+        }
+        .status-active .node {
+            border-color: #1f6feb;
+            color: #58a6ff;
+            background-color: #0d1117;
+            box-shadow: 0 0 20px rgba(31, 111, 235, 0.4), 0 0 0 4px #0d1117;
+            animation: pulse-blue 2s infinite;
+        }
+        .status-planned .node {
+            border-color: #30363d;
+            border-style: dashed;
+        }
+        .status-future .node {
+            border-color: #8957e5;
+            color: #bc8cff;
+            opacity: 0.7;
+        }
+
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(31, 111, 235, 0.4), 0 0 0 4px #0d1117; }
+            70% { box-shadow: 0 0 0 10px rgba(31, 111, 235, 0), 0 0 0 4px #0d1117; }
+            100% { box-shadow: 0 0 0 0 rgba(31, 111, 235, 0), 0 0 0 4px #0d1117; }
+        }
+
+        /* Content Card */
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            min-height: 320px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .milestone:hover .card {
+            transform: translateY(-5px);
+            border-color: #8b949e;
+        }
+        .status-active .card {
+            border-color: #1f6feb;
+            box-shadow: 0 8px 24px rgba(31, 111, 235, 0.1);
+        }
+        .status-active .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #1f6feb;
+        }
+        .status-completed .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #238636;
+        }
+        .status-future .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #8957e5;
+        }
+
+        /* Card Content */
+        .card-header {
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+        .version-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #c9d1d9;
+        }
+        .feature-list {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            font-size: 0.85rem;
+            color: #8b949e;
+            line-height: 1.4;
+        }
+        .feature-icon {
+            margin-top: 3px;
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Background Effects */
+        .bg-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.05;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="grid-bg" id="slide-container">
+<!-- Background Decorations -->
+<div class="bg-glow" style="background-color: #1f6feb; top: -100px; left: 30%;"></div>
+<div class="bg-glow" style="background-color: #238636; bottom: -100px; left: -100px;"></div>
+<div class="bg-glow" style="background-color: #8957e5; bottom: -100px; right: -100px;"></div>
+<!-- Header -->
+<div class="h-20 flex items-center justify-between px-10 border-b border-[#30363d] bg-[#0d1117] z-10">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-lg bg-[#21262d] border border-[#30363d] flex items-center justify-center mr-4 text-white shadow-lg">
+<i class="fa-solid fa-map-location-dot text-[#bc8cff]"></i>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight">확장 가능 기능 및 로드맵</h1>
+<p class="text-xs text-[#8b949e] mt-1">Project Roadmap &amp; Future Expansion</p>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<span class="px-3 py-1 bg-[#1f6feb] bg-opacity-10 border border-[#1f6feb] border-opacity-40 text-[#58a6ff] rounded-full text-xs font-bold animate-pulse">
+<i class="fa-solid fa-spinner fa-spin mr-2"></i>Current Phase: M2
+                </span>
+</div>
+</div>
+<!-- Main Content -->
+<div class="flex-1 p-10 flex flex-col justify-center relative z-10">
+<div class="roadmap-container">
+<!-- Connecting Lines -->
+<div class="roadmap-line"></div>
+<div class="roadmap-progress"></div>
+<!-- M1: MVP (Completed) -->
+<div class="milestone status-completed">
+<div class="node">
+<i class="fa-solid fa-check"></i>
+</div>
+<div class="card">
+<div class="card-header">
+<span class="version-tag text-[#3fb950] border-[#238636] bg-[#238636] bg-opacity-10">MVP Release</span>
+<h3 class="card-title text-white">M1. 핵심 기능 구현</h3>
+<p class="text-xs text-[#8b949e] mt-1">2026.Q1 (Completed)</p>
+</div>
+<div class="feature-list">
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-server text-[#3fb950]"></i></span>
+<p>단일 서버 등록 및 SSH 연결 관리 (JSch)</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-terminal text-[#3fb950]"></i></span>
+<p>자연어 기반 명령어 생성 및 실행 (Claude API)</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-shield-halved text-[#3fb950]"></i></span>
+<p>기본 보안 필터링 및 로그 저장 (H2)</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-bolt text-[#3fb950]"></i></span>
+<p>WebSocket 실시간 실행 로그 스트리밍</p>
+</div>
+</div>
+</div>
+</div>
+<!-- M2: Enhancement (Active) -->
+<div class="milestone status-active">
+<div class="node">
+                        M2
+                    </div>
+<div class="card">
+<div class="card-header">
+<span class="version-tag text-[#58a6ff] border-[#1f6feb] bg-[#1f6feb] bg-opacity-10">Feature Boost</span>
+<h3 class="card-title text-[#58a6ff]">M2. 기능 강화</h3>
+<p class="text-xs text-[#8b949e] mt-1">2026.Q2 (In Progress)</p>
+</div>
+<div class="feature-list">
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-user-check text-[#58a6ff]"></i></span>
+<p>명령어 실행 전 사용자 승인 프로세스 추가</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-regular fa-clock text-[#58a6ff]"></i></span>
+<p>정기 점검을 위한 스케줄링 기능 (Quartz)</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-brands fa-slack text-[#58a6ff]"></i></span>
+<p>실행 결과 알림 연동 (Slack, Email)</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-filter text-[#58a6ff]"></i></span>
+<p>AI 명령어 검증 로직 고도화 및 학습</p>
+</div>
+</div>
+</div>
+</div>
+<!-- M3: Production Ready (Planned) -->
+<div class="milestone status-planned">
+<div class="node">
+                        M3
+                    </div>
+<div class="card opacity-80 hover:opacity-100">
+<div class="card-header">
+<span class="version-tag">Production</span>
+<h3 class="card-title">M3. 운영 안정화</h3>
+<p class="text-xs text-[#8b949e] mt-1">2026.Q3 (Planned)</p>
+</div>
+<div class="feature-list">
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-network-wired"></i></span>
+<p>멀티 서버 동시 실행 및 그룹 관리</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-rotate-left"></i></span>
+<p>작업 롤백(Rollback) 가이드 및 복구 지원</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-database"></i></span>
+<p>DB 전환 (H2 → PostgreSQL) 및 최적화</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-lock"></i></span>
+<p>비밀 키 관리 시스템(KMS) 연동 검토</p>
+</div>
+</div>
+</div>
+</div>
+<!-- M4: Expansion (Future) -->
+<div class="milestone status-future">
+<div class="node">
+                        M4
+                    </div>
+<div class="card opacity-60 hover:opacity-100">
+<div class="card-header">
+<span class="version-tag text-[#bc8cff] border-[#8957e5] bg-[#8957e5] bg-opacity-10">Expansion</span>
+<h3 class="card-title text-[#bc8cff]">M4. 확장 및 통합</h3>
+<p class="text-xs text-[#8b949e] mt-1">2026.Q4+ (Vision)</p>
+</div>
+<div class="feature-list">
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-users-gear text-[#bc8cff]"></i></span>
+<p>조직별 RBAC 및 SSO 통합</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-chart-line text-[#bc8cff]"></i></span>
+<p>감사 로그 대시보드 및 통계 시각화</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-cubes text-[#bc8cff]"></i></span>
+<p>Kubernetes 클러스터 관리 에이전트 확장</p>
+</div>
+<div class="feature-item">
+<span class="feature-icon"><i class="fa-solid fa-puzzle-piece text-[#bc8cff]"></i></span>
+<p>Custom Plugin SDK 제공</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Legend/Footer -->
+<div class="mt-8 flex justify-center items-center gap-6 text-xs text-[#8b949e]">
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full bg-[#238636] mr-2"></div>
+<span>Completed</span>
+</div>
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full bg-[#1f6feb] mr-2"></div>
+<span>In Progress</span>
+</div>
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full border border-[#30363d] mr-2"></div>
+<span>Planned</span>
+</div>
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full border border-[#8957e5] mr-2"></div>
+<span>Future Vision</span>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

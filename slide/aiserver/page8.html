@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>보안 기능</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #slide-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #0d1117; /* GitHub Dark Background */
+            color: #c9d1d9; /* GitHub Text Color */
+            font-family: 'Noto Sans KR', sans-serif;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image:
+                linear-gradient(to right, rgba(48, 54, 61, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(48, 54, 61, 0.3) 1px, transparent 1px);
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Security Card Styling */
+        .sec-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .sec-card:hover {
+            border-color: #8b949e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .sec-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #c9d1d9;
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        /* Terminal Styling for Security Demo */
+        .terminal-window {
+            background-color: #010409;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        .terminal-header {
+            background-color: #21262d;
+            padding: 8px 12px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+        }
+        .window-dots {
+            display: flex;
+            gap: 6px;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background-color: #ff5f56; }
+        .dot-yellow { background-color: #ffbd2e; }
+        .dot-green { background-color: #27c93f; }
+
+        /* Status Badges */
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+        .badge-red {
+            background-color: rgba(248, 81, 73, 0.1);
+            color: #ff7b72;
+            border-color: rgba(248, 81, 73, 0.4);
+        }
+        .badge-green {
+            background-color: rgba(35, 134, 54, 0.1);
+            color: #3fb950;
+            border-color: rgba(35, 134, 54, 0.4);
+        }
+        .badge-blue {
+            background-color: rgba(56, 139, 253, 0.1);
+            color: #58a6ff;
+            border-color: rgba(56, 139, 253, 0.4);
+        }
+
+        /* Checklist Styling */
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px 16px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .check-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        /* Log Row Styling */
+        .log-row {
+            display: flex;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            padding: 8px;
+            border-bottom: 1px solid #21262d;
+            color: #8b949e;
+        }
+        .log-row:last-child { border-bottom: none; }
+        .log-time { color: #8b949e; width: 140px; }
+        .log-user { color: #79c0ff; width: 80px; }
+        .log-action { color: #c9d1d9; flex: 1; }
+        .log-status { width: 70px; text-align: right; }
+        
+        /* Neon Glows */
+        .glow-red { box-shadow: 0 0 15px rgba(248, 81, 73, 0.1); }
+        .glow-green { box-shadow: 0 0 15px rgba(35, 134, 54, 0.1); }
+    </style>
+</head>
+<body>
+<div class="grid-bg" id="slide-container">
+<!-- Header -->
+<div class="h-20 flex items-center justify-between px-10 border-b border-[#30363d] bg-[#0d1117] z-10">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-lg bg-[#21262d] border border-[#30363d] flex items-center justify-center mr-4 text-white shadow-lg">
+<i class="fa-solid fa-shield-halved text-[#ff7b72]"></i>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight">보안 기능</h1>
+<p class="text-xs text-[#8b949e] mt-1">Security &amp; Compliance</p>
+</div>
+</div>
+<div class="flex items-center space-x-3">
+<div class="flex items-center px-3 py-1 bg-[#21262d] rounded-full border border-[#30363d]">
+<div class="w-2 h-2 rounded-full bg-[#238636] mr-2 animate-pulse"></div>
+<span class="text-xs font-mono text-[#c9d1d9]">SECURE MODE: ON</span>
+</div>
+</div>
+</div>
+<!-- Main Content (2 Columns) -->
+<div class="flex flex-1 p-10 gap-8 overflow-hidden relative">
+<!-- Background Decoration -->
+<div class="absolute -bottom-20 -left-20 w-96 h-96 bg-[#238636] opacity-[0.03] rounded-full blur-3xl z-0"></div>
+<div class="absolute -top-20 -right-20 w-96 h-96 bg-[#f85149] opacity-[0.03] rounded-full blur-3xl z-0"></div>
+<!-- Left Column: Primary Defenses (Blocking & Auth) -->
+<div class="flex-[1.1] flex flex-col gap-6 z-10">
+<!-- 1. High Risk Command Blocking -->
+<div class="sec-card glow-red border-l-4 border-l-[#f85149]">
+<div class="sec-title justify-between">
+<span><i class="fa-solid fa-ban text-[#f85149] mr-3"></i>위험 명령어 차단</span>
+<span class="badge badge-red">CRITICAL</span>
+</div>
+<p class="text-sm text-[#8b949e] mb-4">
+                        시스템에 치명적인 영향을 줄 수 있는 명령어를 AI와 패턴 매칭으로 이중 감지하여 실행을 사전에 차단합니다.
+                    </p>
+<!-- Terminal Simulation -->
+<div class="terminal-window shadow-xl">
+<div class="terminal-header">
+<div class="window-dots mr-3">
+<div class="dot dot-red"></div>
+<div class="dot dot-yellow"></div>
+<div class="dot dot-green"></div>
+</div>
+<span class="text-[#8b949e] text-xs">interactive-session</span>
+</div>
+<div class="p-4 bg-[#0d1117]">
+<div class="flex mb-2">
+<span class="text-[#3fb950] mr-2">➜</span>
+<span class="text-[#79c0ff] mr-2">~</span>
+<span class="text-[#c9d1d9]">sudo rm -rf /</span>
+</div>
+<div class="text-[#f85149] font-bold mb-1">
+<i class="fa-solid fa-triangle-exclamation mr-1"></i> ACCESS DENIED
+                            </div>
+<div class="text-[#8b949e] mb-2">
+                                [SECURITY] High-risk command detected by AI policy.<br/>
+                                Pattern: "recursive root deletion"<br/>
+                                This incident has been reported to the administrator.
+                            </div>
+<div class="flex mt-3">
+<span class="text-[#3fb950] mr-2">➜</span>
+<span class="text-[#79c0ff] mr-2">~</span>
+<span class="text-[#c9d1d9] animate-pulse">_</span>
+</div>
+</div>
+</div>
+<div class="mt-3 flex gap-2 text-xs font-mono text-[#8b949e]">
+<span class="bg-[#21262d] px-2 py-1 rounded">rm -rf</span>
+<span class="bg-[#21262d] px-2 py-1 rounded">mkfs</span>
+<span class="bg-[#21262d] px-2 py-1 rounded">dd</span>
+<span class="bg-[#21262d] px-2 py-1 rounded">:(){ :|:&amp; };:</span>
+</div>
+</div>
+<!-- 2. Authentication & Secrets -->
+<div class="sec-card border-l-4 border-l-[#3fb950] flex-1">
+<div class="sec-title justify-between">
+<span><i class="fa-solid fa-key text-[#3fb950] mr-3"></i>인증 및 비밀 관리</span>
+<span class="badge badge-green">ENCRYPTED</span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-1">
+<div class="bg-[#0d1117] p-3 rounded border border-[#30363d]">
+<div class="text-[#c9d1d9] text-sm font-bold mb-1"><i class="fa-brands fa-ssh text-[#c9d1d9] mr-2"></i>SSH Key 인증</div>
+<p class="text-xs text-[#8b949e]">비밀번호보다 안전한 키 기반 인증을 우선 사용하며, 키 파일은 암호화된 볼륨에 격리 보관됩니다.</p>
+</div>
+<div class="bg-[#0d1117] p-3 rounded border border-[#30363d]">
+<div class="text-[#c9d1d9] text-sm font-bold mb-1"><i class="fa-solid fa-lock text-[#c9d1d9] mr-2"></i>AES-256 암호화</div>
+<p class="text-xs text-[#8b949e]">DB에 저장되는 모든 민감 정보(비밀번호, 키)는 AES-256 알고리즘으로 양방향 암호화됩니다.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Audit & Controls -->
+<div class="flex-1 flex flex-col gap-6 z-10">
+<!-- 3. Audit Trail -->
+<div class="sec-card border-l-4 border-l-[#58a6ff]">
+<div class="sec-title justify-between">
+<span><i class="fa-solid fa-file-signature text-[#58a6ff] mr-3"></i>감사 추적 (Audit Log)</span>
+<span class="badge badge-blue">LOGGING</span>
+</div>
+<p class="text-sm text-[#8b949e] mb-3">
+                        누가, 언제, 어떤 명령을 실행했는지 불변 로그로 기록합니다.
+                    </p>
+<div class="bg-[#010409] border border-[#30363d] rounded-lg overflow-hidden">
+<div class="bg-[#21262d] px-3 py-1 text-xs text-[#8b949e] border-b border-[#30363d] flex justify-between">
+<span>execution_audit.log</span>
+<span><i class="fa-solid fa-download hover:text-white cursor-pointer"></i></span>
+</div>
+<div class="p-0">
+<div class="log-row">
+<span class="log-time">2026-01-11 14:01</span>
+<span class="log-user">admin</span>
+<span class="log-action">docker ps -a</span>
+<span class="log-status text-[#3fb950]">SUCCESS</span>
+</div>
+<div class="log-row bg-[#161b22]">
+<span class="log-time">2026-01-11 14:05</span>
+<span class="log-user">dev_lee</span>
+<span class="log-action">cat /etc/shadow</span>
+<span class="log-status text-[#f85149]">BLOCKED</span>
+</div>
+<div class="log-row">
+<span class="log-time">2026-01-11 14:12</span>
+<span class="log-user">infra_kim</span>
+<span class="log-action">systemctl restart nginx</span>
+<span class="log-status text-[#3fb950]">SUCCESS</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. Detailed Checklist -->
+<div class="sec-card flex-1">
+<div class="sec-title">
+<i class="fa-solid fa-list-check text-[#bc8cff] mr-3"></i>보안 체크리스트
+                    </div>
+<div class="space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+<!-- Item 1 -->
+<div class="checklist-item group hover:border-[#bc8cff] transition-colors">
+<div class="check-icon">
+<i class="fa-solid fa-check text-[#3fb950]"></i>
+</div>
+<div>
+<h4 class="text-[#c9d1d9] text-sm font-bold">명령어 사전 검증 (Pre-validation)</h4>
+<p class="text-xs text-[#8b949e] mt-1">
+                                    AI가 생성한 명령어를 실행하기 전, 화이트리스트/블랙리스트 기반으로 2차 검증을 수행합니다.
+                                </p>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="checklist-item group hover:border-[#bc8cff] transition-colors">
+<div class="check-icon">
+<i class="fa-solid fa-user-lock text-[#58a6ff]"></i>
+</div>
+<div>
+<h4 class="text-[#c9d1d9] text-sm font-bold">권한 관리 (Access Control)</h4>
+<p class="text-xs text-[#8b949e] mt-1">
+                                    사용자별로 접근 가능한 서버 그룹과 실행 가능한 명령어 수준(Read-only vs Write)을 제어합니다. (Roadmap)
+                                </p>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="checklist-item group hover:border-[#bc8cff] transition-colors">
+<div class="check-icon">
+<i class="fa-solid fa-eye text-[#d29922]"></i>
+</div>
+<div>
+<h4 class="text-[#c9d1d9] text-sm font-bold">입력 값 이스케이프 처리</h4>
+<p class="text-xs text-[#8b949e] mt-1">
+                                    Command Injection 공격을 방지하기 위해 사용자의 자연어 입력 및 파라미터를 철저히 검증하고 이스케이프 처리합니다.
+                                </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

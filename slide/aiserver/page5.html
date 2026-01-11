@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>프로젝트 구조</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #f0f0f0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+    #slide-container {
+        width: 1280px;
+        height: 720px;
+        background-color: #0d1117; /* GitHub Dark Background */
+        color: #c9d1d9; /* GitHub Text Color */
+        font-family: 'Noto Sans KR', sans-serif;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    .grid-bg {
+        background-size: 40px 40px;
+        background-image:
+            linear-gradient(to right, rgba(48, 54, 61, 0.3) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(48, 54, 61, 0.3) 1px, transparent 1px);
+    }
+    .code-font {
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Tree View Styling */
+    .tree-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: default;
+        transition: background-color 0.2s;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        white-space: nowrap;
+    }
+    .tree-item:hover {
+        background-color: rgba(177, 186, 196, 0.12);
+    }
+    .indent-guide {
+        border-left: 1px solid #30363d;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+    }
+    .folder-icon { color: #58a6ff; } /* GitHub Blue Folder */
+    .folder-icon-open { color: #58a6ff; }
+    .java-icon { color: #d29922; } /* Orange/Yellow for Java */
+    .html-icon { color: #e34c26; } /* Orange for HTML */
+    .config-icon { color: #8b949e; } /* Grey for configs */
+    .package-icon { color: #bc8cff; } /* Purple for packages */
+    
+    .comment-text {
+        color: #6e7681;
+        font-size: 0.8rem;
+        margin-left: 12px;
+        font-style: italic;
+    }
+    
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #0d1117;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 5px;
+        border: 2px solid #0d1117;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #8b949e;
+    }
+
+    /* Explanation Card */
+    .principle-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .principle-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background-color: #238636;
+    }
+</style>
+</head>
+<body>
+<div class="grid-bg" id="slide-container">
+<!-- Header -->
+<div class="h-20 flex items-center justify-between px-10 border-b border-[#30363d] bg-[#0d1117] z-10">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded bg-[#1f6feb] bg-opacity-20 border border-[#1f6feb] flex items-center justify-center mr-4 text-[#58a6ff]">
+<i class="fa-solid fa-folder-tree text-lg"></i>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight">프로젝트 구조</h1>
+<p class="text-xs text-[#8b949e] mt-1">Project Directory Structure</p>
+</div>
+</div>
+<div class="flex items-center space-x-2 text-sm text-[#8b949e]">
+<span class="px-2 py-1 bg-[#238636] bg-opacity-20 border border-[#238636] text-[#3fb950] rounded text-xs font-mono">Maven</span>
+<span class="px-2 py-1 bg-[#1f6feb] bg-opacity-20 border border-[#1f6feb] text-[#58a6ff] rounded text-xs font-mono">Spring Boot</span>
+</div>
+</div>
+<!-- Main Content -->
+<div class="flex flex-1 p-8 gap-8 overflow-hidden">
+<!-- Left Column: Tree View -->
+<div class="flex-[1.2] bg-[#010409] border border-[#30363d] rounded-lg shadow-inner overflow-hidden flex flex-col">
+<div class="bg-[#161b22] px-4 py-2 border-b border-[#30363d] flex justify-between items-center">
+<span class="text-xs font-bold text-[#8b949e] uppercase">Explorer</span>
+<i class="fa-solid fa-ellipsis text-[#8b949e] text-xs"></i>
+</div>
+<div class="p-4 overflow-y-auto custom-scrollbar flex-1 code-font text-[#c9d1d9]">
+<!-- Root -->
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder-open folder-icon-open mr-2"></i>ai-server-automation</div>
+<div class="pl-5 relative">
+<!-- src -->
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder-open folder-icon-open mr-2"></i>src</div>
+<div class="pl-5 relative">
+<!-- main -->
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder-open folder-icon-open mr-2"></i>main</div>
+<div class="pl-5 relative">
+<!-- java -->
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder-open folder-icon-open mr-2"></i>java</div>
+<div class="pl-5 relative">
+<!-- package -->
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-solid fa-box-open package-icon mr-2"></i>com.example.aiserver</div>
+<div class="pl-6 relative border-l border-[#30363d] border-opacity-40 ml-1.5">
+<!-- Main App -->
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>AiServerAutomationApplication.java</div>
+<!-- Config -->
+<div class="tree-item mt-1"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>config</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>WebSocketConfig.java</div>
+</div>
+<!-- Controller -->
+<div class="tree-item mt-1"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>controller</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>ServerController.java <span class="comment-text">// REST API Endpoints</span></div>
+</div>
+<!-- Service -->
+<div class="tree-item mt-1"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>service</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>AIService.java <span class="comment-text">// Anthropic Client</span></div>
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>ExecutionService.java <span class="comment-text">// Command Logic</span></div>
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>SSHService.java <span class="comment-text">// JSch Connector</span></div>
+</div>
+<!-- Repository -->
+<div class="tree-item mt-1"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>repository</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>ExecutionLogRepository.java</div>
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>ServerRepository.java</div>
+</div>
+<!-- Entity -->
+<div class="tree-item mt-1"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>entity</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>ExecutionLog.java</div>
+<div class="tree-item"><i class="fa-brands fa-java java-icon mr-2"></i>Server.java</div>
+</div>
+</div>
+</div>
+<!-- resources -->
+<div class="tree-item mt-2"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder-open folder-icon-open mr-2"></i>resources</div>
+<div class="pl-5 relative border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-solid fa-angle-down mr-2 text-[#8b949e] text-xs"></i><i class="fa-regular fa-folder folder-icon mr-2"></i>static</div>
+<div class="pl-6 border-l border-[#30363d] border-opacity-40 ml-1.5">
+<div class="tree-item"><i class="fa-brands fa-html5 html-icon mr-2"></i>index.html <span class="comment-text">// Frontend Entry</span></div>
+</div>
+<div class="tree-item"><i class="fa-solid fa-gear config-icon mr-2"></i>application.properties</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Status Bar -->
+<div class="bg-[#1f6feb] text-white text-xs px-3 py-1 flex justify-between items-center">
+<span><i class="fa-solid fa-code-branch mr-1"></i> main</span>
+<span>UTF-8</span>
+</div>
+</div>
+<!-- Right Column: Explanations -->
+<div class="flex-1 flex flex-col gap-5">
+<!-- Key Components -->
+<div class="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
+<h3 class="text-white font-bold mb-4 flex items-center">
+<i class="fa-solid fa-layer-group text-[#bc8cff] mr-2"></i>
+                    핵심 패키지 역할
+                </h3>
+<div class="space-y-3">
+<div class="flex items-start">
+<span class="bg-[#1f6feb] bg-opacity-20 text-[#58a6ff] text-xs px-2 py-0.5 rounded mr-2 font-mono mt-0.5">controller</span>
+<p class="text-sm text-[#8b949e]">REST API 요청 처리 및 WebSocket 메시지 라우팅 담당</p>
+</div>
+<div class="flex items-start">
+<span class="bg-[#1f6feb] bg-opacity-20 text-[#58a6ff] text-xs px-2 py-0.5 rounded mr-2 font-mono mt-0.5">service</span>
+<p class="text-sm text-[#8b949e]">비즈니스 로직의 핵심. SSH 연결, AI API 호출, 트랜잭션 관리</p>
+</div>
+<div class="flex items-start">
+<span class="bg-[#1f6feb] bg-opacity-20 text-[#58a6ff] text-xs px-2 py-0.5 rounded mr-2 font-mono mt-0.5">repository</span>
+<p class="text-sm text-[#8b949e]">JPA를 이용한 DB 접근 계층. CRUD 작업 추상화</p>
+</div>
+<div class="flex items-start">
+<span class="bg-[#1f6feb] bg-opacity-20 text-[#58a6ff] text-xs px-2 py-0.5 rounded mr-2 font-mono mt-0.5">entity</span>
+<p class="text-sm text-[#8b949e]">DB 테이블과 매핑되는 도메인 객체 정의</p>
+</div>
+</div>
+</div>
+<!-- Architecture Principles -->
+<div class="principle-card">
+<h3 class="text-white font-bold mb-3 flex items-center">
+<i class="fa-solid fa-compass-drafting text-[#3fb950] mr-2"></i>
+                    설계 원칙 (Design Principles)
+                </h3>
+<ul class="text-sm text-[#8b949e] space-y-2 list-none pl-1">
+<li class="flex items-start">
+<i class="fa-solid fa-check text-[#3fb950] mt-1 mr-2 text-xs"></i>
+<span><strong class="text-[#c9d1d9]">단방향 의존성:</strong> Controller → Service → Repository 순서의 흐름 엄수</span>
+</li>
+<li class="flex items-start">
+<i class="fa-solid fa-check text-[#3fb950] mt-1 mr-2 text-xs"></i>
+<span><strong class="text-[#c9d1d9]">관심사 분리:</strong> SSH 통신과 AI 로직은 별도 서비스로 완전히 분리하여 유지보수성 향상</span>
+</li>
+<li class="flex items-start">
+<i class="fa-solid fa-check text-[#3fb950] mt-1 mr-2 text-xs"></i>
+<span><strong class="text-[#c9d1d9]">최소 권한 엔티티:</strong> 도메인 모델은 필요한 필드만 정의하여 가볍게 시작하고 점진적으로 확장</span>
+</li>
+</ul>
+</div>
+<!-- Tech Badge Area -->
+<div class="mt-auto">
+<div class="flex gap-2 opacity-70">
+<div class="bg-[#24292f] border border-[#30363d] px-3 py-2 rounded text-xs flex flex-col items-center min-w-[60px]">
+<i class="fa-brands fa-java text-xl mb-1 text-[#d29922]"></i>
+<span>JDK 17</span>
+</div>
+<div class="bg-[#24292f] border border-[#30363d] px-3 py-2 rounded text-xs flex flex-col items-center min-w-[60px]">
+<i class="fa-brands fa-docker text-xl mb-1 text-[#1f6feb]"></i>
+<span>Docker</span>
+</div>
+<div class="bg-[#24292f] border border-[#30363d] px-3 py-2 rounded text-xs flex flex-col items-center min-w-[60px]">
+<i class="fa-solid fa-database text-xl mb-1 text-[#3fb950]"></i>
+<span>H2/PG</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

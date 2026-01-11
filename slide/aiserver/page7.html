@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>사용 예시</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #slide-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #0d1117; /* GitHub Dark Background */
+            color: #c9d1d9; /* GitHub Text Color */
+            font-family: 'Noto Sans KR', sans-serif;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image:
+                linear-gradient(to right, rgba(48, 54, 61, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(48, 54, 61, 0.3) 1px, transparent 1px);
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Card Styling */
+        .request-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s ease;
+            position: relative;
+            cursor: default;
+        }
+        .request-card:hover {
+            border-color: #8b949e;
+        }
+        .request-card.active {
+            border-color: #58a6ff;
+            background-color: rgba(88, 166, 255, 0.05);
+        }
+        .request-card.active::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%) rotate(45deg);
+            width: 12px;
+            height: 12px;
+            background-color: #0d1117;
+            border-top: 1px solid #58a6ff;
+            border-right: 1px solid #58a6ff;
+            z-index: 10;
+        }
+
+        /* Process Step Styling */
+        .process-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            position: relative;
+        }
+        .step-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 14px;
+            z-index: 2;
+        }
+        .step-line {
+            position: absolute;
+            left: 18px;
+            top: 36px;
+            bottom: -20px;
+            width: 2px;
+            background-color: #30363d;
+            z-index: 1;
+        }
+        .process-step:last-child .step-line {
+            display: none;
+        }
+
+        /* Terminal Window */
+        .terminal-window {
+            background-color: #010409;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 13px;
+        }
+        .terminal-header {
+            background-color: #161b22;
+            padding: 8px 12px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+        }
+        .window-dots {
+            display: flex;
+            gap: 6px;
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-red { background-color: #ff5f56; }
+        .dot-yellow { background-color: #ffbd2e; }
+        .dot-green { background-color: #27c93f; }
+
+        /* AI Insight Box */
+        .ai-insight {
+            background-color: rgba(137, 87, 229, 0.1);
+            border: 1px solid rgba(137, 87, 229, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        /* Syntax Highlighting Sim */
+        .cmd-cmd { color: #d2a8ff; }
+        .cmd-arg { color: #79c0ff; }
+        .cmd-flag { color: #ff7b72; }
+        .cmd-pipe { color: #c9d1d9; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="grid-bg" id="slide-container">
+<!-- Header -->
+<div class="h-20 flex items-center justify-between px-10 border-b border-[#30363d] bg-[#0d1117] z-10">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-lg bg-[#1f6feb] bg-opacity-20 border border-[#1f6feb] flex items-center justify-center mr-4 text-[#58a6ff]">
+<i class="fa-solid fa-wand-magic-sparkles"></i>
+</div>
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight">사용 예시</h1>
+<p class="text-xs text-[#8b949e] mt-1">Natural Language to Command Execution</p>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<span class="px-2 py-1 bg-[#161b22] border border-[#30363d] text-[#8b949e] rounded text-xs font-mono">
+<i class="fa-brands fa-linux mr-1"></i> Ubuntu 22.04 LTS
+                </span>
+<span class="px-2 py-1 bg-[#161b22] border border-[#30363d] text-[#bc8cff] rounded text-xs font-mono">
+<i class="fa-solid fa-robot mr-1"></i> Claude 3.5 Sonnet
+                </span>
+</div>
+</div>
+<!-- Main Content -->
+<div class="flex flex-1 p-10 gap-12 overflow-hidden">
+<!-- Left Column: User Request Examples -->
+<div class="w-[400px] flex flex-col gap-4">
+<div class="flex items-center justify-between mb-2">
+<h3 class="text-[#8b949e] font-bold text-sm uppercase tracking-wider"><i class="fa-regular fa-user mr-2"></i>User Requests</h3>
+<span class="text-xs text-[#58a6ff]">Input Examples</span>
+</div>
+<!-- Active Card -->
+<div class="request-card active">
+<div class="flex items-start mb-2">
+<i class="fa-regular fa-comment-dots text-[#58a6ff] mt-1 mr-3"></i>
+<p class="text-white font-medium text-lg leading-snug">
+                            "nginx가 설치되어 있는지 확인하고, 없으면 설치해줘"
+                        </p>
+</div>
+<div class="flex justify-between items-center mt-3">
+<span class="text-xs bg-[#58a6ff] bg-opacity-20 text-[#58a6ff] px-2 py-0.5 rounded border border-[#58a6ff] border-opacity-30">Package Mgmt</span>
+<i class="fa-solid fa-arrow-right text-[#58a6ff]"></i>
+</div>
+</div>
+<!-- Inactive Cards -->
+<div class="request-card opacity-60 hover:opacity-100">
+<div class="flex items-start mb-1">
+<i class="fa-regular fa-comment text-[#8b949e] mt-1 mr-3"></i>
+<p class="text-[#c9d1d9] font-medium leading-snug">
+                            "디스크 사용량이 80% 이상인 디렉토리를 찾아줘"
+                        </p>
+</div>
+<div class="flex justify-start mt-2">
+<span class="text-xs bg-[#30363d] text-[#8b949e] px-2 py-0.5 rounded border border-[#30363d]">Monitoring</span>
+</div>
+</div>
+<div class="request-card opacity-60 hover:opacity-100">
+<div class="flex items-start mb-1">
+<i class="fa-regular fa-comment text-[#8b949e] mt-1 mr-3"></i>
+<p class="text-[#c9d1d9] font-medium leading-snug">
+                            "메모리를 가장 많이 사용하는 상위 5개 프로세스 보여줘"
+                        </p>
+</div>
+<div class="flex justify-start mt-2">
+<span class="text-xs bg-[#30363d] text-[#8b949e] px-2 py-0.5 rounded border border-[#30363d]">Process</span>
+</div>
+</div>
+<div class="request-card opacity-60 hover:opacity-100">
+<div class="flex items-start mb-1">
+<i class="fa-regular fa-comment text-[#8b949e] mt-1 mr-3"></i>
+<p class="text-[#c9d1d9] font-medium leading-snug">
+                            "최근 1시간 동안의 에러 로그를 확인해줘"
+                        </p>
+</div>
+<div class="flex justify-start mt-2">
+<span class="text-xs bg-[#30363d] text-[#8b949e] px-2 py-0.5 rounded border border-[#30363d]">Log Analysis</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Processing Pipeline -->
+<div class="flex-1 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-[#8b949e] font-bold text-sm uppercase tracking-wider"><i class="fa-solid fa-microchip mr-2"></i>AI Processing Pipeline</h3>
+<span class="text-xs text-[#3fb950] animate-pulse">● Live Processing</span>
+</div>
+<div class="bg-[#0d1117] border border-[#30363d] rounded-lg p-6 flex-1 flex flex-col relative overflow-hidden">
+<!-- Background decoration -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-[#1f6feb] opacity-5 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Step 1: Context & Generation -->
+<div class="process-step">
+<div class="step-line"></div>
+<div class="step-icon bg-[#161b22] border border-[#30363d] text-[#8b949e]">1</div>
+<div class="flex-1 ml-2">
+<div class="flex items-center mb-1">
+<span class="text-sm font-bold text-[#c9d1d9] mr-2">Context Analysis &amp; Generation</span>
+<span class="text-[10px] bg-[#30363d] px-1.5 rounded text-[#8b949e]">Internal</span>
+</div>
+<div class="flex gap-2 text-xs">
+<span class="text-[#8b949e] bg-[#161b22] px-2 py-1 rounded border border-[#30363d]"><i class="fa-brands fa-ubuntu mr-1"></i>OS: Ubuntu</span>
+<span class="text-[#8b949e] bg-[#161b22] px-2 py-1 rounded border border-[#30363d]"><i class="fa-solid fa-box mr-1"></i>Pkg: apt/dpkg</span>
+</div>
+</div>
+</div>
+<!-- Step 2: Generated Command (Terminal) -->
+<div class="process-step">
+<div class="step-line"></div>
+<div class="step-icon bg-[#1f6feb] text-white shadow-[0_0_10px_rgba(31,111,235,0.4)]">2</div>
+<div class="flex-1 ml-2 w-full">
+<div class="flex justify-between items-end mb-2">
+<span class="text-sm font-bold text-[#58a6ff]">Generated Command</span>
+<span class="text-xs text-[#3fb950]"><i class="fa-solid fa-shield-halved mr-1"></i>Safety Check Passed</span>
+</div>
+<div class="terminal-window shadow-lg">
+<div class="terminal-header">
+<div class="window-dots mr-3">
+<div class="dot dot-red"></div>
+<div class="dot dot-yellow"></div>
+<div class="dot dot-green"></div>
+</div>
+<span class="text-[#8b949e] text-xs font-mono ml-2">bash — ssh session</span>
+</div>
+<div class="p-4 code-font text-[#c9d1d9] overflow-x-auto whitespace-nowrap">
+<span class="text-[#8b949e]"># Check and Install Nginx</span><br/>
+<span class="cmd-cmd">if</span> <span class="cmd-pipe">!</span> <span class="cmd-cmd">dpkg</span> <span class="cmd-flag">-l</span> <span class="cmd-pipe">|</span> <span class="cmd-cmd">grep</span> <span class="cmd-flag">-q</span> <span class="cmd-arg">nginx</span>; <span class="cmd-cmd">then</span><br/>
+                                      <span class="cmd-cmd">sudo</span> <span class="cmd-cmd">apt-get</span> <span class="cmd-arg">update</span> <span class="cmd-pipe">&amp;&amp;</span> <span class="cmd-cmd">sudo</span> <span class="cmd-cmd">apt-get</span> <span class="cmd-arg">install</span> <span class="cmd-flag">-y</span> <span class="cmd-arg">nginx</span><br/>
+<span class="cmd-cmd">fi</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3: Result Analysis -->
+<div class="process-step">
+<div class="step-icon bg-[#8957e5] text-white shadow-[0_0_10px_rgba(137,87,229,0.4)]">3</div>
+<div class="flex-1 ml-2">
+<div class="flex items-center mb-2">
+<span class="text-sm font-bold text-[#bc8cff] mr-2">Execution &amp; AI Analysis</span>
+</div>
+<!-- AI Insight Card -->
+<div class="ai-insight">
+<div class="flex items-start">
+<div class="w-8 h-8 rounded bg-[#8957e5] bg-opacity-20 flex items-center justify-center mr-3 flex-shrink-0">
+<i class="fa-solid fa-robot text-[#bc8cff]"></i>
+</div>
+<div>
+<p class="text-sm text-[#c9d1d9] leading-relaxed mb-2">
+                                            명령어 실행 결과, <span class="text-[#3fb950] font-bold">Nginx가 성공적으로 설치</span>되었습니다. 
+                                            서비스 상태는 현재 <span class="code-font text-xs bg-[#30363d] px-1 rounded">active (running)</span>이며, 
+                                            80번 포트에서 수신 대기 중입니다.
+                                        </p>
+<div class="flex gap-2 mt-1">
+<span class="text-[10px] uppercase font-bold text-[#3fb950] border border-[#30363d] px-1.5 rounded bg-[#238636] bg-opacity-10">Success</span>
+<span class="text-[10px] uppercase font-bold text-[#8b949e] border border-[#30363d] px-1.5 rounded">Duration: 12s</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

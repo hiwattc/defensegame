@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>세계 명화 갤러리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        color: #fff;
+        min-height: 100vh;
+    }
+
+    .header {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        padding: 20px;
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header h1 {
+        font-size: 2.5em;
+        background: linear-gradient(45deg, #f093fb, #f5576c);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 10px;
+    }
+
+    .header p {
+        color: #aaa;
+        font-size: 1.1em;
+    }
+
+    .museum-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 20px;
+        flex-wrap: wrap;
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .museum-tab {
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: all 0.3s ease;
+    }
+
+    .museum-tab:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .museum-tab.active {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border-color: transparent;
+    }
+
+    .controls {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        padding: 20px;
+        flex-wrap: wrap;
+    }
+
+    .category-btn {
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: all 0.3s ease;
+    }
+
+    .category-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    .category-btn.active {
+        background: linear-gradient(45deg, #f093fb, #f5576c);
+        border-color: transparent;
+    }
+
+    .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+        padding: 30px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .art-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 15px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .art-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .art-image {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+        background: #222;
+    }
+
+    .art-info {
+        padding: 20px;
+    }
+
+    .art-title {
+        font-size: 1.2em;
+        margin-bottom: 8px;
+        color: #fff;
+    }
+
+    .art-artist {
+        color: #f093fb;
+        font-size: 1em;
+        margin-bottom: 5px;
+    }
+
+    .art-date {
+        color: #aaa;
+        font-size: 0.9em;
+    }
+
+    .museum-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        background: rgba(102, 126, 234, 0.3);
+        border-radius: 12px;
+        font-size: 0.85em;
+        margin-top: 8px;
+        color: #a8b9ff;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 1000;
+        overflow: auto;
+        padding: 20px;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        max-width: 1200px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-image {
+        width: 100%;
+        max-height: 70vh;
+        object-fit: contain;
+        background: #000;
+    }
+
+    .modal-info {
+        padding: 30px;
+    }
+
+    .modal-title {
+        font-size: 2em;
+        margin-bottom: 15px;
+    }
+
+    .modal-artist {
+        font-size: 1.5em;
+        color: #f093fb;
+        margin-bottom: 10px;
+    }
+
+    .modal-details {
+        color: #ccc;
+        line-height: 1.8;
+        font-size: 1.1em;
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 10;
+    }
+
+    .close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 50px;
+        font-size: 1.5em;
+        color: #f093fb;
+    }
+
+    .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-top: 4px solid #f093fb;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 세계 명화 갤러리</h1>
+        <p>세계 유명 미술관 소장 작품 감상</p>
+    </div>
+
+```
+<div class="museum-tabs">
+    <button class="museum-tab active" data-museum="met">메트로폴리탄 미술관</button>
+    <button class="museum-tab" data-museum="rijks">암스테르담 국립미술관</button>
+    <button class="museum-tab" data-museum="chicago">시카고 미술관</button>
+    <button class="museum-tab" data-museum="harvard">하버드 미술관</button>
+</div>
+
+<div class="controls" id="controls"></div>
+
+<div id="gallery" class="gallery"></div>
+
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+        <img id="modalImage" class="modal-image" src="" alt="">
+        <div class="modal-info">
+            <h2 id="modalTitle" class="modal-title"></h2>
+            <p id="modalArtist" class="modal-artist"></p>
+            <div id="modalDetails" class="modal-details"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const gallery = document.getElementById('gallery');
+    const modal = document.getElementById('modal');
+    const controlsDiv = document.getElementById('controls');
+    let currentArtworks = [];
+    let currentMuseum = 'met';
+
+    const museumConfigs = {
+        met: {
+            name: '메트로폴리탄',
+            categories: [
+                { label: '전체 명화', query: 'paintings' },
+                { label: '반 고흐', query: 'Vincent van Gogh' },
+                { label: '모네', query: 'Claude Monet' },
+                { label: '피카소', query: 'Pablo Picasso' },
+                { label: '렘브란트', query: 'Rembrandt' },
+                { label: '다빈치', query: 'Leonardo da Vinci' }
+            ]
+        },
+        rijks: {
+            name: '암스테르담 국립',
+            categories: [
+                { label: '전체 작품', query: 'painting' },
+                { label: '렘브란트', query: 'Rembrandt' },
+                { label: '베르메르', query: 'Vermeer' },
+                { label: '반 고흐', query: 'Van Gogh' },
+                { label: '황금시대', query: 'Golden Age' }
+            ]
+        },
+        chicago: {
+            name: '시카고',
+            categories: [
+                { label: '전체 작품', query: 'painting' },
+                { label: '모네', query: 'Monet' },
+                { label: '르누아르', query: 'Renoir' },
+                { label: '인상파', query: 'Impressionism' },
+                { label: '현대미술', query: 'Modern' }
+            ]
+        },
+        harvard: {
+            name: '하버드',
+            categories: [
+                { label: '전체 작품', query: 'painting' },
+                { label: '유럽 회화', query: 'European painting' },
+                { label: '아시아 예술', query: 'Asian art' },
+                { label: '현대미술', query: 'Contemporary' }
+            ]
+        }
+    };
+
+    // 미술관 탭 이벤트
+    document.querySelectorAll('.museum-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.museum-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentMuseum = tab.dataset.museum;
+            loadCategories();
+        });
+    });
+
+    function loadCategories() {
+        const config = museumConfigs[currentMuseum];
+        controlsDiv.innerHTML = config.categories.map(cat => 
+            `<button class="category-btn" data-query="${cat.query}">${cat.label}</button>`
+        ).join('');
+
+        // 첫 번째 버튼 활성화
+        const firstBtn = controlsDiv.querySelector('.category-btn');
+        if (firstBtn) {
+            firstBtn.classList.add('active');
+            loadArtworks(firstBtn.dataset.query);
+        }
+
+        // 카테고리 버튼 이벤트
+        controlsDiv.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                controlsDiv.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadArtworks(btn.dataset.query);
+            });
+        });
+    }
+
+    async function loadArtworks(query) {
+        gallery.innerHTML = '<div class="loading"><div class="spinner"></div>명화를 불러오는 중...</div>';
+        
+        try {
+            if (currentMuseum === 'met') {
+                await loadMetArtworks(query);
+            } else if (currentMuseum === 'rijks') {
+                await loadRijksArtworks(query);
+            } else if (currentMuseum === 'chicago') {
+                await loadChicagoArtworks(query);
+            } else if (currentMuseum === 'harvard') {
+                await loadHarvardArtworks(query);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            gallery.innerHTML = '<div class="loading">오류가 발생했습니다.</div>';
+        }
+    }
+
+    async function loadMetArtworks(query) {
+        const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${encodeURIComponent(query)}`;
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
+        
+        if (!searchData.objectIDs || searchData.objectIDs.length === 0) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
+        }
+
+        const selectedIds = searchData.objectIDs.sort(() => Math.random() - 0.5).slice(0, 20);
+        const artworks = [];
+
+        for (const id of selectedIds) {
+            try {
+                const res = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`);
+                const art = await res.json();
+                if (art.primaryImage) {
+                    artworks.push({
+                        image: art.primaryImageSmall || art.primaryImage,
+                        fullImage: art.primaryImage,
+                        title: art.title || '제목 없음',
+                        artist: art.artistDisplayName || '작가 미상',
+                        date: art.objectDate || '',
+                        museum: '메트로폴리탄',
+                        details: {
+                            medium: art.medium,
+                            dimensions: art.dimensions,
+                            department: art.department,
+                            culture: art.culture
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('작품 로딩 실패:', e);
+            }
+        }
+
+        currentArtworks = artworks;
+        displayArtworks(artworks);
+    }
+
+    async function loadRijksArtworks(query) {
+        const apiKey = 'fXHPLv0v';
+        const url = `https://www.rijksmuseum.nl/api/en/collection?key=${apiKey}&q=${encodeURIComponent(query)}&imgonly=true&ps=20`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.artObjects || data.artObjects.length === 0) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
+        }
+
+        const artworks = data.artObjects.map(art => ({
+            image: art.webImage?.url || '',
+            fullImage: art.webImage?.url || '',
+            title: art.title || art.longTitle || '제목 없음',
+            artist: art.principalOrFirstMaker || '작가 미상',
+            date: '',
+            museum: '암스테르담 국립',
+            details: {
+                objectNumber: art.objectNumber
+            }
+        })).filter(art => art.image);
+
+        currentArtworks = artworks;
+        displayArtworks(artworks);
+    }
+
+    async function loadChicagoArtworks(query) {
+        const url = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=20`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.data || data.data.length === 0) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
+        }
+
+        const artworks = data.data.map(art => {
+            if (!art.image_id) return null;
+            return {
+                image: `https://www.artic.edu/iiif/2/${art.image_id}/full/843,/0/default.jpg`,
+                fullImage: `https://www.artic.edu/iiif/2/${art.image_id}/full/full/0/default.jpg`,
+                title: art.title || '제목 없음',
+                artist: art.artist_display || '작가 미상',
+                date: art.date_display || '',
+                museum: '시카고',
+                details: {}
+            };
+        }).filter(art => art);
+
+        currentArtworks = artworks;
+        displayArtworks(artworks);
+    }
+
+    async function loadHarvardArtworks(query) {
+        const apiKey = 'be638540-86ce-4a62-b6d9-1850558bd89f';
+        const url = `https://api.harvardartmuseums.org/object?apikey=${apiKey}&q=${encodeURIComponent(query)}&hasimage=1&size=20`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.records || data.records.length === 0) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
+        }
+
+        const artworks = data.records.map(art => ({
+            image: art.primaryimageurl || '',
+            fullImage: art.primaryimageurl || '',
+            title: art.title || '제목 없음',
+            artist: art.people?.[0]?.name || '작가 미상',
+            date: art.dated || '',
+            museum: '하버드',
+            details: {
+                culture: art.culture,
+                medium: art.medium,
+                division: art.division
+            }
+        })).filter(art => art.image);
+
+        currentArtworks = artworks;
+        displayArtworks(artworks);
+    }
+
+    function displayArtworks(artworks) {
+        gallery.innerHTML = artworks.map((art, index) => `
+            <div class="art-card" onclick="openModal(${index})">
+                <img class="art-image" src="${art.image}" alt="${art.title}" loading="lazy">
+                <div class="art-info">
+                    <h3 class="art-title">${art.title}</h3>
+                    <p class="art-artist">${art.artist}</p>
+                    <p class="art-date">${art.date}</p>
+                    <span class="museum-badge">${art.museum}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openModal(index) {
+        const art = currentArtworks[index];
+        
+        document.getElementById('modalImage').src = art.fullImage;
+        document.getElementById('modalTitle').textContent = art.title;
+        document.getElementById('modalArtist').textContent = art.artist;
+        
+        let details = `<p><strong>소장:</strong> ${art.museum} 미술관</p>`;
+        if (art.date) details += `<p><strong>제작 연도:</strong> ${art.date}</p>`;
+        if (art.details.medium) details += `<p><strong>재료:</strong> ${art.details.medium}</p>`;
+        if (art.details.dimensions) details += `<p><strong>크기:</strong> ${art.details.dimensions}</p>`;
+        if (art.details.department) details += `<p><strong>부서:</strong> ${art.details.department}</p>`;
+        if (art.details.culture) details += `<p><strong>문화:</strong> ${art.details.culture}</p>`;
+        if (art.details.division) details += `<p><strong>분류:</strong> ${art.details.division}</p>`;
+        
+        document.getElementById('modalDetails').innerHTML = details;
+        modal.classList.add('active');
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // 초기 로딩
+    loadCategories();
+</script>
+```
+
+</body>
+</html>

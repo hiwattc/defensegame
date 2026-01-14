@@ -585,6 +585,38 @@
         if (e.target === modal) closeModal();
     });
 
+    // 초기 로딩
+    loadCategories();
+</script>
+```
+
+</body>
+</html>Artwork() {
+            const art = currentArtworks[currentIndex];
+            const link = document.createElement('a');
+            link.href = art.fullImage;
+            link.download = `${art.title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+            link.click();
+            showToast('이미지 저장을 시작합니다! 💾');
+        }
+
+```
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
 </script>
 ```
 

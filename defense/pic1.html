@@ -514,12 +514,12 @@
         border-radius: 25px;
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         z-index: 2000;
-        animation: slideIn 0.3s ease;
         display: none;
     }
 
     .toast.show {
         display: block;
+        animation: slideIn 0.3s ease;
     }
 
     @keyframes slideIn {
@@ -559,7 +559,6 @@
 </div>
 
 <div class="controls" id="controls"></div>
-
 <div id="gallery" class="gallery"></div>
 
 <div id="modal" class="modal">
@@ -598,8 +597,7 @@
                 { label: '반 고흐', query: 'Vincent van Gogh' },
                 { label: '모네', query: 'Claude Monet' },
                 { label: '피카소', query: 'Pablo Picasso' },
-                { label: '렘브란트', query: 'Rembrandt' },
-                { label: '다빈치', query: 'Leonardo da Vinci' }
+                { label: '렘브란트', query: 'Rembrandt' }
             ]
         },
         rijks: {
@@ -608,8 +606,7 @@
                 { label: '전체 작품', query: 'painting' },
                 { label: '렘브란트', query: 'Rembrandt' },
                 { label: '베르메르', query: 'Vermeer' },
-                { label: '반 고흐', query: 'Van Gogh' },
-                { label: '황금시대', query: 'Golden Age' }
+                { label: '반 고흐', query: 'Van Gogh' }
             ]
         },
         chicago: {
@@ -618,8 +615,7 @@
                 { label: '전체 작품', query: 'painting' },
                 { label: '모네', query: 'Monet' },
                 { label: '르누아르', query: 'Renoir' },
-                { label: '인상파', query: 'Impressionism' },
-                { label: '현대미술', query: 'Modern' }
+                { label: '인상파', query: 'Impressionism' }
             ]
         },
         harvard: {
@@ -627,8 +623,7 @@
             categories: [
                 { label: '전체 작품', query: 'painting' },
                 { label: '유럽 회화', query: 'European painting' },
-                { label: '아시아 예술', query: 'Asian art' },
-                { label: '현대미술', query: 'Contemporary' }
+                { label: '아시아 예술', query: 'Asian art' }
             ]
         }
     };
@@ -636,7 +631,6 @@
     function toggleTheme() {
         const body = document.body;
         const themeBtn = document.querySelector('.theme-toggle');
-        
         if (body.classList.contains('dark')) {
             body.classList.remove('dark');
             body.classList.add('light');
@@ -649,9 +643,7 @@
     }
 
     searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            searchArtworks();
-        }
+        if (e.key === 'Enter') searchArtworks();
     });
 
     function searchArtworks() {
@@ -697,36 +689,25 @@
 
     async function loadArtworks(query) {
         gallery.innerHTML = '<div class="loading"><div class="spinner"></div>명화를 불러오는 중...</div>';
-        
         try {
-            if (currentMuseum === 'met') {
-                await loadMetArtworks(query);
-            } else if (currentMuseum === 'rijks') {
-                await loadRijksArtworks(query);
-            } else if (currentMuseum === 'chicago') {
-                await loadChicagoArtworks(query);
-            } else if (currentMuseum === 'harvard') {
-                await loadHarvardArtworks(query);
-            }
+            if (currentMuseum === 'met') await loadMetArtworks(query);
+            else if (currentMuseum === 'rijks') await loadRijksArtworks(query);
+            else if (currentMuseum === 'chicago') await loadChicagoArtworks(query);
+            else if (currentMuseum === 'harvard') await loadHarvardArtworks(query);
         } catch (error) {
-            console.error('Error:', error);
             gallery.innerHTML = '<div class="loading">오류가 발생했습니다.</div>';
         }
     }
 
     async function loadMetArtworks(query) {
-        const searchUrl = `https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${encodeURIComponent(query)}`;
-        const searchRes = await fetch(searchUrl);
+        const searchRes = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q=${encodeURIComponent(query)}`);
         const searchData = await searchRes.json();
-        
-        if (!searchData.objectIDs || searchData.objectIDs.length === 0) {
+        if (!searchData.objectIDs) {
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-
         const selectedIds = searchData.objectIDs.sort(() => Math.random() - 0.5).slice(0, 20);
         const artworks = [];
-
         for (const id of selectedIds) {
             try {
                 const res = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`);
@@ -739,60 +720,42 @@
                         artist: art.artistDisplayName || '작가 미상',
                         date: art.objectDate || '',
                         museum: '메트로폴리탄',
-                        details: {
-                            medium: art.medium,
-                            dimensions: art.dimensions,
-                            department: art.department,
-                            culture: art.culture
-                        }
+                        details: { medium: art.medium, dimensions: art.dimensions, department: art.department, culture: art.culture }
                     });
                 }
-            } catch (e) {
-                console.error('작품 로딩 실패:', e);
-            }
+            } catch (e) {}
         }
-
         currentArtworks = artworks;
         displayArtworks(artworks);
     }
 
     async function loadRijksArtworks(query) {
-        const apiKey = 'fXHPLv0v';
-        const url = `https://www.rijksmuseum.nl/api/en/collection?key=${apiKey}&q=${encodeURIComponent(query)}&imgonly=true&ps=20`;
-        const res = await fetch(url);
+        const res = await fetch(`https://www.rijksmuseum.nl/api/en/collection?key=fXHPLv0v&q=${encodeURIComponent(query)}&imgonly=true&ps=20`);
         const data = await res.json();
-
-        if (!data.artObjects || data.artObjects.length === 0) {
+        if (!data.artObjects) {
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-
         const artworks = data.artObjects.map(art => ({
             image: art.webImage?.url || '',
             fullImage: art.webImage?.url || '',
-            title: art.title || art.longTitle || '제목 없음',
+            title: art.title || '제목 없음',
             artist: art.principalOrFirstMaker || '작가 미상',
             date: '',
             museum: '암스테르담 국립',
-            details: {
-                objectNumber: art.objectNumber
-            }
+            details: {}
         })).filter(art => art.image);
-
         currentArtworks = artworks;
         displayArtworks(artworks);
     }
 
     async function loadChicagoArtworks(query) {
-        const url = `https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=20`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=20`);
         const data = await res.json();
-
-        if (!data.data || data.data.length === 0) {
+        if (!data.data) {
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-
         const artworks = data.data.map(art => {
             if (!art.image_id) return null;
             return {
@@ -805,22 +768,17 @@
                 details: {}
             };
         }).filter(art => art);
-
         currentArtworks = artworks;
         displayArtworks(artworks);
     }
 
     async function loadHarvardArtworks(query) {
-        const apiKey = 'be638540-86ce-4a62-b6d9-1850558bd89f';
-        const url = `https://api.harvardartmuseums.org/object?apikey=${apiKey}&q=${encodeURIComponent(query)}&hasimage=1&size=20`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=be638540-86ce-4a62-b6d9-1850558bd89f&q=${encodeURIComponent(query)}&hasimage=1&size=20`);
         const data = await res.json();
-
-        if (!data.records || data.records.length === 0) {
+        if (!data.records) {
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-
         const artworks = data.records.map(art => ({
             image: art.primaryimageurl || '',
             fullImage: art.primaryimageurl || '',
@@ -828,13 +786,8 @@
             artist: art.people?.[0]?.name || '작가 미상',
             date: art.dated || '',
             museum: '하버드',
-            details: {
-                culture: art.culture,
-                medium: art.medium,
-                division: art.division
-            }
+            details: { culture: art.culture, medium: art.medium, division: art.division }
         })).filter(art => art.image);
-
         currentArtworks = artworks;
         displayArtworks(artworks);
     }
@@ -856,11 +809,9 @@
     function openModal(index) {
         currentIndex = index;
         const art = currentArtworks[index];
-        
         document.getElementById('modalImage').src = art.fullImage;
         document.getElementById('modalTitle').textContent = art.title;
         document.getElementById('modalArtist').textContent = art.artist;
-        
         let details = `<p><strong>소장:</strong> ${art.museum} 미술관</p>`;
         if (art.date) details += `<p><strong>제작 연도:</strong> ${art.date}</p>`;
         if (art.details.medium) details += `<p><strong>재료:</strong> ${art.details.medium}</p>`;
@@ -868,7 +819,6 @@
         if (art.details.department) details += `<p><strong>부서:</strong> ${art.details.department}</p>`;
         if (art.details.culture) details += `<p><strong>문화:</strong> ${art.details.culture}</p>`;
         if (art.details.division) details += `<p><strong>분류:</strong> ${art.details.division}</p>`;
-        
         document.getElementById('modalDetails').innerHTML = details;
         modal.classList.add('active');
     }
@@ -878,5 +828,31 @@
     }
 
     function saveArtwork() {
-        const art = currentArt
+        const art = currentArtworks[currentIndex];
+        const link = document.createElement('a');
+        link.href = art.fullImage;
+        link.download = `${art.title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+        link.click();
+        showToast('이미지 저장을 시작합니다! 💾');
+    }
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    loadCategories();
+</script>
 ```
+
+</body>
+</html>

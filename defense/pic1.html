@@ -15,17 +15,36 @@
 ```
     body {
         font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+        min-height: 100vh;
+        transition: all 0.3s ease;
+    }
+
+    body.dark {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: #fff;
-        min-height: 100vh;
+    }
+
+    body.light {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
+        color: #333;
     }
 
     .header {
-        background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(10px);
         padding: 20px;
         text-align: center;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+    }
+
+    body.dark .header {
+        background: rgba(255, 255, 255, 0.05);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.light .header {
+        background: rgba(255, 255, 255, 0.8);
+        border-bottom-color: rgba(0, 0, 0, 0.1);
     }
 
     .header h1 {
@@ -38,8 +57,95 @@
     }
 
     .header p {
-        color: #aaa;
         font-size: 1.1em;
+    }
+
+    body.dark .header p {
+        color: #aaa;
+    }
+
+    body.light .header p {
+        color: #666;
+    }
+
+    .theme-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        border-radius: 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2em;
+        transition: all 0.3s ease;
+    }
+
+    body.dark .theme-toggle {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+
+    body.light .theme-toggle {
+        background: rgba(0, 0, 0, 0.1);
+        color: #333;
+    }
+
+    .theme-toggle:hover {
+        transform: scale(1.1);
+    }
+
+    .search-container {
+        padding: 20px;
+        text-align: center;
+    }
+
+    .search-box {
+        max-width: 600px;
+        margin: 0 auto;
+        display: flex;
+        gap: 10px;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 12px 20px;
+        border-radius: 25px;
+        border: 2px solid transparent;
+        font-size: 1em;
+        transition: all 0.3s ease;
+    }
+
+    body.dark .search-input {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body.light .search-input {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #f093fb;
+    }
+
+    .search-btn {
+        padding: 12px 30px;
+        background: linear-gradient(45deg, #f093fb, #f5576c);
+        border: none;
+        border-radius: 25px;
+        color: white;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
     }
 
     .museum-tabs {
@@ -48,28 +154,53 @@
         gap: 10px;
         padding: 20px;
         flex-wrap: wrap;
+    }
+
+    body.dark .museum-tabs {
         background: rgba(0, 0, 0, 0.2);
+    }
+
+    body.light .museum-tabs {
+        background: rgba(255, 255, 255, 0.5);
     }
 
     .museum-tab {
         padding: 12px 24px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        color: white;
+        border: 2px solid transparent;
         border-radius: 25px;
         cursor: pointer;
         font-size: 1em;
         transition: all 0.3s ease;
     }
 
+    body.dark .museum-tab {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body.light .museum-tab {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
     .museum-tab:hover {
-        background: rgba(255, 255, 255, 0.2);
         transform: translateY(-2px);
+    }
+
+    body.dark .museum-tab:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    body.light .museum-tab:hover {
+        background: rgba(255, 255, 255, 1);
     }
 
     .museum-tab.active {
         background: linear-gradient(45deg, #667eea, #764ba2);
         border-color: transparent;
+        color: white;
     }
 
     .controls {
@@ -82,23 +213,41 @@
 
     .category-btn {
         padding: 12px 24px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        color: white;
+        border: 2px solid transparent;
         border-radius: 25px;
         cursor: pointer;
         font-size: 1em;
         transition: all 0.3s ease;
     }
 
+    body.dark .category-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    body.light .category-btn {
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
     .category-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
         transform: translateY(-2px);
+    }
+
+    body.dark .category-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    body.light .category-btn:hover {
+        background: rgba(255, 255, 255, 1);
     }
 
     .category-btn.active {
         background: linear-gradient(45deg, #f093fb, #f5576c);
         border-color: transparent;
+        color: white;
     }
 
     .gallery {
@@ -111,18 +260,34 @@
     }
 
     .art-card {
-        background: rgba(255, 255, 255, 0.05);
         border-radius: 15px;
         overflow: hidden;
         cursor: pointer;
         transition: all 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid transparent;
+    }
+
+    body.dark .art-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.light .art-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(0, 0, 0, 0.1);
     }
 
     .art-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    body.dark .art-card:hover {
         border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    body.light .art-card:hover {
+        border-color: rgba(0, 0, 0, 0.2);
     }
 
     .art-image {
@@ -139,7 +304,14 @@
     .art-title {
         font-size: 1.2em;
         margin-bottom: 8px;
+    }
+
+    body.dark .art-title {
         color: #fff;
+    }
+
+    body.light .art-title {
+        color: #333;
     }
 
     .art-artist {
@@ -149,18 +321,33 @@
     }
 
     .art-date {
-        color: #aaa;
         font-size: 0.9em;
+    }
+
+    body.dark .art-date {
+        color: #aaa;
+    }
+
+    body.light .art-date {
+        color: #666;
     }
 
     .museum-badge {
         display: inline-block;
         padding: 4px 10px;
-        background: rgba(102, 126, 234, 0.3);
         border-radius: 12px;
         font-size: 0.85em;
         margin-top: 8px;
+    }
+
+    body.dark .museum-badge {
+        background: rgba(102, 126, 234, 0.3);
         color: #a8b9ff;
+    }
+
+    body.light .museum-badge {
+        background: rgba(102, 126, 234, 0.2);
+        color: #667eea;
     }
 
     .modal {
@@ -184,12 +371,21 @@
 
     .modal-content {
         max-width: 1200px;
-        background: rgba(255, 255, 255, 0.05);
         border-radius: 20px;
         overflow: hidden;
         position: relative;
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid transparent;
+    }
+
+    body.dark .modal-content {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    body.light .modal-content {
+        background: rgba(255, 255, 255, 0.95);
+        border-color: rgba(0, 0, 0, 0.1);
     }
 
     .modal-image {
@@ -215,9 +411,54 @@
     }
 
     .modal-details {
-        color: #ccc;
         line-height: 1.8;
         font-size: 1.1em;
+    }
+
+    body.dark .modal-details {
+        color: #ccc;
+    }
+
+    body.light .modal-details {
+        color: #666;
+    }
+
+    .modal-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 25px;
+        justify-content: center;
+    }
+
+    .modal-btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .close-modal-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .close-modal-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .save-btn {
+        background: linear-gradient(45deg, #f093fb, #f5576c);
+        color: white;
+    }
+
+    .save-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
     }
 
     .close-btn {
@@ -262,17 +503,54 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+
+    .toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        padding: 15px 25px;
+        background: linear-gradient(45deg, #f093fb, #f5576c);
+        color: white;
+        border-radius: 25px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        z-index: 2000;
+        animation: slideIn 0.3s ease;
+        display: none;
+    }
+
+    .toast.show {
+        display: block;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
 </style>
 ```
 
 </head>
-<body>
+<body class="dark">
     <div class="header">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
         <h1>🎨 세계 명화 갤러리</h1>
         <p>세계 유명 미술관 소장 작품 감상</p>
     </div>
 
 ```
+<div class="search-container">
+    <div class="search-box">
+        <input type="text" class="search-input" id="searchInput" placeholder="작품명이나 작가명을 검색하세요...">
+        <button class="search-btn" onclick="searchArtworks()">🔍 검색</button>
+    </div>
+</div>
+
 <div class="museum-tabs">
     <button class="museum-tab active" data-museum="met">메트로폴리탄 미술관</button>
     <button class="museum-tab" data-museum="rijks">암스테르담 국립미술관</button>
@@ -292,16 +570,25 @@
             <h2 id="modalTitle" class="modal-title"></h2>
             <p id="modalArtist" class="modal-artist"></p>
             <div id="modalDetails" class="modal-details"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn close-modal-btn" onclick="closeModal()">✕ 닫기</button>
+                <button class="modal-btn save-btn" onclick="saveArtwork()">💾 저장</button>
+            </div>
         </div>
     </div>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script>
     const gallery = document.getElementById('gallery');
     const modal = document.getElementById('modal');
     const controlsDiv = document.getElementById('controls');
+    const searchInput = document.getElementById('searchInput');
+    const toast = document.getElementById('toast');
     let currentArtworks = [];
     let currentMuseum = 'met';
+    let currentIndex = 0;
 
     const museumConfigs = {
         met: {
@@ -346,12 +633,42 @@
         }
     };
 
-    // 미술관 탭 이벤트
+    function toggleTheme() {
+        const body = document.body;
+        const themeBtn = document.querySelector('.theme-toggle');
+        
+        if (body.classList.contains('dark')) {
+            body.classList.remove('dark');
+            body.classList.add('light');
+            themeBtn.textContent = '☀️';
+        } else {
+            body.classList.remove('light');
+            body.classList.add('dark');
+            themeBtn.textContent = '🌙';
+        }
+    }
+
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            searchArtworks();
+        }
+    });
+
+    function searchArtworks() {
+        const query = searchInput.value.trim();
+        if (!query) {
+            showToast('검색어를 입력해주세요');
+            return;
+        }
+        loadArtworks(query);
+    }
+
     document.querySelectorAll('.museum-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.museum-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             currentMuseum = tab.dataset.museum;
+            searchInput.value = '';
             loadCategories();
         });
     });
@@ -362,21 +679,20 @@
             `<button class="category-btn" data-query="${cat.query}">${cat.label}</button>`
         ).join('');
 
-        // 첫 번째 버튼 활성화
+        controlsDiv.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                controlsDiv.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                searchInput.value = '';
+                loadArtworks(btn.dataset.query);
+            });
+        });
+
         const firstBtn = controlsDiv.querySelector('.category-btn');
         if (firstBtn) {
             firstBtn.classList.add('active');
             loadArtworks(firstBtn.dataset.query);
         }
-
-        // 카테고리 버튼 이벤트
-        controlsDiv.querySelectorAll('.category-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                controlsDiv.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                loadArtworks(btn.dataset.query);
-            });
-        });
     }
 
     async function loadArtworks(query) {
@@ -538,6 +854,7 @@
     }
 
     function openModal(index) {
+        currentIndex = index;
         const art = currentArtworks[index];
         
         document.getElementById('modalImage').src = art.fullImage;
@@ -561,89 +878,5 @@
     }
 
     function saveArtwork() {
-        const art = currentArtworks[currentIndex];
-        const link = document.createElement('a');
-        link.href = art.fullImage;
-        link.download = `${art.title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
-        link.click();
-        showToast('이미지 저장을 시작합니다! 💾');
-    }
-
-    function showToast(message) {
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-
-    // 초기 로딩
-    loadCategories();
-</script>
+        const art = currentArt
 ```
-
-</body>
-</html>Artwork() {
-            const art = currentArtworks[currentIndex];
-            const link = document.createElement('a');
-            link.href = art.fullImage;
-            link.download = `${art.title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
-            link.click();
-            showToast('이미지 저장을 시작합니다! 💾');
-        }
-
-```
-    function showToast(message) {
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-
-</script>
-```
-
-</body>
-</html>division}</p>`;
-
-```
-        document.getElementById('modalDetails').innerHTML = details;
-        modal.classList.add('active');
-    }
-
-    function closeModal() {
-        modal.classList.remove('active');
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-
-    // 초기 로딩
-    loadCategories();
-</script>
-```
-
-</body>
-</html>

@@ -201,6 +201,8 @@
         background: linear-gradient(45deg, #667eea, #764ba2);
         border-color: transparent;
         color: white;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        transform: scale(1.05);
     }
 
     .controls {
@@ -209,6 +211,22 @@
         gap: 15px;
         padding: 20px;
         flex-wrap: wrap;
+    }
+
+    .controls-header {
+        width: 100%;
+        text-align: center;
+        font-size: 1.1em;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+    body.dark .controls-header {
+        color: #f093fb;
+    }
+
+    body.light .controls-header {
+        color: #667eea;
     }
 
     .category-btn {
@@ -248,6 +266,8 @@
         background: linear-gradient(45deg, #f093fb, #f5576c);
         border-color: transparent;
         color: white;
+        box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+        transform: scale(1.05);
     }
 
     .gallery {
@@ -565,9 +585,7 @@
 
 <div class="museum-tabs">
     <button class="museum-tab active" data-museum="met">메트로폴리탄 미술관</button>
-    <button class="museum-tab" data-museum="rijks">암스테르담 국립미술관</button>
     <button class="museum-tab" data-museum="chicago">시카고 미술관</button>
-    <button class="museum-tab" data-museum="harvard">하버드 미술관</button>
     <button class="museum-tab" data-museum="cleveland">클리블랜드 미술관</button>
     <button class="museum-tab" data-museum="v_and_a">영국 빅토리아앨버트</button>
 </div>
@@ -611,16 +629,13 @@
                 { label: '반 고흐', query: 'Vincent van Gogh' },
                 { label: '모네', query: 'Claude Monet' },
                 { label: '피카소', query: 'Pablo Picasso' },
-                { label: '렘브란트', query: 'Rembrandt' }
-            ]
-        },
-        rijks: {
-            name: '암스테르담 국립',
-            categories: [
-                { label: '전체 작품', query: 'painting' },
                 { label: '렘브란트', query: 'Rembrandt' },
-                { label: '베르메르', query: 'Vermeer' },
-                { label: '반 고흐', query: 'Van Gogh' }
+                { label: '르누아르', query: 'Pierre-Auguste Renoir' },
+                { label: '세잔', query: 'Paul Cézanne' },
+                { label: '마티스', query: 'Henri Matisse' },
+                { label: '드가', query: 'Edgar Degas' },
+                { label: '고야', query: 'Francisco Goya' },
+                { label: '엘 그레코', query: 'El Greco' }
             ]
         },
         chicago: {
@@ -629,24 +644,30 @@
                 { label: '전체 작품', query: 'painting' },
                 { label: '모네', query: 'Monet' },
                 { label: '르누아르', query: 'Renoir' },
+                { label: '반 고흐', query: 'Van Gogh' },
+                { label: '피카소', query: 'Picasso' },
+                { label: '세잔', query: 'Cézanne' },
+                { label: '샤갈', query: 'Chagall' },
+                { label: '마티스', query: 'Matisse' },
+                { label: '고갱', query: 'Gauguin' },
+                { label: '쇠라', query: 'Seurat' },
                 { label: '인상파', query: 'Impressionism' }
-            ]
-        },
-        harvard: {
-            name: '하버드',
-            categories: [
-                { label: '전체 작품', query: 'painting' },
-                { label: '유럽 회화', query: 'European painting' },
-                { label: '아시아 예술', query: 'Asian art' }
             ]
         },
         cleveland: {
             name: '클리블랜드',
             categories: [
                 { label: '전체 작품', query: 'painting' },
-                { label: '유럽 회화', query: 'European' },
-                { label: '아시아 예술', query: 'Asian' },
-                { label: '현대미술', query: 'Modern' }
+                { label: '모네', query: 'Monet' },
+                { label: '피카소', query: 'Picasso' },
+                { label: '렘브란트', query: 'Rembrandt' },
+                { label: '반 고흐', query: 'Van Gogh' },
+                { label: '르누아르', query: 'Renoir' },
+                { label: '세잔', query: 'Cézanne' },
+                { label: '고야', query: 'Goya' },
+                { label: '카라바조', query: 'Caravaggio' },
+                { label: '터너', query: 'Turner' },
+                { label: '엘 그레코', query: 'El Greco' }
             ]
         },
         v_and_a: {
@@ -655,6 +676,13 @@
                 { label: '전체 작품', query: 'painting' },
                 { label: '회화', query: 'paintings' },
                 { label: '조각', query: 'sculpture' },
+                { label: '터너', query: 'Turner' },
+                { label: '콘스터블', query: 'Constable' },
+                { label: '라파엘 전파', query: 'Pre-Raphaelite' },
+                { label: '로댕', query: 'Rodin' },
+                { label: '도자기', query: 'ceramics' },
+                { label: '직물', query: 'textiles' },
+                { label: '가구', query: 'furniture' },
                 { label: '장식미술', query: 'decorative' }
             ]
         }
@@ -699,7 +727,10 @@
 
     function loadCategories() {
         const config = museumConfigs[currentMuseum];
-        controlsDiv.innerHTML = config.categories.map(cat => 
+        
+        controlsDiv.innerHTML = `
+            <div class="controls-header">🎨 ${config.name} 미술관 추천 검색어</div>
+        ` + config.categories.map(cat => 
             `<button class="category-btn" data-query="${cat.query}">${cat.label}</button>`
         ).join('');
 
@@ -723,9 +754,7 @@
         gallery.innerHTML = '<div class="loading"><div class="spinner"></div>명화를 불러오는 중...</div>';
         try {
             if (currentMuseum === 'met') await loadMetArtworks(query);
-            else if (currentMuseum === 'rijks') await loadRijksArtworks(query);
             else if (currentMuseum === 'chicago') await loadChicagoArtworks(query);
-            else if (currentMuseum === 'harvard') await loadHarvardArtworks(query);
             else if (currentMuseum === 'cleveland') await loadClevelandArtworks(query);
             else if (currentMuseum === 'v_and_a') await loadVandAArtworks(query);
         } catch (error) {
@@ -818,116 +847,23 @@
     }
 
     async function loadHarvardArtworks(query) {
-        try {
-            const apiKey = 'be638540-86ce-4a62-b6d9-1850558bd89f';
-            const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=${apiKey}&q=${encodeURIComponent(query)}&hasimage=1&size=30`);
-            const data = await res.json();
-            
-            if (!data.records || data.records.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            const artworks = data.records.map(art => ({
-                image: art.primaryimageurl || '',
-                fullImage: art.primaryimageurl || '',
-                title: art.title || '제목 없음',
-                artist: art.people?.[0]?.name || '작가 미상',
-                date: art.dated || '',
-                museum: '하버드',
-                details: { culture: art.culture, medium: art.medium, division: art.division }
-            })).filter(art => art.image);
-            
-            if (artworks.length === 0) {
-                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = artworks;
-            displayArtworks(artworks);
-        } catch (error) {
-            console.error('Harvard API Error:', error);
-            gallery.innerHTML = '<div class="loading">하버드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=be638540-86ce-4a62-b6d9-1850558bd89f&q=${encodeURIComponent(query)}&hasimage=1&size=20`);
+        const data = await res.json();
+        if (!data.records) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
         }
-    }
-
-    async function loadClevelandArtworks(query) {
-        try {
-            const res = await fetch(`https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&has_image=1&limit=30`);
-            const data = await res.json();
-            
-            if (!data.data || data.data.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            const artworks = data.data.map(art => ({
-                image: art.images?.web?.url || '',
-                fullImage: art.images?.full?.url || art.images?.web?.url || '',
-                title: art.title || '제목 없음',
-                artist: art.creators?.[0]?.description || '작가 미상',
-                date: art.creation_date || '',
-                museum: '클리블랜드',
-                details: { 
-                    medium: art.technique, 
-                    dimensions: art.dimensions,
-                    department: art.department,
-                    culture: art.culture?.[0]
-                }
-            })).filter(art => art.image);
-            
-            if (artworks.length === 0) {
-                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = artworks;
-            displayArtworks(artworks);
-        } catch (error) {
-            console.error('Cleveland API Error:', error);
-            gallery.innerHTML = '<div class="loading">클리블랜드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
-        }
-    }
-
-    async function loadVandAArtworks(query) {
-        try {
-            const res = await fetch(`https://api.vam.ac.uk/v2/objects/search?q=${encodeURIComponent(query)}&images_exist=1&page_size=30`);
-            const data = await res.json();
-            
-            if (!data.records || data.records.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을  수 없습니다.</div>';
-                return;
-            }
-            
-            const artworks = data.records.map(art => {
-                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
-                if (!imageUrl) return null;
-                
-                return {
-                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
-                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
-                    title: art._primaryTitle || '제목 없음',
-                    artist: art._primaryMaker?.name || '작가 미상',
-                    date: art._primaryDate || '',
-                    museum: '빅토리아앨버트',
-                    details: {
-                        medium: art._primaryMaterialsAndTechniques,
-                        culture: art._primaryPlace
-                    }
-                };
-            }).filter(art => art);
-            
-            if (artworks.length === 0) {
-                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = artworks;
-            displayArtworks(artworks);
-        } catch (error) {
-            console.error('V&A API Error:', error);
-            gallery.innerHTML = '<div class="loading">빅토리아앨버트 박물관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
-        }
+        const artworks = data.records.map(art => ({
+            image: art.primaryimageurl || '',
+            fullImage: art.primaryimageurl || '',
+            title: art.title || '제목 없음',
+            artist: art.people?.[0]?.name || '작가 미상',
+            date: art.dated || '',
+            museum: '하버드',
+            details: { culture: art.culture, medium: art.medium, division: art.division }
+        })).filter(art => art.image);
+        currentArtworks = artworks;
+        displayArtworks(artworks);
     }
 
     function displayArtworks(artworks) {

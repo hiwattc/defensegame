@@ -318,6 +318,18 @@
         color: #f093fb;
         font-size: 1em;
         margin-bottom: 5px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .art-artist:hover {
+        color: #f5576c;
+        transform: translateX(3px);
+    }
+
+    .art-artist::before {
+        content: '#';
+        margin-right: 2px;
     }
 
     .art-date {
@@ -556,6 +568,8 @@
     <button class="museum-tab" data-museum="rijks">암스테르담 국립미술관</button>
     <button class="museum-tab" data-museum="chicago">시카고 미술관</button>
     <button class="museum-tab" data-museum="harvard">하버드 미술관</button>
+    <button class="museum-tab" data-museum="cleveland">클리블랜드 미술관</button>
+    <button class="museum-tab" data-museum="v_and_a">영국 빅토리아앨버트</button>
 </div>
 
 <div class="controls" id="controls"></div>
@@ -624,6 +638,24 @@
                 { label: '전체 작품', query: 'painting' },
                 { label: '유럽 회화', query: 'European painting' },
                 { label: '아시아 예술', query: 'Asian art' }
+            ]
+        },
+        cleveland: {
+            name: '클리블랜드',
+            categories: [
+                { label: '전체 작품', query: 'painting' },
+                { label: '유럽 회화', query: 'European' },
+                { label: '아시아 예술', query: 'Asian' },
+                { label: '현대미술', query: 'Modern' }
+            ]
+        },
+        v_and_a: {
+            name: '빅토리아앨버트',
+            categories: [
+                { label: '전체 작품', query: 'painting' },
+                { label: '회화', query: 'paintings' },
+                { label: '조각', query: 'sculpture' },
+                { label: '장식미술', query: 'decorative' }
             ]
         }
     };
@@ -694,6 +726,8 @@
             else if (currentMuseum === 'rijks') await loadRijksArtworks(query);
             else if (currentMuseum === 'chicago') await loadChicagoArtworks(query);
             else if (currentMuseum === 'harvard') await loadHarvardArtworks(query);
+            else if (currentMuseum === 'cleveland') await loadClevelandArtworks(query);
+            else if (currentMuseum === 'v_and_a') await loadVandAArtworks(query);
         } catch (error) {
             gallery.innerHTML = '<div class="loading">오류가 발생했습니다.</div>';
         }
@@ -730,23 +764,34 @@
     }
 
     async function loadRijksArtworks(query) {
-        const res = await fetch(`https://www.rijksmuseum.nl/api/en/collection?key=fXHPLv0v&q=${encodeURIComponent(query)}&imgonly=true&ps=20`);
-        const data = await res.json();
-        if (!data.artObjects) {
-            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-            return;
+        try {
+            const res = await fetch(`https://www.rijksmuseum.nl/api/en/collection?key=fXHPLv0v&q=${encodeURIComponent(query)}&imgonly=true&ps=30`);
+            const data = await res.json();
+            if (!data.artObjects || data.artObjects.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            const artworks = data.artObjects.map(art => ({
+                image: art.webImage?.url || '',
+                fullImage: art.webImage?.url || '',
+                title: art.title || art.longTitle || '제목 없음',
+                artist: art.principalOrFirstMaker || '작가 미상',
+                date: '',
+                museum: '암스테르담 국립',
+                details: {}
+            })).filter(art => art.image);
+            
+            if (artworks.length === 0) {
+                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = artworks;
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Rijks API Error:', error);
+            gallery.innerHTML = '<div class="loading">암스테르담 국립미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
         }
-        const artworks = data.artObjects.map(art => ({
-            image: art.webImage?.url || '',
-            fullImage: art.webImage?.url || '',
-            title: art.title || '제목 없음',
-            artist: art.principalOrFirstMaker || '작가 미상',
-            date: '',
-            museum: '암스테르담 국립',
-            details: {}
-        })).filter(art => art.image);
-        currentArtworks = artworks;
-        displayArtworks(artworks);
     }
 
     async function loadChicagoArtworks(query) {
@@ -794,16 +839,23 @@
 
     function displayArtworks(artworks) {
         gallery.innerHTML = artworks.map((art, index) => `
-            <div class="art-card" onclick="openModal(${index})">
-                <img class="art-image" src="${art.image}" alt="${art.title}" loading="lazy">
+            <div class="art-card">
+                <img class="art-image" src="${art.image}" alt="${art.title}" loading="lazy" onclick="openModal(${index})">
                 <div class="art-info">
-                    <h3 class="art-title">${art.title}</h3>
-                    <p class="art-artist">${art.artist}</p>
+                    <h3 class="art-title" onclick="openModal(${index})">${art.title}</h3>
+                    <p class="art-artist" onclick="searchByArtist('${art.artist.replace(/'/g, "\\'")}')">${art.artist}</p>
                     <p class="art-date">${art.date}</p>
                     <span class="museum-badge">${art.museum}</span>
                 </div>
             </div>
         `).join('');
+    }
+
+    function searchByArtist(artistName) {
+        searchInput.value = artistName;
+        loadArtworks(artistName);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast(`"${artistName}" 작품을 검색합니다 🔍`);
     }
 
     function openModal(index) {

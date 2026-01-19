@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>세계 명화 갤러리</title>
+    <title>Open Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,7 +13,7 @@
             box-sizing: border-box;
         }
 
-
+```
     body {
         font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         min-height: 100vh;
@@ -48,12 +49,15 @@
     }
 
     .header h1 {
-        font-size: 2.5em;
+        font-size: 3em;
+        font-family: 'Dancing Script', cursive;
         background: linear-gradient(45deg, #f093fb, #f5576c);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 10px;
+        font-weight: 700;
+        letter-spacing: 2px;
     }
 
     .header p {
@@ -565,17 +569,17 @@
         }
     }
 </style>
-
+```
 
 </head>
 <body class="dark">
     <div class="header">
         <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
-        <h1>🎨 세계 명화 갤러리</h1>
+        <h1>🎨 Open Gallery</h1>
         <p>세계 유명 미술관 소장 작품 감상</p>
     </div>
 
-
+```
 <div class="search-container">
     <div class="search-box">
         <input type="text" class="search-input" id="searchInput" placeholder="작품명이나 작가명을 검색하세요...">
@@ -752,6 +756,14 @@
 
     async function loadArtworks(query) {
         gallery.innerHTML = '<div class="loading"><div class="spinner"></div>명화를 불러오는 중...</div>';
+        
+        // 갤러리 초기화 (로딩 메시지만 제거하고 빈 상태로)
+        setTimeout(() => {
+            if (gallery.querySelector('.loading')) {
+                gallery.innerHTML = '';
+            }
+        }, 500);
+        
         try {
             if (currentMuseum === 'met') await loadMetArtworks(query);
             else if (currentMuseum === 'chicago') await loadChicagoArtworks(query);
@@ -826,6 +838,37 @@
         displayArtworks(currentArtworks);
     }
 
+    async function loadRijksArtworks(query) {
+        try {
+            const res = await fetch(`https://www.rijksmuseum.nl/api/en/collection?key=fXHPLv0v&q=${encodeURIComponent(query)}&imgonly=true&ps=30`);
+            const data = await res.json();
+            if (!data.artObjects || data.artObjects.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            const artworks = data.artObjects.map(art => ({
+                image: art.webImage?.url || '',
+                fullImage: art.webImage?.url || '',
+                title: art.title || art.longTitle || '제목 없음',
+                artist: art.principalOrFirstMaker || '작가 미상',
+                date: '',
+                museum: '암스테르담 국립',
+                details: {}
+            })).filter(art => art.image);
+            
+            if (artworks.length === 0) {
+                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = artworks;
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Rijks API Error:', error);
+            gallery.innerHTML = '<div class="loading">암스테르담 국립미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        }
+    }
+
     async function loadChicagoArtworks(query) {
         const res = await fetch(`https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=30`);
         const data = await res.json();
@@ -878,146 +921,51 @@
         }
     }
 
-    async function loadClevelandArtworks(query) {
-        try {
-            const res = await fetch(`https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&has_image=1&limit=30`);
-            const data = await res.json();
-            
-            if (!data.data || data.data.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = [];
-            
-            // 처음 5개 먼저 표시
-            const initialArts = data.data.slice(0, 5).map(art => ({
-                image: art.images?.web?.url || '',
-                fullImage: art.images?.full?.url || art.images?.web?.url || '',
-                title: art.title || '제목 없음',
-                artist: art.creators?.[0]?.description || '작가 미상',
-                date: art.creation_date || '',
-                museum: '클리블랜드',
-                details: { 
-                    medium: art.technique, 
-                    dimensions: art.dimensions,
-                    department: art.department,
-                    culture: art.culture?.[0]
-                }
-            })).filter(art => art.image);
-            
-            currentArtworks = initialArts;
-            if (currentArtworks.length > 0) {
-                displayArtworks(currentArtworks);
-            }
-            
-            // 나머지 비동기 추가
-            const remainingArts = data.data.slice(5).map(art => ({
-                image: art.images?.web?.url || '',
-                fullImage: art.images?.full?.url || art.images?.web?.url || '',
-                title: art.title || '제목 없음',
-                artist: art.creators?.[0]?.description || '작가 미상',
-                date: art.creation_date || '',
-                museum: '클리블랜드',
-                details: { 
-                    medium: art.technique, 
-                    dimensions: art.dimensions,
-                    department: art.department,
-                    culture: art.culture?.[0]
-                }
-            })).filter(art => art.image);
-            
-            for (let i = 0; i < remainingArts.length; i += 5) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                const batch = remainingArts.slice(i, i + 5);
-                currentArtworks = [...currentArtworks, ...batch];
-                displayArtworks(currentArtworks);
-            }
-        } catch (error) {
-            console.error('Cleveland API Error:', error);
-            gallery.innerHTML = '<div class="loading">클리블랜드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+    async function loadHarvardArtworks(query) {
+        const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=be638540-86ce-4a62-b6d9-1850558bd89f&q=${encodeURIComponent(query)}&hasimage=1&size=20`);
+        const data = await res.json();
+        if (!data.records) {
+            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+            return;
         }
-    }
-
-    async function loadVandAArtworks(query) {
-        try {
-            const res = await fetch(`https://api.vam.ac.uk/v2/objects/search?q=${encodeURIComponent(query)}&images_exist=1&page_size=30`);
-            const data = await res.json();
-            
-            if (!data.records || data.records.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을  수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = [];
-            
-            // 처음 5개 먼저 표시
-            const initialArts = data.records.slice(0, 5).map(art => {
-                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
-                if (!imageUrl) return null;
-                
-                return {
-                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
-                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
-                    title: art._primaryTitle || '제목 없음',
-                    artist: art._primaryMaker?.name || '작가 미상',
-                    date: art._primaryDate || '',
-                    museum: '빅토리아앨버트',
-                    details: {
-                        medium: art._primaryMaterialsAndTechniques,
-                        culture: art._primaryPlace
-                    }
-                };
-            }).filter(art => art);
-            
-            currentArtworks = initialArts;
-            if (currentArtworks.length > 0) {
-                displayArtworks(currentArtworks);
-            }
-            
-            // 나머지 비동기 추가
-            const remainingArts = data.records.slice(5).map(art => {
-                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
-                if (!imageUrl) return null;
-                
-                return {
-                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
-                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
-                    title: art._primaryTitle || '제목 없음',
-                    artist: art._primaryMaker?.name || '작가 미상',
-                    date: art._primaryDate || '',
-                    museum: '빅토리아앨버트',
-                    details: {
-                        medium: art._primaryMaterialsAndTechniques,
-                        culture: art._primaryPlace
-                    }
-                };
-            }).filter(art => art);
-            
-            for (let i = 0; i < remainingArts.length; i += 5) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                const batch = remainingArts.slice(i, i + 5);
-                currentArtworks = [...currentArtworks, ...batch];
-                displayArtworks(currentArtworks);
-            }
-        } catch (error) {
-            console.error('V&A API Error:', error);
-            gallery.innerHTML = '<div class="loading">빅토리아앨버트 박물관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
-        }
+        const artworks = data.records.map(art => ({
+            image: art.primaryimageurl || '',
+            fullImage: art.primaryimageurl || '',
+            title: art.title || '제목 없음',
+            artist: art.people?.[0]?.name || '작가 미상',
+            date: art.dated || '',
+            museum: '하버드',
+            details: { culture: art.culture, medium: art.medium, division: art.division }
+        })).filter(art => art.image);
+        currentArtworks = artworks;
+        displayArtworks(artworks);
     }
 
     function displayArtworks(artworks) {
-        gallery.innerHTML = artworks.map((art, index) => `
-            <div class="art-card">
-                <img class="art-image" src="${art.image}" alt="${art.title}" loading="lazy" onclick="openModal(${index})">
-                <div class="art-info">
-                    <h3 class="art-title" onclick="openModal(${index})">${art.title}</h3>
-                    <p class="art-artist" onclick="searchByArtist('${art.artist.replace(/'/g, "\\'")}')">${art.artist}</p>
-                    <p class="art-date">${art.date}</p>
-                    <span class="museum-badge">${art.museum}</span>
-                </div>
-            </div>
-        `).join('');
+        // 기존 카드들의 ID를 추적
+        const existingCards = new Set(
+            Array.from(gallery.querySelectorAll('.art-card')).map(card => card.dataset.artId)
+        );
+        
+        // 새로운 작품만 추가
+        artworks.forEach((art, index) => {
+            const artId = `art-${index}`;
+            if (!existingCards.has(artId)) {
+                const cardHTML = `
+                    <div class="art-card" data-art-id="${artId}">
+                        <img class="art-image" src="${art.image}" alt="${art.title}" loading="lazy" 
+                             onclick="openModal(${index})" onload="this.classList.add('loaded')">
+                        <div class="art-info">
+                            <h3 class="art-title" onclick="openModal(${index})">${art.title}</h3>
+                            <p class="art-artist" onclick="searchByArtist('${art.artist.replace(/'/g, "\\'")}')">${art.artist}</p>
+                            <p class="art-date">${art.date}</p>
+                            <span class="museum-badge">${art.museum}</span>
+                        </div>
+                    </div>
+                `;
+                gallery.insertAdjacentHTML('beforeend', cardHTML);
+            }
+        });
     }
 
     function searchByArtist(artistName) {
@@ -1073,7 +1021,7 @@
 
     loadCategories();
 </script>
-
+```
 
 </body>
 </html>

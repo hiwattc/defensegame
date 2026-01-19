@@ -769,14 +769,18 @@
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-        const selectedIds = searchData.objectIDs.sort(() => Math.random() - 0.5).slice(0, 20);
-        const artworks = [];
-        for (const id of selectedIds) {
+        
+        const selectedIds = searchData.objectIDs.sort(() => Math.random() - 0.5).slice(0, 30);
+        currentArtworks = [];
+        
+        // 처음 5개만 먼저 로드해서 즉시 표시
+        const initialIds = selectedIds.slice(0, 5);
+        for (const id of initialIds) {
             try {
                 const res = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`);
                 const art = await res.json();
                 if (art.primaryImage) {
-                    artworks.push({
+                    currentArtworks.push({
                         image: art.primaryImageSmall || art.primaryImage,
                         fullImage: art.primaryImage,
                         title: art.title || '제목 없음',
@@ -788,49 +792,52 @@
                 }
             } catch (e) {}
         }
-        currentArtworks = artworks;
-        displayArtworks(artworks);
-    }
-
-    async function loadRijksArtworks(query) {
-        try {
-            const res = await fetch(`https://www.rijksmuseum.nl/api/en/collection?key=fXHPLv0v&q=${encodeURIComponent(query)}&imgonly=true&ps=30`);
-            const data = await res.json();
-            if (!data.artObjects || data.artObjects.length === 0) {
-                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            const artworks = data.artObjects.map(art => ({
-                image: art.webImage?.url || '',
-                fullImage: art.webImage?.url || '',
-                title: art.title || art.longTitle || '제목 없음',
-                artist: art.principalOrFirstMaker || '작가 미상',
-                date: '',
-                museum: '암스테르담 국립',
-                details: {}
-            })).filter(art => art.image);
-            
-            if (artworks.length === 0) {
-                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
-                return;
-            }
-            
-            currentArtworks = artworks;
-            displayArtworks(artworks);
-        } catch (error) {
-            console.error('Rijks API Error:', error);
-            gallery.innerHTML = '<div class="loading">암스테르담 국립미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        
+        // 처음 5개 즉시 표시
+        if (currentArtworks.length > 0) {
+            displayArtworks(currentArtworks);
         }
+        
+        // 나머지 비동기로 로드하면서 계속 추가
+        const remainingIds = selectedIds.slice(5);
+        for (const id of remainingIds) {
+            try {
+                const res = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`);
+                const art = await res.json();
+                if (art.primaryImage) {
+                    currentArtworks.push({
+                        image: art.primaryImageSmall || art.primaryImage,
+                        fullImage: art.primaryImage,
+                        title: art.title || '제목 없음',
+                        artist: art.artistDisplayName || '작가 미상',
+                        date: art.objectDate || '',
+                        museum: '메트로폴리탄',
+                        details: { medium: art.medium, dimensions: art.dimensions, department: art.department, culture: art.culture }
+                    });
+                    // 3개씩 추가될 때마다 화면 업데이트
+                    if (currentArtworks.length % 3 === 0) {
+                        displayArtworks(currentArtworks);
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        // 최종 업데이트
+        displayArtworks(currentArtworks);
     }
 
     async function loadChicagoArtworks(query) {
-        const res = await fetch(`https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=20`);
+        const res = await fetch(`https://api.artic.edu/api/v1/artworks/search?q=${encodeURIComponent(query)}&query[term][is_public_domain]=true&fields=id,title,artist_display,date_display,image_id&limit=30`);
         const data = await res.json();
         if (!data.data) {
             gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
             return;
         }
-        const artworks = data.data.map(art => {
+        
+        currentArtworks = [];
+        
+        // 처음 5개만 먼저 표시
+        const initialArts = data.data.slice(0, 5).map(art => {
             if (!art.image_id) return null;
             return {
                 image: `https://www.artic.edu/iiif/2/${art.image_id}/full/843,/0/default.jpg`,
@@ -842,28 +849,161 @@
                 details: {}
             };
         }).filter(art => art);
-        currentArtworks = artworks;
-        displayArtworks(artworks);
+        
+        currentArtworks = initialArts;
+        if (currentArtworks.length > 0) {
+            displayArtworks(currentArtworks);
+        }
+        
+        // 나머지 비동기로 추가
+        const remainingArts = data.data.slice(5).map(art => {
+            if (!art.image_id) return null;
+            return {
+                image: `https://www.artic.edu/iiif/2/${art.image_id}/full/843,/0/default.jpg`,
+                fullImage: `https://www.artic.edu/iiif/2/${art.image_id}/full/full/0/default.jpg`,
+                title: art.title || '제목 없음',
+                artist: art.artist_display || '작가 미상',
+                date: art.date_display || '',
+                museum: '시카고',
+                details: {}
+            };
+        }).filter(art => art);
+        
+        // 5개씩 묶어서 점진적으로 추가
+        for (let i = 0; i < remainingArts.length; i += 5) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const batch = remainingArts.slice(i, i + 5);
+            currentArtworks = [...currentArtworks, ...batch];
+            displayArtworks(currentArtworks);
+        }
     }
 
-    async function loadHarvardArtworks(query) {
-        const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=be638540-86ce-4a62-b6d9-1850558bd89f&q=${encodeURIComponent(query)}&hasimage=1&size=20`);
-        const data = await res.json();
-        if (!data.records) {
-            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-            return;
+    async function loadClevelandArtworks(query) {
+        try {
+            const res = await fetch(`https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&has_image=1&limit=30`);
+            const data = await res.json();
+            
+            if (!data.data || data.data.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = [];
+            
+            // 처음 5개 먼저 표시
+            const initialArts = data.data.slice(0, 5).map(art => ({
+                image: art.images?.web?.url || '',
+                fullImage: art.images?.full?.url || art.images?.web?.url || '',
+                title: art.title || '제목 없음',
+                artist: art.creators?.[0]?.description || '작가 미상',
+                date: art.creation_date || '',
+                museum: '클리블랜드',
+                details: { 
+                    medium: art.technique, 
+                    dimensions: art.dimensions,
+                    department: art.department,
+                    culture: art.culture?.[0]
+                }
+            })).filter(art => art.image);
+            
+            currentArtworks = initialArts;
+            if (currentArtworks.length > 0) {
+                displayArtworks(currentArtworks);
+            }
+            
+            // 나머지 비동기 추가
+            const remainingArts = data.data.slice(5).map(art => ({
+                image: art.images?.web?.url || '',
+                fullImage: art.images?.full?.url || art.images?.web?.url || '',
+                title: art.title || '제목 없음',
+                artist: art.creators?.[0]?.description || '작가 미상',
+                date: art.creation_date || '',
+                museum: '클리블랜드',
+                details: { 
+                    medium: art.technique, 
+                    dimensions: art.dimensions,
+                    department: art.department,
+                    culture: art.culture?.[0]
+                }
+            })).filter(art => art.image);
+            
+            for (let i = 0; i < remainingArts.length; i += 5) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const batch = remainingArts.slice(i, i + 5);
+                currentArtworks = [...currentArtworks, ...batch];
+                displayArtworks(currentArtworks);
+            }
+        } catch (error) {
+            console.error('Cleveland API Error:', error);
+            gallery.innerHTML = '<div class="loading">클리블랜드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
         }
-        const artworks = data.records.map(art => ({
-            image: art.primaryimageurl || '',
-            fullImage: art.primaryimageurl || '',
-            title: art.title || '제목 없음',
-            artist: art.people?.[0]?.name || '작가 미상',
-            date: art.dated || '',
-            museum: '하버드',
-            details: { culture: art.culture, medium: art.medium, division: art.division }
-        })).filter(art => art.image);
-        currentArtworks = artworks;
-        displayArtworks(artworks);
+    }
+
+    async function loadVandAArtworks(query) {
+        try {
+            const res = await fetch(`https://api.vam.ac.uk/v2/objects/search?q=${encodeURIComponent(query)}&images_exist=1&page_size=30`);
+            const data = await res.json();
+            
+            if (!data.records || data.records.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을  수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = [];
+            
+            // 처음 5개 먼저 표시
+            const initialArts = data.records.slice(0, 5).map(art => {
+                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
+                if (!imageUrl) return null;
+                
+                return {
+                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
+                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
+                    title: art._primaryTitle || '제목 없음',
+                    artist: art._primaryMaker?.name || '작가 미상',
+                    date: art._primaryDate || '',
+                    museum: '빅토리아앨버트',
+                    details: {
+                        medium: art._primaryMaterialsAndTechniques,
+                        culture: art._primaryPlace
+                    }
+                };
+            }).filter(art => art);
+            
+            currentArtworks = initialArts;
+            if (currentArtworks.length > 0) {
+                displayArtworks(currentArtworks);
+            }
+            
+            // 나머지 비동기 추가
+            const remainingArts = data.records.slice(5).map(art => {
+                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
+                if (!imageUrl) return null;
+                
+                return {
+                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
+                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
+                    title: art._primaryTitle || '제목 없음',
+                    artist: art._primaryMaker?.name || '작가 미상',
+                    date: art._primaryDate || '',
+                    museum: '빅토리아앨버트',
+                    details: {
+                        medium: art._primaryMaterialsAndTechniques,
+                        culture: art._primaryPlace
+                    }
+                };
+            }).filter(art => art);
+            
+            for (let i = 0; i < remainingArts.length; i += 5) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const batch = remainingArts.slice(i, i + 5);
+                currentArtworks = [...currentArtworks, ...batch];
+                displayArtworks(currentArtworks);
+            }
+        } catch (error) {
+            console.error('V&A API Error:', error);
+            gallery.innerHTML = '<div class="loading">빅토리아앨버트 박물관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        }
     }
 
     function displayArtworks(artworks) {

@@ -13,7 +13,7 @@
             box-sizing: border-box;
         }
 
-```
+
     body {
         font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         min-height: 100vh;
@@ -569,7 +569,7 @@
         }
     }
 </style>
-```
+
 
 </head>
 <body class="dark">
@@ -579,7 +579,7 @@
         <p>세계 유명 미술관 소장 작품 감상</p>
     </div>
 
-```
+
 <div class="search-container">
     <div class="search-box">
         <input type="text" class="search-input" id="searchInput" placeholder="작품명이나 작가명을 검색하세요...">
@@ -591,7 +591,6 @@
     <button class="museum-tab active" data-museum="met">메트로폴리탄 미술관</button>
     <button class="museum-tab" data-museum="chicago">시카고 미술관</button>
     <button class="museum-tab" data-museum="cleveland">클리블랜드 미술관</button>
-    <button class="museum-tab" data-museum="v_and_a">영국 빅토리아앨버트</button>
 </div>
 
 <div class="controls" id="controls"></div>
@@ -639,7 +638,16 @@
                 { label: '마티스', query: 'Henri Matisse' },
                 { label: '드가', query: 'Edgar Degas' },
                 { label: '고야', query: 'Francisco Goya' },
-                { label: '엘 그레코', query: 'El Greco' }
+                { label: '엘 그레코', query: 'El Greco' },
+                { label: '벨라스케스', query: 'Diego Velázquez' },
+                { label: '베르메르', query: 'Johannes Vermeer' },
+                { label: '터너', query: 'J.M.W. Turner' },
+                { label: '고갱', query: 'Paul Gauguin' },
+                { label: '뭉크', query: 'Edvard Munch' },
+                { label: '클림트', query: 'Gustav Klimt' },
+                { label: '칸딘스키', query: 'Wassily Kandinsky' },
+                { label: '루벤스', query: 'Peter Paul Rubens' },
+                { label: '카라바조', query: 'Caravaggio' }
             ]
         },
         chicago: {
@@ -655,7 +663,16 @@
                 { label: '마티스', query: 'Matisse' },
                 { label: '고갱', query: 'Gauguin' },
                 { label: '쇠라', query: 'Seurat' },
-                { label: '인상파', query: 'Impressionism' }
+                { label: '인상파', query: 'Impressionism' },
+                { label: '드가', query: 'Degas' },
+                { label: '칸딘스키', query: 'Kandinsky' },
+                { label: '뭉크', query: 'Munch' },
+                { label: '마네', query: 'Manet' },
+                { label: '피사로', query: 'Pissarro' },
+                { label: '시슬레', query: 'Sisley' },
+                { label: '모딜리아니', query: 'Modigliani' },
+                { label: '호퍼', query: 'Hopper' },
+                { label: '달리', query: 'Dalí' }
             ]
         },
         cleveland: {
@@ -671,23 +688,16 @@
                 { label: '고야', query: 'Goya' },
                 { label: '카라바조', query: 'Caravaggio' },
                 { label: '터너', query: 'Turner' },
-                { label: '엘 그레코', query: 'El Greco' }
-            ]
-        },
-        v_and_a: {
-            name: '빅토리아앨버트',
-            categories: [
-                { label: '전체 작품', query: 'painting' },
-                { label: '회화', query: 'paintings' },
-                { label: '조각', query: 'sculpture' },
-                { label: '터너', query: 'Turner' },
-                { label: '콘스터블', query: 'Constable' },
-                { label: '라파엘 전파', query: 'Pre-Raphaelite' },
-                { label: '로댕', query: 'Rodin' },
-                { label: '도자기', query: 'ceramics' },
-                { label: '직물', query: 'textiles' },
-                { label: '가구', query: 'furniture' },
-                { label: '장식미술', query: 'decorative' }
+                { label: '엘 그레코', query: 'El Greco' },
+                { label: '루벤스', query: 'Rubens' },
+                { label: '베르메르', query: 'Vermeer' },
+                { label: '마티스', query: 'Matisse' },
+                { label: '고갱', query: 'Gauguin' },
+                { label: '들라크루아', query: 'Delacroix' },
+                { label: '쿠르베', query: 'Courbet' },
+                { label: '부셰', query: 'Boucher' },
+                { label: '브뤼헐', query: 'Bruegel' },
+                { label: '티치아노', query: 'Titian' }
             ]
         }
     };
@@ -768,7 +778,6 @@
             if (currentMuseum === 'met') await loadMetArtworks(query);
             else if (currentMuseum === 'chicago') await loadChicagoArtworks(query);
             else if (currentMuseum === 'cleveland') await loadClevelandArtworks(query);
-            else if (currentMuseum === 'v_and_a') await loadVandAArtworks(query);
         } catch (error) {
             gallery.innerHTML = '<div class="loading">오류가 발생했습니다.</div>';
         }
@@ -1021,7 +1030,6 @@
 
     loadCategories();
 </script>
-```
 
 </body>
 </html>

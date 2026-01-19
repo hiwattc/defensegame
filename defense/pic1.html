@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
 
-```
+
     body {
         font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         min-height: 100vh;
@@ -545,7 +545,7 @@
         }
     }
 </style>
-```
+
 
 </head>
 <body class="dark">
@@ -555,7 +555,7 @@
         <p>세계 유명 미술관 소장 작품 감상</p>
     </div>
 
-```
+
 <div class="search-container">
     <div class="search-box">
         <input type="text" class="search-input" id="searchInput" placeholder="작품명이나 작가명을 검색하세요...">
@@ -818,23 +818,116 @@
     }
 
     async function loadHarvardArtworks(query) {
-        const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=be638540-86ce-4a62-b6d9-1850558bd89f&q=${encodeURIComponent(query)}&hasimage=1&size=20`);
-        const data = await res.json();
-        if (!data.records) {
-            gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
-            return;
+        try {
+            const apiKey = 'be638540-86ce-4a62-b6d9-1850558bd89f';
+            const res = await fetch(`https://api.harvardartmuseums.org/object?apikey=${apiKey}&q=${encodeURIComponent(query)}&hasimage=1&size=30`);
+            const data = await res.json();
+            
+            if (!data.records || data.records.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            const artworks = data.records.map(art => ({
+                image: art.primaryimageurl || '',
+                fullImage: art.primaryimageurl || '',
+                title: art.title || '제목 없음',
+                artist: art.people?.[0]?.name || '작가 미상',
+                date: art.dated || '',
+                museum: '하버드',
+                details: { culture: art.culture, medium: art.medium, division: art.division }
+            })).filter(art => art.image);
+            
+            if (artworks.length === 0) {
+                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = artworks;
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Harvard API Error:', error);
+            gallery.innerHTML = '<div class="loading">하버드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
         }
-        const artworks = data.records.map(art => ({
-            image: art.primaryimageurl || '',
-            fullImage: art.primaryimageurl || '',
-            title: art.title || '제목 없음',
-            artist: art.people?.[0]?.name || '작가 미상',
-            date: art.dated || '',
-            museum: '하버드',
-            details: { culture: art.culture, medium: art.medium, division: art.division }
-        })).filter(art => art.image);
-        currentArtworks = artworks;
-        displayArtworks(artworks);
+    }
+
+    async function loadClevelandArtworks(query) {
+        try {
+            const res = await fetch(`https://openaccess-api.clevelandart.org/api/artworks/?q=${encodeURIComponent(query)}&has_image=1&limit=30`);
+            const data = await res.json();
+            
+            if (!data.data || data.data.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            const artworks = data.data.map(art => ({
+                image: art.images?.web?.url || '',
+                fullImage: art.images?.full?.url || art.images?.web?.url || '',
+                title: art.title || '제목 없음',
+                artist: art.creators?.[0]?.description || '작가 미상',
+                date: art.creation_date || '',
+                museum: '클리블랜드',
+                details: { 
+                    medium: art.technique, 
+                    dimensions: art.dimensions,
+                    department: art.department,
+                    culture: art.culture?.[0]
+                }
+            })).filter(art => art.image);
+            
+            if (artworks.length === 0) {
+                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = artworks;
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Cleveland API Error:', error);
+            gallery.innerHTML = '<div class="loading">클리블랜드 미술관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        }
+    }
+
+    async function loadVandAArtworks(query) {
+        try {
+            const res = await fetch(`https://api.vam.ac.uk/v2/objects/search?q=${encodeURIComponent(query)}&images_exist=1&page_size=30`);
+            const data = await res.json();
+            
+            if (!data.records || data.records.length === 0) {
+                gallery.innerHTML = '<div class="loading">작품을 찾을  수 없습니다.</div>';
+                return;
+            }
+            
+            const artworks = data.records.map(art => {
+                const imageUrl = art._images?._primary_thumbnail || art._images?._iiif_image;
+                if (!imageUrl) return null;
+                
+                return {
+                    image: imageUrl.replace('_jpg_s', '_jpg_l'),
+                    fullImage: imageUrl.replace('_jpg_s', '_jpg_o'),
+                    title: art._primaryTitle || '제목 없음',
+                    artist: art._primaryMaker?.name || '작가 미상',
+                    date: art._primaryDate || '',
+                    museum: '빅토리아앨버트',
+                    details: {
+                        medium: art._primaryMaterialsAndTechniques,
+                        culture: art._primaryPlace
+                    }
+                };
+            }).filter(art => art);
+            
+            if (artworks.length === 0) {
+                gallery.innerHTML = '<div class="loading">이미지가 있는 작품을 찾을 수 없습니다.</div>';
+                return;
+            }
+            
+            currentArtworks = artworks;
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('V&A API Error:', error);
+            gallery.innerHTML = '<div class="loading">빅토리아앨버트 박물관 연결에 실패했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+        }
     }
 
     function displayArtworks(artworks) {
@@ -904,7 +997,7 @@
 
     loadCategories();
 </script>
-```
+
 
 </body>
 </html>

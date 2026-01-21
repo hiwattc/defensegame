@@ -145,12 +145,34 @@
         td {
             padding: 12px 15px;
             border-bottom: 1px solid #e9ecef;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
         }
 
-        tr:hover td {
+        td:not(:first-child):hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        td.selected {
+            background: #667eea !important;
+            color: white !important;
+            font-weight: 600;
+        }
+
+        td.selected::after {
+            content: '✓';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2em;
+            color: white;
+        }
+
+        tr:hover td:first-child {
             background: #f8f9fa;
-            transform: scale(1.01);
         }
 
         .star-rating {
@@ -368,6 +390,51 @@
             margin-right: 10px;
         }
 
+        .selection-toolbar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .selection-count {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .toolbar-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .toolbar-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .toolbar-btn.danger {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .toolbar-btn.danger:hover {
+            background: #ff6b6b;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             h1 { font-size: 1.8em; }
             .tab { padding: 15px 20px; font-size: 14px; }
@@ -401,6 +468,35 @@
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
+        }
+
+        .export-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .export-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -445,10 +541,17 @@
                     </div>
                 </div>
 
-                <input type="text" class="search-box" placeholder="🔍 업무 영역 또는 활용 방법 검색..." onkeyup="searchTable(this.value, 'overviewTable')">
+                <div class="selection-toolbar" id="overviewToolbar" style="display: none;">
+                    <span class="selection-count" id="overviewCount">0개 선택됨</span>
+                    <button class="toolbar-btn" onclick="copySelectedCells('overviewTable')">📋 복사</button>
+                    <button class="toolbar-btn" onclick="exportSelectedCells('overviewTable')">💾 내보내기</button>
+                    <button class="toolbar-btn danger" onclick="clearSelection('overviewTable')">✕ 선택 해제</button>
+                </div>
+
+                <input type="text" class="search-box" placeholder="🔍 업무 영역 또는 활용 방법 검색... (클릭하여 셀 선택 가능)" onkeyup="searchTable(this.value, 'overviewTable')">
 
                 <div class="matrix-container">
-                    <table id="overviewTable">
+                    <table id="overviewTable" class="selectable-table">
                         <thead>
                             <tr>
                                 <th>분야</th>
@@ -544,6 +647,15 @@
                     </table>
                 </div>
 
+                <div class="export-panel" id="overviewExportPanel" style="display: none;">
+                    <h4 style="margin-bottom: 10px;">선택된 항목:</h4>
+                    <div id="overviewSelectedList" style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+                    <div class="export-options">
+                        <button class="export-btn" onclick="exportAsText('overviewTable')">📄 텍스트로 저장</button>
+                        <button class="export-btn" onclick="exportAsCSV('overviewTable')">📊 CSV로 저장</button>
+                    </div>
+                </div>
+
                 <h3 class="section-title" style="margin-top: 40px;">우선순위별 추천 영역</h3>
                 <div class="card-grid">
                     <div class="card" onclick="showModal('Quick Win 전략', '빠른 성과를 낼 수 있는 영역입니다.<br><br>• 인사: 이력서 스크리닝, 온보딩 챗봇<br>• 재무: 영수증 자동 인식<br>• 고객서비스: AI 챗봇<br>• IT: 코드 자동 생성<br><br>예상 ROI: 3-6개월 내 가시화')">
@@ -596,10 +708,17 @@
                     <div class="legend-item"><span class="star-rating">⭐</span> 낮음 (장기적 관점, 제한적 활용)</div>
                 </div>
 
-                <input type="text" class="search-box" placeholder="🔍 업무 영역 또는 기술 검색..." onkeyup="searchTable(this.value, 'itMatrixTable')">
+                <div class="selection-toolbar" id="itMatrixToolbar" style="display: none;">
+                    <span class="selection-count" id="itMatrixCount">0개 선택됨</span>
+                    <button class="toolbar-btn" onclick="copySelectedCells('itMatrixTable')">📋 복사</button>
+                    <button class="toolbar-btn" onclick="exportSelectedCells('itMatrixTable')">💾 내보내기</button>
+                    <button class="toolbar-btn danger" onclick="clearSelection('itMatrixTable')">✕ 선택 해제</button>
+                </div>
+
+                <input type="text" class="search-box" placeholder="🔍 업무 영역 또는 기술 검색... (클릭하여 셀 선택 가능)" onkeyup="searchTable(this.value, 'itMatrixTable')">
 
                 <div class="matrix-container">
-                    <table id="itMatrixTable">
+                    <table id="itMatrixTable" class="selectable-table">
                         <thead>
                             <tr>
                                 <th>업무영역 \ 활용전략</th>
@@ -749,6 +868,15 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="export-panel" id="itMatrixExportPanel" style="display: none;">
+                    <h4 style="margin-bottom: 10px;">선택된 항목:</h4>
+                    <div id="itMatrixSelectedList" style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+                    <div class="export-options">
+                        <button class="export-btn" onclick="exportAsText('itMatrixTable')">📄 텍스트로 저장</button>
+                        <button class="export-btn" onclick="exportAsCSV('itMatrixTable')">📊 CSV로 저장</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab 3: 활용 전략 -->
@@ -853,10 +981,17 @@
             <div id="global-cases" class="tab-content">
                 <h2 class="section-title">글로벌 기업 AI 활용 사례</h2>
                 
-                <input type="text" class="search-box" placeholder="🔍 기업명 또는 기술 검색..." onkeyup="searchTable(this.value, 'globalCasesTable')">
+                <div class="selection-toolbar" id="globalCasesToolbar" style="display: none;">
+                    <span class="selection-count" id="globalCasesCount">0개 선택됨</span>
+                    <button class="toolbar-btn" onclick="copySelectedCells('globalCasesTable')">📋 복사</button>
+                    <button class="toolbar-btn" onclick="exportSelectedCells('globalCasesTable')">💾 내보내기</button>
+                    <button class="toolbar-btn danger" onclick="clearSelection('globalCasesTable')">✕ 선택 해제</button>
+                </div>
+
+                <input type="text" class="search-box" placeholder="🔍 기업명 또는 기술 검색... (클릭하여 셀 선택 가능)" onkeyup="searchTable(this.value, 'globalCasesTable')">
 
                 <div class="matrix-container">
-                    <table id="globalCasesTable">
+                    <table id="globalCasesTable" class="selectable-table">
                         <thead>
                             <tr>
                                 <th>기업명</th>
@@ -951,16 +1086,32 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="export-panel" id="globalCasesExportPanel" style="display: none;">
+                    <h4 style="margin-bottom: 10px;">선택된 항목:</h4>
+                    <div id="globalCasesSelectedList" style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+                    <div class="export-options">
+                        <button class="export-btn" onclick="exportAsText('globalCasesTable')">📄 텍스트로 저장</button>
+                        <button class="export-btn" onclick="exportAsCSV('globalCasesTable')">📊 CSV로 저장</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab 5: 국내 사례 -->
             <div id="korea-cases" class="tab-content">
                 <h2 class="section-title">국내 기업 AI 활용 사례</h2>
                 
-                <input type="text" class="search-box" placeholder="🔍 기업명 또는 기술 검색..." onkeyup="searchTable(this.value, 'koreaCasesTable')">
+                <div class="selection-toolbar" id="koreaCasesToolbar" style="display: none;">
+                    <span class="selection-count" id="koreaCasesCount">0개 선택됨</span>
+                    <button class="toolbar-btn" onclick="copySelectedCells('koreaCasesTable')">📋 복사</button>
+                    <button class="toolbar-btn" onclick="exportSelectedCells('koreaCasesTable')">💾 내보내기</button>
+                    <button class="toolbar-btn danger" onclick="clearSelection('koreaCasesTable')">✕ 선택 해제</button>
+                </div>
+
+                <input type="text" class="search-box" placeholder="🔍 기업명 또는 기술 검색... (클릭하여 셀 선택 가능)" onkeyup="searchTable(this.value, 'koreaCasesTable')">
 
                 <div class="matrix-container">
-                    <table id="koreaCasesTable">
+                    <table id="koreaCasesTable" class="selectable-table">
                         <thead>
                             <tr>
                                 <th>기업명</th>
@@ -1055,6 +1206,15 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="export-panel" id="koreaCasesExportPanel" style="display: none;">
+                    <h4 style="margin-bottom: 10px;">선택된 항목:</h4>
+                    <div id="koreaCasesSelectedList" style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+                    <div class="export-options">
+                        <button class="export-btn" onclick="exportAsText('koreaCasesTable')">📄 텍스트로 저장</button>
+                        <button class="export-btn" onclick="exportAsCSV('koreaCasesTable')">📊 CSV로 저장</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab 6: AI 도구 -->
@@ -1073,10 +1233,17 @@
                     </div>
                 </div>
 
-                <input type="text" class="search-box" placeholder="🔍 도구명 또는 기업 검색..." onkeyup="searchTable(this.value, 'toolsTable')">
+                <div class="selection-toolbar" id="toolsToolbar" style="display: none;">
+                    <span class="selection-count" id="toolsCount">0개 선택됨</span>
+                    <button class="toolbar-btn" onclick="copySelectedCells('toolsTable')">📋 복사</button>
+                    <button class="toolbar-btn" onclick="exportSelectedCells('toolsTable')">💾 내보내기</button>
+                    <button class="toolbar-btn danger" onclick="clearSelection('toolsTable')">✕ 선택 해제</button>
+                </div>
+
+                <input type="text" class="search-box" placeholder="🔍 도구명 또는 기업 검색... (클릭하여 셀 선택 가능)" onkeyup="searchTable(this.value, 'toolsTable')">
 
                 <div class="matrix-container">
-                    <table id="toolsTable">
+                    <table id="toolsTable" class="selectable-table">
                         <thead>
                             <tr>
                                 <th>AI 도구/플랫폼</th>
@@ -1159,6 +1326,15 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="export-panel" id="toolsExportPanel" style="display: none;">
+                    <h4 style="margin-bottom: 10px;">선택된 항목:</h4>
+                    <div id="toolsSelectedList" style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 5px; max-height: 200px; overflow-y: auto;"></div>
+                    <div class="export-options">
+                        <button class="export-btn" onclick="exportAsText('toolsTable')">📄 텍스트로 저장</button>
+                        <button class="export-btn" onclick="exportAsCSV('toolsTable')">📊 CSV로 저장</button>
+                    </div>
                 </div>
 
                 <h3 class="section-title" style="margin-top: 40px;">성과 지표 요약</h3>
@@ -1334,6 +1510,158 @@
     </div>
 
     <script>
+        // 선택된 셀을 저장하는 객체
+        const selectedCells = {};
+
+        // 테이블 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            const tables = document.querySelectorAll('.selectable-table');
+            tables.forEach(table => {
+                const tableId = table.id;
+                selectedCells[tableId] = new Set();
+                
+                // 셀 클릭 이벤트 추가 (첫 번째 열 제외)
+                const cells = table.querySelectorAll('tbody td:not(:first-child)');
+                cells.forEach(cell => {
+                    cell.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        toggleCellSelection(this, tableId);
+                    });
+                });
+            });
+        });
+
+        // 셀 선택/해제 토글
+        function toggleCellSelection(cell, tableId) {
+            const cellIndex = cell.cellIndex;
+            const rowIndex = cell.parentElement.rowIndex;
+            const cellId = `${tableId}-${rowIndex}-${cellIndex}`;
+            
+            if (selectedCells[tableId].has(cellId)) {
+                selectedCells[tableId].delete(cellId);
+                cell.classList.remove('selected');
+            } else {
+                selectedCells[tableId].add(cellId);
+                cell.classList.add('selected');
+            }
+            
+            updateSelectionUI(tableId);
+        }
+
+        // 선택 UI 업데이트
+        function updateSelectionUI(tableId) {
+            const count = selectedCells[tableId].size;
+            const toolbar = document.getElementById(tableId.replace('Table', 'Toolbar'));
+            const countElem = document.getElementById(tableId.replace('Table', 'Count'));
+            const exportPanel = document.getElementById(tableId.replace('Table', 'ExportPanel'));
+            
+            if (count > 0) {
+                toolbar.style.display = 'flex';
+                if (exportPanel) exportPanel.style.display = 'block';
+                countElem.textContent = `${count}개 선택됨`;
+                updateSelectedList(tableId);
+            } else {
+                toolbar.style.display = 'none';
+                if (exportPanel) exportPanel.style.display = 'none';
+            }
+        }
+
+        // 선택된 항목 목록 업데이트
+        function updateSelectedList(tableId) {
+            const listElem = document.getElementById(tableId.replace('Table', 'SelectedList'));
+            if (!listElem) return;
+            
+            const table = document.getElementById(tableId);
+            const items = [];
+            
+            selectedCells[tableId].forEach(cellId => {
+                const [, rowIdx, colIdx] = cellId.split('-').map(Number);
+                const cell = table.rows[rowIdx].cells[colIdx];
+                const rowHeader = table.rows[rowIdx].cells[0].textContent.trim();
+                const colHeader = table.rows[0].cells[colIdx].textContent.trim();
+                items.push(`<div style="padding: 5px; border-bottom: 1px solid #eee;"><strong>${rowHeader}</strong> - ${colHeader}: ${cell.textContent.trim()}</div>`);
+            });
+            
+            listElem.innerHTML = items.join('');
+        }
+
+        // 선택 해제
+        function clearSelection(tableId) {
+            selectedCells[tableId].clear();
+            const table = document.getElementById(tableId);
+            const cells = table.querySelectorAll('td.selected');
+            cells.forEach(cell => cell.classList.remove('selected'));
+            updateSelectionUI(tableId);
+        }
+
+        // 선택된 셀 복사
+        function copySelectedCells(tableId) {
+            const table = document.getElementById(tableId);
+            const data = [];
+            
+            selectedCells[tableId].forEach(cellId => {
+                const [, rowIdx, colIdx] = cellId.split('-').map(Number);
+                const cell = table.rows[rowIdx].cells[colIdx];
+                const rowHeader = table.rows[rowIdx].cells[0].textContent.trim();
+                const colHeader = table.rows[0].cells[colIdx].textContent.trim();
+                data.push(`${rowHeader}\t${colHeader}\t${cell.textContent.trim()}`);
+            });
+            
+            const text = data.join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                alert('선택한 셀이 클립보드에 복사되었습니다!');
+            });
+        }
+
+        // 텍스트로 내보내기
+        function exportAsText(tableId) {
+            const table = document.getElementById(tableId);
+            const data = [];
+            
+            selectedCells[tableId].forEach(cellId => {
+                const [, rowIdx, colIdx] = cellId.split('-').map(Number);
+                const cell = table.rows[rowIdx].cells[colIdx];
+                const rowHeader = table.rows[rowIdx].cells[0].textContent.trim();
+                const colHeader = table.rows[0].cells[colIdx].textContent.trim();
+                data.push(`[${rowHeader}] ${colHeader}: ${cell.textContent.trim()}`);
+            });
+            
+            const text = data.join('\n\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `선택된_항목_${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+        }
+
+        // CSV로 내보내기
+        function exportAsCSV(tableId) {
+            const table = document.getElementById(tableId);
+            const data = [['분야', '항목', '내용']];
+            
+            selectedCells[tableId].forEach(cellId => {
+                const [, rowIdx, colIdx] = cellId.split('-').map(Number);
+                const cell = table.rows[rowIdx].cells[colIdx];
+                const rowHeader = table.rows[rowIdx].cells[0].textContent.trim();
+                const colHeader = table.rows[0].cells[colIdx].textContent.trim();
+                data.push([rowHeader, colHeader, cell.textContent.trim()]);
+            });
+            
+            const csv = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `선택된_항목_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+
+        // 선택된 셀 내보내기
+        function exportSelectedCells(tableId) {
+            exportAsText(tableId);
+        }
+
         // Tab switching
         function openTab(evt, tabName) {
             const tabContents = document.getElementsByClassName('tab-content');
@@ -1405,21 +1733,6 @@
                 closeModal();
             }
         }
-
-        // Add hover effects to table rows
-        document.addEventListener('DOMContentLoaded', function() {
-            const tables = document.querySelectorAll('table');
-            tables.forEach(table => {
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    row.addEventListener('click', function() {
-                        this.style.backgroundColor = this.style.backgroundColor === 'rgb(102, 126, 234)' ? '' : '#667eea';
-                        this.style.color = this.style.color === 'white' ? '' : 'white';
-                    });
-                });
-            });
-        });
     </script>
 </body>
 </html>
-

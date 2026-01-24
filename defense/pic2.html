@@ -30,21 +30,67 @@
     }
 
     header {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 30px;
+        padding: 50px 30px;
         text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: headerPulse 15s ease-in-out infinite;
+    }
+
+    @keyframes headerPulse {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(30px, 30px) scale(1.1); }
     }
 
     h1 {
-        font-size: 2.5em;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        font-size: 3.2em;
+        margin-bottom: 15px;
+        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        position: relative;
+        font-weight: 800;
+        letter-spacing: -1px;
+        background: linear-gradient(to right, #fff, #f0e6ff, #fff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: titleShimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes titleShimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .title-emoji {
+        display: inline-block;
+        animation: emojiFloat 3s ease-in-out infinite;
+        font-size: 1.1em;
+    }
+
+    @keyframes emojiFloat {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-10px) rotate(5deg); }
     }
 
     .subtitle {
-        font-size: 1.1em;
-        opacity: 0.9;
+        font-size: 1.2em;
+        opacity: 0.95;
+        position: relative;
+        font-weight: 300;
+        letter-spacing: 0.5px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
     }
 
     .search-section {
@@ -358,6 +404,40 @@
         margin-bottom: 15px;
     }
 
+    .load-more-container {
+        text-align: center;
+        padding: 30px;
+        display: none;
+    }
+
+    .load-more-btn {
+        padding: 15px 50px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .load-more-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .load-more-btn:active {
+        transform: translateY(-1px);
+    }
+
+    .load-more-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
     @media (max-width: 768px) {
         h1 {
             font-size: 1.8em;
@@ -384,7 +464,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🎨 위키 아트 갤러리</h1>
+            <h1><span class="title-emoji">🎨</span> 위키 아트 갤러리</h1>
             <p class="subtitle">위키미디어 컬렉션에서 세계의 명화를 감상하세요</p>
         </header>
 
@@ -474,6 +554,10 @@
     </div>
 
     <div class="gallery" id="gallery"></div>
+
+    <div class="load-more-container" id="loadMoreContainer">
+        <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">더 많은 작품 보기</button>
+    </div>
 </div>
 
 <div id="artworkModal" class="modal">
@@ -487,6 +571,13 @@
 </div>
 
 <script>
+    // 전역 변수
+    let currentQuery = '';
+    let currentOffset = 0;
+    let isLoading = false;
+    let hasMore = true;
+    const LIMIT = 20;
+    
     // 페이지 로드 시 기본 작품 표시
     window.onload = function() {
         quickSearch('Vincent van Gogh');
@@ -504,12 +595,19 @@
         const category = document.getElementById('categorySelect').value;
         const query = category || searchTerm || 'famous paintings';
         
+        // 새로운 검색 시 초기화
+        currentQuery = query;
+        currentOffset = 0;
+        hasMore = true;
+        document.getElementById('gallery').innerHTML = '';
+        
         showLoading();
         hideNoResults();
+        hideLoadMore();
         
         try {
-            const artworks = await fetchArtworks(query);
-            displayArtworks(artworks);
+            const artworks = await fetchArtworks(query, 0);
+            displayArtworks(artworks, false);
         } catch (error) {
             console.error('Error:', error);
             hideLoading();
@@ -520,12 +618,20 @@
     async function quickSearch(query) {
         document.getElementById('searchInput').value = query;
         document.getElementById('categorySelect').value = '';
+        
+        // 새로운 검색 시 초기화
+        currentQuery = query;
+        currentOffset = 0;
+        hasMore = true;
+        document.getElementById('gallery').innerHTML = '';
+        
         showLoading();
         hideNoResults();
+        hideLoadMore();
         
         try {
-            const artworks = await fetchArtworks(query);
-            displayArtworks(artworks);
+            const artworks = await fetchArtworks(query, 0);
+            displayArtworks(artworks, false);
         } catch (error) {
             console.error('Error:', error);
             hideLoading();
@@ -533,26 +639,59 @@
         }
     }
 
-    async function fetchArtworks(query) {
-        // 위키미디어 Commons API 사용
-        const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(query + ' painting')}&gsrlimit=20&prop=imageinfo|info&iiprop=url|extmetadata&iiurlwidth=400&origin=*`;
+    async function loadMore() {
+        if (isLoading || !hasMore) return;
+        
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = '로딩 중...';
+        isLoading = true;
+        
+        try {
+            currentOffset += LIMIT;
+            const artworks = await fetchArtworks(currentQuery, currentOffset);
+            displayArtworks(artworks, true);
+        } catch (error) {
+            console.error('Error:', error);
+        } finally {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = '더 많은 작품 보기';
+            isLoading = false;
+        }
+    }
+
+    async function fetchArtworks(query, offset) {
+        // 병렬로 여러 검색어 조합을 시도하여 속도 개선
+        const searchTerms = [
+            `${query} painting`,
+            `${query} art`,
+            `${query} artwork`
+        ];
+        
+        // 첫 번째 검색어로 시도
+        const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(searchTerms[0])}&gsroffset=${offset}&gsrlimit=${LIMIT}&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=400&origin=*`;
         
         const response = await fetch(apiUrl);
         const data = await response.json();
         
         if (!data.query || !data.query.pages) {
+            hasMore = false;
             return [];
         }
         
         const artworks = [];
-        for (const pageId in data.query.pages) {
-            const page = data.query.pages[pageId];
+        const pages = data.query.pages;
+        
+        // 병렬 처리로 이미지 정보 추출 속도 개선
+        const pageIds = Object.keys(pages);
+        const promises = pageIds.map(async (pageId) => {
+            const page = pages[pageId];
             if (page.imageinfo && page.imageinfo[0]) {
                 const imageInfo = page.imageinfo[0];
                 const metadata = imageInfo.extmetadata || {};
                 
-                artworks.push({
-                    title: page.title.replace('File:', '').replace(/\.(jpg|png|jpeg)/gi, ''),
+                return {
+                    title: page.title.replace('File:', '').replace(/\.(jpg|png|jpeg|JPG|PNG|JPEG)/gi, ''),
                     image: imageInfo.thumburl || imageInfo.url,
                     fullImage: imageInfo.url,
                     artist: metadata.Artist?.value?.replace(/<[^>]*>/g, '') || '알 수 없음',
@@ -560,22 +699,39 @@
                     date: metadata.DateTimeOriginal?.value || metadata.ObjectName?.value || '',
                     license: metadata.LicenseShortName?.value || '',
                     url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title)}`
-                });
+                };
             }
+            return null;
+        });
+        
+        const results = await Promise.all(promises);
+        const validArtworks = results.filter(artwork => artwork !== null);
+        
+        // 결과가 LIMIT보다 적으면 더 이상 없음
+        if (validArtworks.length < LIMIT) {
+            hasMore = false;
         }
         
-        return artworks;
+        return validArtworks;
     }
 
-    function displayArtworks(artworks) {
+    function displayArtworks(artworks, append = false) {
         const gallery = document.getElementById('gallery');
-        gallery.innerHTML = '';
+        
+        if (!append) {
+            gallery.innerHTML = '';
+        }
+        
         hideLoading();
         
-        if (artworks.length === 0) {
+        if (artworks.length === 0 && !append) {
             showNoResults();
+            hideLoadMore();
             return;
         }
+        
+        // DocumentFragment 사용으로 DOM 조작 최적화
+        const fragment = document.createDocumentFragment();
         
         artworks.forEach((artwork, index) => {
             const card = document.createElement('div');
@@ -584,6 +740,7 @@
             
             card.innerHTML = `
                 <img src="${artwork.image}" alt="${artwork.title}" class="artwork-image" 
+                     loading="lazy"
                      onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22%3E이미지 없음%3C/text%3E%3C/svg%3E'">
                 <div class="artwork-info">
                     <div class="artwork-title">${artwork.title}</div>
@@ -592,8 +749,17 @@
                 </div>
             `;
             
-            gallery.appendChild(card);
+            fragment.appendChild(card);
         });
+        
+        gallery.appendChild(fragment);
+        
+        // 더보기 버튼 표시/숨김
+        if (hasMore && artworks.length > 0) {
+            showLoadMore();
+        } else {
+            hideLoadMore();
+        }
     }
 
     function showModal(artwork) {
@@ -637,7 +803,6 @@
 
     function showLoading() {
         document.getElementById('loading').style.display = 'block';
-        document.getElementById('gallery').innerHTML = '';
     }
 
     function hideLoading() {
@@ -650,6 +815,14 @@
 
     function hideNoResults() {
         document.getElementById('noResults').style.display = 'none';
+    }
+
+    function showLoadMore() {
+        document.getElementById('loadMoreContainer').style.display = 'block';
+    }
+
+    function hideLoadMore() {
+        document.getElementById('loadMoreContainer').style.display = 'none';
     }
 </script>
 ```

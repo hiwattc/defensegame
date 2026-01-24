@@ -114,11 +114,35 @@
     }
 
     .quick-categories {
+        margin-top: 20px;
+    }
+
+    .tag-row {
         display: flex;
         gap: 10px;
-        margin-top: 15px;
-        flex-wrap: wrap;
-        justify-content: center;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f0f0f0;
+    }
+
+    .tag-row::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .tag-row::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 10px;
+    }
+
+    .tag-row::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+
+    .tag-row::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
     }
 
     .quick-btn {
@@ -130,11 +154,14 @@
         cursor: pointer;
         font-size: 14px;
         transition: all 0.3s;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     .quick-btn:hover {
         background: #667eea;
         color: white;
+        transform: translateY(-2px);
     }
 
     .loading {
@@ -379,11 +406,60 @@
             <button class="search-btn" onclick="searchArtworks()">검색</button>
         </div>
         <div class="quick-categories">
-            <button class="quick-btn" onclick="quickSearch('Impressionism')">인상파</button>
-            <button class="quick-btn" onclick="quickSearch('Renaissance')">르네상스</button>
-            <button class="quick-btn" onclick="quickSearch('Baroque')">바로크</button>
-            <button class="quick-btn" onclick="quickSearch('Post-Impressionism')">후기인상파</button>
-            <button class="quick-btn" onclick="quickSearch('Romanticism')">낭만주의</button>
+            <div class="tag-row">
+                <button class="quick-btn" onclick="quickSearch('Vincent van Gogh')">반 고흐</button>
+                <button class="quick-btn" onclick="quickSearch('Leonardo da Vinci')">레오나르도 다빈치</button>
+                <button class="quick-btn" onclick="quickSearch('Claude Monet')">클로드 모네</button>
+                <button class="quick-btn" onclick="quickSearch('Pablo Picasso')">파블로 피카소</button>
+                <button class="quick-btn" onclick="quickSearch('Rembrandt')">렘브란트</button>
+                <button class="quick-btn" onclick="quickSearch('Johannes Vermeer')">요하네스 베르메르</button>
+                <button class="quick-btn" onclick="quickSearch('Michelangelo')">미켈란젤로</button>
+                <button class="quick-btn" onclick="quickSearch('Edvard Munch')">에드바르 뭉크</button>
+                <button class="quick-btn" onclick="quickSearch('Raphael')">라파엘로</button>
+                <button class="quick-btn" onclick="quickSearch('Caravaggio')">카라바조</button>
+                <button class="quick-btn" onclick="quickSearch('Gustav Klimt')">구스타프 클림트</button>
+                <button class="quick-btn" onclick="quickSearch('Pierre-Auguste Renoir')">피에르 오귀스트 르누아르</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Cézanne')">폴 세잔</button>
+                <button class="quick-btn" onclick="quickSearch('Edgar Degas')">에드가 드가</button>
+                <button class="quick-btn" onclick="quickSearch('Henri Matisse')">앙리 마티스</button>
+                <button class="quick-btn" onclick="quickSearch('Salvador Dalí')">살바도르 달리</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Gauguin')">폴 고갱</button>
+                <button class="quick-btn" onclick="quickSearch('Frida Kahlo')">프리다 칼로</button>
+                <button class="quick-btn" onclick="quickSearch('Wassily Kandinsky')">바실리 칸딘스키</button>
+                <button class="quick-btn" onclick="quickSearch('Egon Schiele')">에곤 실레</button>
+                <button class="quick-btn" onclick="quickSearch('Georges Seurat')">조르주 쇠라</button>
+                <button class="quick-btn" onclick="quickSearch('Édouard Manet')">에두아르 마네</button>
+                <button class="quick-btn" onclick="quickSearch('Henri de Toulouse-Lautrec')">툴루즈 로트렉</button>
+                <button class="quick-btn" onclick="quickSearch('Jan van Eyck')">얀 판 에이크</button>
+                <button class="quick-btn" onclick="quickSearch('Titian')">티치아노</button>
+            </div>
+            <div class="tag-row">
+                <button class="quick-btn" onclick="quickSearch('Francisco Goya')">프란시스코 고야</button>
+                <button class="quick-btn" onclick="quickSearch('Diego Velázquez')">디에고 벨라스케스</button>
+                <button class="quick-btn" onclick="quickSearch('Peter Paul Rubens')">페테르 파울 루벤스</button>
+                <button class="quick-btn" onclick="quickSearch('J.M.W. Turner')">윌리엄 터너</button>
+                <button class="quick-btn" onclick="quickSearch('Caspar David Friedrich')">카스파르 다비트 프리드리히</button>
+                <button class="quick-btn" onclick="quickSearch('Albrecht Dürer')">알브레히트 뤼러</button>
+                <button class="quick-btn" onclick="quickSearch('Hieronymus Bosch')">히에로니무스 보스</button>
+                <button class="quick-btn" onclick="quickSearch('Marc Chagall')">마르크 샤갈</button>
+                <button class="quick-btn" onclick="quickSearch('Amedeo Modigliani')">아메데오 모딜리아니</button>
+                <button class="quick-btn" onclick="quickSearch('Piet Mondrian')">피트 몬드리안</button>
+                <button class="quick-btn" onclick="quickSearch('Joan Miró')">호안 미로</button>
+                <button class="quick-btn" onclick="quickSearch('René Magritte')">르네 마그리트</button>
+                <button class="quick-btn" onclick="quickSearch('Sandro Botticelli')">산드로 보티첼리</button>
+                <button class="quick-btn" onclick="quickSearch('El Greco')">엘 그레코</button>
+                <button class="quick-btn" onclick="quickSearch('Camille Pissarro')">카미유 피사로</button>
+                <button class="quick-btn" onclick="quickSearch('Gustave Courbet')">귀스타브 쿠르베</button>
+                <button class="quick-btn" onclick="quickSearch('John Singer Sargent')">존 싱어 사전트</button>
+                <button class="quick-btn" onclick="quickSearch('Winslow Homer')">윈슬로 호머</button>
+                <button class="quick-btn" onclick="quickSearch('Edward Hopper')">에드워드 호퍼</button>
+                <button class="quick-btn" onclick="quickSearch('Jackson Pollock')">잭슨 폴록</button>
+                <button class="quick-btn" onclick="quickSearch('Andy Warhol')">앤디 워홀</button>
+                <button class="quick-btn" onclick="quickSearch('Roy Lichtenstein')">로이 리히텐슈타인</button>
+                <button class="quick-btn" onclick="quickSearch('Georgia O Keeffe')">조지아 오키프</button>
+                <button class="quick-btn" onclick="quickSearch('Kazimir Malevich')">카지미르 말레비치</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Klee')">파울 클레</button>
+            </div>
         </div>
     </div>
 

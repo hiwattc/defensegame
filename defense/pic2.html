@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>위키 아트 갤러리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        overflow: hidden;
+    }
+
+    header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+
+    h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+        font-size: 1.1em;
+        opacity: 0.9;
+    }
+
+    .search-section {
+        padding: 30px;
+        background: #f8f9fa;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .search-container {
+        display: flex;
+        gap: 15px;
+        max-width: 800px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 250px;
+        padding: 15px 20px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .category-select {
+        padding: 15px 20px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .category-select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .search-btn {
+        padding: 15px 40px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .search-btn:active {
+        transform: translateY(0);
+    }
+
+    .quick-categories {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .quick-btn {
+        padding: 8px 16px;
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+
+    .quick-btn:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    .loading {
+        text-align: center;
+        padding: 60px;
+        font-size: 1.2em;
+        color: #666;
+        display: none;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .gallery {
+        padding: 30px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+    }
+
+    .artwork-card {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .artwork-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    .artwork-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        background: #f0f0f0;
+    }
+
+    .artwork-info {
+        padding: 20px;
+    }
+
+    .artwork-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .artwork-artist {
+        color: #667eea;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+    }
+
+    .artwork-description {
+        color: #666;
+        font-size: 0.9em;
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        overflow: auto;
+    }
+
+    .modal-content {
+        background: white;
+        margin: 30px auto;
+        padding: 0;
+        max-width: 1000px;
+        border-radius: 15px;
+        overflow: hidden;
+        animation: modalSlideIn 0.3s;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 25px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+
+    .close {
+        color: white;
+        font-size: 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        line-height: 1;
+    }
+
+    .close:hover {
+        transform: scale(1.2);
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    .modal-image {
+        width: 100%;
+        max-height: 500px;
+        object-fit: contain;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+
+    .modal-info {
+        line-height: 1.8;
+    }
+
+    .modal-info h3 {
+        color: #333;
+        margin: 20px 0 10px 0;
+        font-size: 1.3em;
+    }
+
+    .modal-info p {
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .wiki-link {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 25px;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .wiki-link:hover {
+        background: #764ba2;
+        transform: translateY(-2px);
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+        display: none;
+    }
+
+    .no-results h2 {
+        font-size: 1.8em;
+        margin-bottom: 15px;
+    }
+
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 1.8em;
+        }
+
+        .search-container {
+            flex-direction: column;
+        }
+
+        .gallery {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .modal-content {
+            margin: 10px;
+            max-width: calc(100% - 20px);
+        }
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 위키 아트 갤러리</h1>
+            <p class="subtitle">위키미디어 컬렉션에서 세계의 명화를 감상하세요</p>
+        </header>
+
+```
+    <div class="search-section">
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="작품명, 작가명을 검색하세요... (예: 반 고흐, 모나리자)">
+            <select class="category-select" id="categorySelect">
+                <option value="">카테고리 선택</option>
+                <option value="Vincent van Gogh">반 고흐</option>
+                <option value="Leonardo da Vinci">레오나르도 다빈치</option>
+                <option value="Claude Monet">클로드 모네</option>
+                <option value="Pablo Picasso">피카소</option>
+                <option value="Rembrandt">렘브란트</option>
+                <option value="Johannes Vermeer">베르메르</option>
+                <option value="Michelangelo">미켈란젤로</option>
+                <option value="Edvard Munch">에드바르 뭉크</option>
+            </select>
+            <button class="search-btn" onclick="searchArtworks()">검색</button>
+        </div>
+        <div class="quick-categories">
+            <button class="quick-btn" onclick="quickSearch('Impressionism')">인상파</button>
+            <button class="quick-btn" onclick="quickSearch('Renaissance')">르네상스</button>
+            <button class="quick-btn" onclick="quickSearch('Baroque')">바로크</button>
+            <button class="quick-btn" onclick="quickSearch('Post-Impressionism')">후기인상파</button>
+            <button class="quick-btn" onclick="quickSearch('Romanticism')">낭만주의</button>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>명화를 불러오는 중...</p>
+    </div>
+
+    <div class="no-results" id="noResults">
+        <h2>검색 결과가 없습니다</h2>
+        <p>다른 키워드로 검색해보세요</p>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+</div>
+
+<div id="artworkModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle"></div>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    // 페이지 로드 시 기본 작품 표시
+    window.onload = function() {
+        quickSearch('Vincent van Gogh');
+    };
+
+    // Enter 키 검색
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchArtworks();
+        }
+    });
+
+    async function searchArtworks() {
+        const searchTerm = document.getElementById('searchInput').value.trim();
+        const category = document.getElementById('categorySelect').value;
+        const query = category || searchTerm || 'famous paintings';
+        
+        showLoading();
+        hideNoResults();
+        
+        try {
+            const artworks = await fetchArtworks(query);
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Error:', error);
+            hideLoading();
+            showNoResults();
+        }
+    }
+
+    async function quickSearch(query) {
+        document.getElementById('searchInput').value = query;
+        document.getElementById('categorySelect').value = '';
+        showLoading();
+        hideNoResults();
+        
+        try {
+            const artworks = await fetchArtworks(query);
+            displayArtworks(artworks);
+        } catch (error) {
+            console.error('Error:', error);
+            hideLoading();
+            showNoResults();
+        }
+    }
+
+    async function fetchArtworks(query) {
+        // 위키미디어 Commons API 사용
+        const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(query + ' painting')}&gsrlimit=20&prop=imageinfo|info&iiprop=url|extmetadata&iiurlwidth=400&origin=*`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!data.query || !data.query.pages) {
+            return [];
+        }
+        
+        const artworks = [];
+        for (const pageId in data.query.pages) {
+            const page = data.query.pages[pageId];
+            if (page.imageinfo && page.imageinfo[0]) {
+                const imageInfo = page.imageinfo[0];
+                const metadata = imageInfo.extmetadata || {};
+                
+                artworks.push({
+                    title: page.title.replace('File:', '').replace(/\.(jpg|png|jpeg)/gi, ''),
+                    image: imageInfo.thumburl || imageInfo.url,
+                    fullImage: imageInfo.url,
+                    artist: metadata.Artist?.value?.replace(/<[^>]*>/g, '') || '알 수 없음',
+                    description: metadata.ImageDescription?.value?.replace(/<[^>]*>/g, '').substring(0, 200) || '설명 없음',
+                    date: metadata.DateTimeOriginal?.value || metadata.ObjectName?.value || '',
+                    license: metadata.LicenseShortName?.value || '',
+                    url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title)}`
+                });
+            }
+        }
+        
+        return artworks;
+    }
+
+    function displayArtworks(artworks) {
+        const gallery = document.getElementById('gallery');
+        gallery.innerHTML = '';
+        hideLoading();
+        
+        if (artworks.length === 0) {
+            showNoResults();
+            return;
+        }
+        
+        artworks.forEach((artwork, index) => {
+            const card = document.createElement('div');
+            card.className = 'artwork-card';
+            card.onclick = () => showModal(artwork);
+            
+            card.innerHTML = `
+                <img src="${artwork.image}" alt="${artwork.title}" class="artwork-image" 
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22%3E이미지 없음%3C/text%3E%3C/svg%3E'">
+                <div class="artwork-info">
+                    <div class="artwork-title">${artwork.title}</div>
+                    <div class="artwork-artist">${artwork.artist}</div>
+                    <div class="artwork-description">${artwork.description}</div>
+                </div>
+            `;
+            
+            gallery.appendChild(card);
+        });
+    }
+
+    function showModal(artwork) {
+        const modal = document.getElementById('artworkModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        
+        modalTitle.textContent = artwork.title;
+        modalBody.innerHTML = `
+            <img src="${artwork.fullImage}" alt="${artwork.title}" class="modal-image"
+                 onerror="this.src='${artwork.image}'">
+            <div class="modal-info">
+                <h3>작가</h3>
+                <p>${artwork.artist}</p>
+                
+                ${artwork.date ? `<h3>제작 시기</h3><p>${artwork.date}</p>` : ''}
+                
+                <h3>설명</h3>
+                <p>${artwork.description}</p>
+                
+                ${artwork.license ? `<h3>라이선스</h3><p>${artwork.license}</p>` : ''}
+                
+                <a href="${artwork.url}" target="_blank" class="wiki-link">위키미디어에서 자세히 보기 →</a>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('artworkModal').style.display = 'none';
+    }
+
+    // 모달 외부 클릭 시 닫기
+    window.onclick = function(event) {
+        const modal = document.getElementById('artworkModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    function showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('gallery').innerHTML = '';
+    }
+
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    function showNoResults() {
+        document.getElementById('noResults').style.display = 'block';
+    }
+
+    function hideNoResults() {
+        document.getElementById('noResults').style.display = 'none';
+    }
+</script>
+```
+
+</body>
+</html>

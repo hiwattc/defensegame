@@ -257,7 +257,7 @@
     <div class="container">
         <div class="header">
             <h1>🇰🇷 한국 주식 시장 히트맵</h1>
-            <div class="subtitle">실시간 시세 • 시가총액 기준</div>
+            <div class="subtitle">네이버 금융 실시간 데이터 • 시가총액 상위 50개 종목</div>
             <div class="market-status">
                 <div class="pulse"></div>
                 <span>실시간 업데이트</span>
@@ -275,7 +275,7 @@
     <div id="chart-container">
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            실시간 데이터 로딩 중...
+            네이버 금융에서 실시간 데이터 로딩 중...
             <div class="progress" id="progress"></div>
         </div>
         <div id="chart"></div>
@@ -291,77 +291,164 @@
     let currentView = 'marketCap';
     let stockData = [];
 
-    // 주요 한국 기업 데이터 (실제 시가총액 기준으로 정렬)
-    const companies = {
-        'IT/반도체': [
-            { code: '005930', name: '삼성전자', marketCap: 400000000 },
-            { code: '000660', name: 'SK하이닉스', marketCap: 90000000 },
-            { code: '035420', name: 'NAVER', marketCap: 50000000 },
-            { code: '035720', name: '카카오', marketCap: 28000000 }
-        ],
-        '바이오/제약': [
-            { code: '207940', name: '삼성바이오로직스', marketCap: 65000000 },
-            { code: '068270', name: '셀트리온', marketCap: 45000000 },
-            { code: '326030', name: 'SK바이오팜', marketCap: 15000000 }
-        ],
-        '2차전지': [
-            { code: '373220', name: 'LG에너지솔루션', marketCap: 95000000 },
-            { code: '247540', name: '에코프로비엠', marketCap: 30000000 },
-            { code: '086520', name: '에코프로', marketCap: 25000000 }
-        ],
-        '금융': [
-            { code: '055550', name: '신한지주', marketCap: 32000000 },
-            { code: '105560', name: 'KB금융', marketCap: 31000000 },
-            { code: '086790', name: '하나금융지주', marketCap: 22000000 }
-        ],
-        '자동차': [
-            { code: '005380', name: '현대차', marketCap: 52000000 },
-            { code: '000270', name: '기아', marketCap: 38000000 },
-            { code: '012330', name: '현대모비스', marketCap: 28000000 }
-        ],
-        '화학': [
-            { code: '051910', name: 'LG화학', marketCap: 48000000 },
-            { code: '096770', name: 'SK이노베이션', marketCap: 25000000 }
-        ],
-        '유통/엔터': [
-            { code: '028260', name: '삼성물산', marketCap: 20000000 },
-            { code: '352820', name: '하이브', marketCap: 18000000 },
-            { code: '036570', name: '엔씨소프트', marketCap: 16000000 }
-        ]
-    };
+    // CORS 프록시
+    const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
-    // 섹터 색상 (그라디언트)
+    // 업종 매핑 (종목명 기반 간단 분류)
+    function categorizeStock(name) {
+        if (name.includes('삼성전자') || name.includes('SK하이닉스') || name.includes('하이브')) {
+            return 'IT/전자';
+        } else if (name.includes('바이오') || name.includes('셀트리온') || name.includes('제약')) {
+            return '바이오/제약';
+        } else if (name.includes('에너지') || name.includes('에코프로') || name.includes('포스코')) {
+            return '2차전지/소재';
+        } else if (name.includes('금융') || name.includes('은행') || name.includes('지주') || name.includes('생명') || name.includes('화재')) {
+            return '금융';
+        } else if (name.includes('현대차') || name.includes('기아') || name.includes('모비스')) {
+            return '자동차';
+        } else if (name.includes('화학') || name.includes('케미칼') || name.includes('이노베이션')) {
+            return '화학/에너지';
+        } else if (name.includes('건설') || name.includes('중공업') || name.includes('엔지니어링')) {
+            return '건설/조선';
+        } else if (name.includes('NAVER') || name.includes('카카오') || name.includes('엔씨') || name.includes('넷마블')) {
+            return '인터넷/게임';
+        } else if (name.includes('통신') || name.includes('텔레콤')) {
+            return '통신';
+        } else {
+            return '기타';
+        }
+    }
+
+    // 섹터 색상
     const sectorColors = {
-        'IT/반도체': '#667eea',
+        'IT/전자': '#667eea',
         '바이오/제약': '#f093fb',
-        '2차전지': '#43e97b',
+        '2차전지/소재': '#43e97b',
         '금융': '#4facfe',
         '자동차': '#feca57',
-        '화학': '#fa709a',
-        '유통/엔터': '#ff6b6b'
+        '화학/에너지': '#fa709a',
+        '건설/조선': '#a78bfa',
+        '인터넷/게임': '#ff6b6b',
+        '통신': '#60a5fa',
+        '기타': '#94a3b8'
     };
 
-    // 시뮬레이션 데이터 생성 (실제 환경에서는 실제 API로 교체)
-    async function fetchStockData(code, name, sector, baseMarketCap) {
-        // 실제 데이터처럼 보이는 시뮬레이션
-        const change = (Math.random() - 0.48) * 20; // -10% ~ +10%
-        const price = Math.floor(Math.random() * 200000) + 10000;
-        const volume = Math.floor(Math.random() * 50000000) + 1000000;
-        
-        return {
-            code: code,
-            name: name,
-            sector: sector,
-            price: price,
-            change: change,
-            changeAbs: Math.floor(price * change / 100),
-            volume: volume,
-            marketCap: baseMarketCap * (1 + change / 100),
-            high: Math.floor(price * 1.05),
-            low: Math.floor(price * 0.95),
-            open: Math.floor(price * (1 + (Math.random() - 0.5) * 0.02)),
-            previousClose: Math.floor(price / (1 + change / 100))
-        };
+    // 네이버 금융 시가총액 순위 페이지 크롤링
+    async function fetchNaverMarketData() {
+        try {
+            const url = 'https://finance.naver.com/sise/sise_market_sum.naver?sosok=0&page=1';
+            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+            const html = await response.text();
+            
+            // HTML 파싱
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const rows = doc.querySelectorAll('table.type_2 tr');
+            
+            const stocks = [];
+            
+            for (let i = 2; i < rows.length && stocks.length < 50; i++) {
+                const row = rows[i];
+                const cells = row.querySelectorAll('td');
+                
+                if (cells.length < 10) continue;
+                
+                // 종목명과 링크
+                const nameCell = cells[1];
+                const link = nameCell.querySelector('a');
+                if (!link) continue;
+                
+                const name = link.textContent.trim();
+                const href = link.getAttribute('href');
+                const codeMatch = href.match(/code=(\d+)/);
+                if (!codeMatch) continue;
+                
+                const code = codeMatch[1];
+                
+                // 현재가
+                const priceText = cells[2].textContent.trim().replace(/,/g, '');
+                const price = parseInt(priceText);
+                
+                // 전일대비
+                const changeText = cells[3].textContent.trim();
+                const changeAbsText = cells[4].textContent.trim().replace(/,/g, '');
+                const changeAbs = parseInt(changeAbsText) || 0;
+                
+                // 등락률
+                const changeRateText = cells[5].textContent.trim().replace(/%/g, '');
+                let changeRate = parseFloat(changeRateText);
+                
+                // 상승/하락 판단 (빨간색/파란색 이미지로 판단)
+                const changeImg = cells[3].querySelector('img');
+                if (changeImg) {
+                    const imgSrc = changeImg.getAttribute('src');
+                    if (imgSrc && imgSrc.includes('down')) {
+                        changeRate = -Math.abs(changeRate);
+                    }
+                }
+                
+                // 거래량
+                const volumeText = cells[6].textContent.trim().replace(/,/g, '');
+                const volume = parseInt(volumeText) || 0;
+                
+                // 시가총액 (억원)
+                const marketCapText = cells[7].textContent.trim().replace(/,/g, '');
+                const marketCap = parseInt(marketCapText) * 100000000; // 억원 -> 원
+                
+                if (isNaN(price) || isNaN(marketCap) || marketCap === 0) continue;
+                
+                const sector = categorizeStock(name);
+                
+                stocks.push({
+                    code: code,
+                    name: name,
+                    sector: sector,
+                    price: price,
+                    change: changeRate,
+                    changeAbs: changeAbs,
+                    volume: volume,
+                    marketCap: marketCap,
+                    previousClose: price - changeAbs
+                });
+            }
+            
+            return stocks;
+        } catch (error) {
+            console.error('네이버 금융 크롤링 오류:', error);
+            return null;
+        }
+    }
+
+    // 개별 종목 상세 정보 가져오기 (고가/저가/시가)
+    async function fetchStockDetail(code) {
+        try {
+            const url = `https://finance.naver.com/item/main.naver?code=${code}`;
+            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+            const html = await response.text();
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // 고가/저가/시가 파싱
+            const todayTable = doc.querySelector('.new_totalinfo dl');
+            if (!todayTable) return null;
+            
+            const spans = todayTable.querySelectorAll('dd span.blind');
+            
+            let high = 0, low = 0, open = 0;
+            
+            // 일반적으로 고가, 저가, 거래량, 시가 순서
+            if (spans.length >= 4) {
+                high = parseInt(spans[0].textContent.replace(/,/g, '')) || 0;
+                low = parseInt(spans[1].textContent.replace(/,/g, '')) || 0;
+                open = parseInt(spans[3].textContent.replace(/,/g, '')) || 0;
+            }
+            
+            return { high, low, open };
+        } catch (error) {
+            console.error(`${code} 상세 정보 오류:`, error);
+            return null;
+        }
     }
 
     // 데이터 로드
@@ -372,33 +459,53 @@
 
         loading.style.display = 'block';
         chart.innerHTML = '';
+        progress.textContent = '네이버 금융에서 시가총액 상위 50개 종목 정보 수집 중...';
 
-        stockData = [];
-        let totalStocks = 0;
-        let processedStocks = 0;
-
-        // 전체 주식 수 계산
-        for (const stocks of Object.values(companies)) {
-            totalStocks += stocks.length;
+        // 시가총액 순위 데이터 가져오기
+        const stocks = await fetchNaverMarketData();
+        
+        if (!stocks || stocks.length === 0) {
+            loading.innerHTML = `
+                <div class="error-message">
+                    ⚠️ 데이터를 불러오는데 실패했습니다.<br><br>
+                    <strong>가능한 원인:</strong><br>
+                    1. CORS 프록시 서버 일시적 오류<br>
+                    2. 네이버 금융 페이지 구조 변경<br>
+                    3. 네트워크 연결 문제<br><br>
+                    잠시 후 새로고침 버튼을 눌러주세요.
+                </div>
+            `;
+            return;
         }
 
-        for (const [sector, stocks] of Object.entries(companies)) {
-            for (const stock of stocks) {
-                try {
-                    progress.textContent = `${processedStocks + 1}/${totalStocks} 종목 분석 중...`;
-                    
-                    const data = await fetchStockData(stock.code, stock.name, sector, stock.marketCap);
-                    if (data) {
-                        stockData.push(data);
-                    }
-                    processedStocks++;
-                    
-                    await sleep(50);
-                } catch (error) {
-                    console.error(`Error fetching ${stock.name}:`, error);
-                    processedStocks++;
-                }
+        progress.textContent = `${stocks.length}개 종목 로딩 완료! 상세 정보 수집 중...`;
+
+        // 상위 20개 종목만 상세 정보 가져오기 (시간 절약)
+        stockData = stocks;
+        
+        for (let i = 0; i < Math.min(20, stocks.length); i++) {
+            const stock = stocks[i];
+            progress.textContent = `상세 정보 수집 중... (${i + 1}/20)`;
+            
+            const detail = await fetchStockDetail(stock.code);
+            if (detail) {
+                stock.high = detail.high || stock.price;
+                stock.low = detail.low || stock.price;
+                stock.open = detail.open || stock.price;
+            } else {
+                stock.high = stock.price;
+                stock.low = stock.price;
+                stock.open = stock.price;
             }
+            
+            await sleep(100);
+        }
+
+        // 나머지 종목은 현재가로 추정
+        for (let i = 20; i < stocks.length; i++) {
+            stocks[i].high = stocks[i].price;
+            stocks[i].low = stocks[i].price;
+            stocks[i].open = stocks[i].price;
         }
 
         console.log(`데이터 로딩 완료: ${stockData.length}개 종목`);
@@ -420,7 +527,7 @@
         container.innerHTML = '';
 
         const width = Math.min(1700, window.innerWidth - 80);
-        const height = 750;
+        const height = 800;
 
         // 데이터 구조화
         const hierarchyData = {
@@ -432,7 +539,7 @@
                     .map(d => ({
                         ...d,
                         value: currentView === 'marketCap' ? d.marketCap : 
-                               currentView === 'change' ? Math.abs(d.change) * 1000000 :
+                               currentView === 'change' ? Math.abs(d.change) * 10000000 :
                                d.volume
                     }))
             }))
@@ -558,7 +665,7 @@
                 return `${d.data.price.toLocaleString()}원`;
             });
 
-        // 시가총액 (작은 텍스트)
+        // 시가총액
         cells.append('text')
             .attr('class', 'cell-label')
             .attr('x', d => (d.x1 - d.x0) / 2)
@@ -569,7 +676,7 @@
                 const width = d.x1 - d.x0;
                 return Math.min(width / 10, 11) + 'px';
             })
-            .text(d => `${(d.data.marketCap / 1e8).toFixed(0)}억`);
+            .text(d => `${(d.data.marketCap / 1e12).toFixed(1)}조`);
 
         // 툴팁 이벤트
         cells.on('mouseover', function(event, d) {
@@ -595,6 +702,9 @@
                         <div style="text-align: right;">${d.data.high.toLocaleString()} / ${d.data.low.toLocaleString()}</div>
                     </div>
                 </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(102,126,234,0.3); font-size: 11px; color: #94a3b8;">
+                    클릭하면 네이버 금융으로 이동합니다
+                </div>
             `)
                 .classed('show', true)
                 .style('left', Math.min(event.pageX + 15, window.innerWidth - 400) + 'px')
@@ -607,6 +717,9 @@
         })
         .on('mouseout', function() {
             tooltip.classed('show', false);
+        })
+        .on('click', function(event, d) {
+            window.open(`https://finance.naver.com/item/main.naver?code=${d.data.code}`, '_blank');
         });
     }
 
@@ -619,7 +732,7 @@
         const statsHtml = `
             <div class="stat-item">
                 <div class="stat-value">${(totalMarketCap / 1e12).toFixed(1)}조</div>
-                <div class="stat-label">총 시가총액</div>
+                <div class="stat-label">총 시가총액 (상위 ${stockData.length}개)</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value" style="${avgChange >= 0 ? 'color: #dc2626;' : 'color: #2563eb;'}">
@@ -639,7 +752,7 @@
 
         document.getElementById('stats').innerHTML = statsHtml;
         document.getElementById('last-update').innerHTML = 
-            `<div class="success-message">✨ ${stockData.length}개 종목 분석 완료</div>마지막 업데이트: ${new Date().toLocaleString('ko-KR')}`;
+            `<div class="success-message">✨ 네이버 금융에서 ${stockData.length}개 종목 로딩 완료</div>마지막 업데이트: ${new Date().toLocaleString('ko-KR')} • 데이터 출처: 네이버 금융`;
     }
 
     function updateView(view) {

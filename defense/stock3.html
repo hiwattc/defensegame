@@ -353,18 +353,28 @@
                     const proxy = CORS_PROXIES[proxyIndex];
                     try {
                         console.log(`페이지 ${page} - 프록시 ${proxyIndex + 1} 시도 중...`);
-                        const response = await fetch(proxy + encodeURIComponent(url), {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                            }
-                        });
+                        
+                        let response;
+                        if (proxyIndex === 0) {
+                            // allorigins는 text로 받기
+                            response = await fetch(proxy + encodeURIComponent(url));
+                        } else {
+                            // 다른 프록시들도 text로 받기
+                            response = await fetch(proxy + encodeURIComponent(url));
+                        }
                         
                         if (response.ok) {
-                            // text로 받아서 사용 (한글 처리)
                             html = await response.text();
-                            console.log(`페이지 ${page} - 프록시 ${proxyIndex + 1} 성공!`);
-                            break;
+                            console.log(`페이지 ${page} - 프록시 ${proxyIndex + 1} 성공! (길이: ${html.length})`);
+                            
+                            // HTML에 한글이 제대로 있는지 체크
+                            if (html.includes('삼성전자') || html.includes('종목명') || html.includes('현재가')) {
+                                console.log('한글 정상 확인!');
+                                break;
+                            } else {
+                                console.log('한글 깨짐 감지, 다음 프록시 시도...');
+                                html = null;
+                            }
                         }
                     } catch (e) {
                         console.log(`프록시 ${proxyIndex + 1} 실패:`, e.message);
@@ -377,10 +387,15 @@
                     continue;
                 }
                 
+                // HTML 파싱 전에 charset meta 태그 확인
+                console.log('HTML 샘플:', html.substring(0, 500));
+                
                 // HTML 파싱
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 const rows = doc.querySelectorAll('table.type_2 tr');
+                
+                console.log(`페이지 ${page} - 테이블 행 개수: ${rows.length}`);
                 
                 for (let i = 2; i < rows.length; i++) {
                     const row = rows[i];
@@ -393,8 +408,15 @@
                     const link = nameCell.querySelector('a');
                     if (!link) continue;
                     
-                    const name = link.textContent.trim();
+                    let name = link.textContent.trim();
                     if (!name || name.length === 0) continue;
+                    
+                    // 한글 깨짐 복구 시도
+                    if (name.includes('�') || name.charCodeAt(0) > 55000) {
+                        console.log('깨진 종목명 감지:', name);
+                        // 종목명이 깨졌으면 스킵
+                        continue;
+                    }
                     
                     const href = link.getAttribute('href');
                     const codeMatch = href.match(/code=(\d+)/);
@@ -447,6 +469,8 @@
                     
                     const sector = categorizeStock(name);
                     
+                    console.log(`종목 추가: ${name} (${code})`);
+                    
                     allStocks.push({
                         code: code,
                         name: name,
@@ -458,15 +482,18 @@
                         marketCap: marketCap,
                         high: high,
                         low: low,
-                        open: price, // 시가는 테이블에 없으므로 현재가로 대체
+                        open: price,
                         previousClose: price - changeAbs
                     });
                 }
                 
+                console.log(`페이지 ${page} 완료 - 누적 종목 수: ${allStocks.length}`);
+                
                 // 페이지 간 딜레이 (프록시 부담 감소)
-                await sleep(500);
+                await sleep(800);
             }
             
+            console.log(`전체 로딩 완료 - 총 ${allStocks.length}개 종목`);
             return allStocks;
         } catch (error) {
             console.error('네이버 금융 크롤링 오류:', error);

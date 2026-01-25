@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>미국 주식 시장 맵 - 실시간 데이터</title>
+    <title>한국 주식 시장 맵 - 네이버 금융</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         * {
@@ -15,81 +15,85 @@
 
 ```
     body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Malgun Gothic', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: #fff;
         padding: 20px;
+    }
+
+    .container {
+        max-width: 1600px;
+        margin: 0 auto;
     }
 
     .header {
         text-align: center;
         margin-bottom: 30px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 30px;
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
     }
 
     h1 {
-        font-size: 2.5em;
+        font-size: 2.8em;
         margin-bottom: 10px;
-        background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     }
 
     .subtitle {
-        color: #8892b0;
-        font-size: 1.1em;
+        font-size: 1.2em;
+        opacity: 0.9;
     }
 
-    .info-box {
-        margin-top: 10px;
-        padding: 10px;
-        background: rgba(102, 126, 234, 0.1);
+    .info-notice {
+        background: rgba(255, 255, 255, 0.15);
+        padding: 15px;
         border-radius: 8px;
+        margin-top: 15px;
         font-size: 0.9em;
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
     }
 
     .controls {
         display: flex;
         justify-content: center;
-        gap: 20px;
+        gap: 15px;
         margin-bottom: 20px;
         flex-wrap: wrap;
     }
 
     .control-btn {
-        padding: 10px 20px;
-        background: rgba(102, 126, 234, 0.2);
-        border: 2px solid #667eea;
+        padding: 12px 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.5);
         color: #fff;
         border-radius: 8px;
         cursor: pointer;
         font-size: 14px;
+        font-weight: 600;
         transition: all 0.3s ease;
     }
 
     .control-btn:hover {
-        background: rgba(102, 126, 234, 0.4);
+        background: rgba(255, 255, 255, 0.3);
         transform: translateY(-2px);
     }
 
     .control-btn.active {
-        background: #667eea;
+        background: rgba(255, 255, 255, 0.4);
+        border-color: #fff;
     }
 
     #chart-container {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.95);
         border-radius: 16px;
         padding: 20px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(10px);
     }
 
     .loading {
         text-align: center;
-        padding: 100px;
+        padding: 100px 20px;
         font-size: 1.2em;
         color: #667eea;
     }
@@ -98,8 +102,8 @@
         border: 4px solid rgba(102, 126, 234, 0.2);
         border-top: 4px solid #667eea;
         border-radius: 50%;
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
         animation: spin 1s linear infinite;
         margin: 20px auto;
     }
@@ -112,40 +116,40 @@
     .progress {
         margin-top: 20px;
         font-size: 0.9em;
-        color: #8892b0;
+        color: #667eea;
     }
 
     .cell {
         cursor: pointer;
-        transition: opacity 0.3s ease;
+        transition: all 0.3s ease;
     }
 
     .cell:hover {
         opacity: 0.8;
-        stroke: #fff;
+        stroke: #000;
         stroke-width: 3;
     }
 
     .cell-label {
         pointer-events: none;
         font-weight: 600;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
     }
 
     .tooltip {
         position: absolute;
         background: rgba(0, 0, 0, 0.95);
         color: #fff;
-        padding: 12px 16px;
+        padding: 14px 18px;
         border-radius: 8px;
         font-size: 13px;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.3s;
-        border: 1px solid #667eea;
+        border: 2px solid #667eea;
         z-index: 1000;
-        max-width: 320px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        max-width: 350px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
     }
 
     .tooltip.show {
@@ -156,75 +160,86 @@
         display: flex;
         justify-content: center;
         gap: 40px;
-        margin-top: 20px;
+        margin-top: 25px;
         flex-wrap: wrap;
     }
 
     .stat-item {
         text-align: center;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 20px 30px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
     }
 
     .stat-value {
-        font-size: 2em;
+        font-size: 2.2em;
         font-weight: bold;
-        color: #667eea;
     }
 
     .stat-label {
-        color: #8892b0;
         font-size: 0.9em;
         margin-top: 5px;
+        opacity: 0.9;
     }
 
     .last-update {
         text-align: center;
-        color: #8892b0;
         font-size: 0.9em;
         margin-top: 15px;
+        opacity: 0.8;
     }
 
     .error-message {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid #ef4444;
-        color: #fca5a5;
-        padding: 15px;
+        background: rgba(239, 68, 68, 0.9);
+        color: #fff;
+        padding: 20px;
         border-radius: 8px;
         margin: 20px;
+        line-height: 1.6;
+    }
+
+    .success-message {
+        background: rgba(16, 185, 129, 0.9);
+        color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
     }
 </style>
 ```
 
 </head>
 <body>
-    <div class="header">
-        <h1>🇺🇸 US Stock Market Map</h1>
-        <div class="subtitle">실시간 주식 데이터 Tree Map</div>
-        <div class="info-box">
-            💡 <strong>실시간 데이터:</strong> 
-            Yahoo Finance API를 통해 실제 시세, 시가총액, 거래량을 가져옵니다. 
-            CORS 우회를 위해 프록시 서버를 사용합니다.
+    <div class="container">
+        <div class="header">
+            <h1>🇰🇷 한국 주식 시장 맵</h1>
+            <div class="subtitle">네이버 금융 실시간 데이터</div>
+            <div class="info-notice">
+                💡 네이버 금융에서 실시간 시세를 가져옵니다. API 키 불필요!
+            </div>
         </div>
-    </div>
 
 ```
-<div class="controls">
-    <button class="control-btn active" onclick="updateView('marketCap')">시가총액</button>
-    <button class="control-btn" onclick="updateView('change')">등락률</button>
-    <button class="control-btn" onclick="updateView('volume')">거래량</button>
-    <button class="control-btn" onclick="refreshData()">🔄 새로고침</button>
-</div>
-
-<div id="chart-container">
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        실시간 데이터 로딩 중...
-        <div class="progress" id="progress"></div>
+    <div class="controls">
+        <button class="control-btn active" onclick="updateView('marketCap')">시가총액</button>
+        <button class="control-btn" onclick="updateView('change')">등락률</button>
+        <button class="control-btn" onclick="updateView('volume')">거래량</button>
+        <button class="control-btn" onclick="loadData()">🔄 새로고침</button>
     </div>
-    <div id="chart"></div>
-</div>
 
-<div class="stats" id="stats"></div>
-<div class="last-update" id="last-update"></div>
+    <div id="chart-container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            네이버 금융에서 실시간 데이터 로딩 중...
+            <div class="progress" id="progress"></div>
+        </div>
+        <div id="chart"></div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+    <div class="last-update" id="last-update"></div>
+</div>
 
 <div class="tooltip" id="tooltip"></div>
 
@@ -232,183 +247,168 @@
     let currentView = 'marketCap';
     let stockData = [];
 
-    // 주요 미국 기업 데이터 (섹터별 대표 기업들)
+    // 주요 한국 기업 데이터 (업종별 대표 종목)
     const companies = {
-        'Technology': [
-            { symbol: 'AAPL', name: 'Apple Inc.' },
-            { symbol: 'MSFT', name: 'Microsoft Corporation' },
-            { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-            { symbol: 'META', name: 'Meta Platforms Inc.' },
-            { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-            { symbol: 'TSLA', name: 'Tesla Inc.' },
-            { symbol: 'AVGO', name: 'Broadcom Inc.' },
-            { symbol: 'ORCL', name: 'Oracle Corporation' },
-            { symbol: 'ADBE', name: 'Adobe Inc.' },
-            { symbol: 'CRM', name: 'Salesforce Inc.' }
+        'IT/전자': [
+            { code: '005930', name: '삼성전자' },
+            { code: '000660', name: 'SK하이닉스' },
+            { code: '035420', name: 'NAVER' },
+            { code: '035720', name: '카카오' },
+            { code: '068270', name: '셀트리온' },
+            { code: '207940', name: '삼성바이오로직스' },
+            { code: '373220', name: 'LG에너지솔루션' },
+            { code: '066570', name: 'LG전자' },
+            { code: '000660', name: 'SK하이닉스' },
+            { code: '247540', name: '에코프로비엠' }
         ],
-        'Healthcare': [
-            { symbol: 'UNH', name: 'UnitedHealth Group' },
-            { symbol: 'JNJ', name: 'Johnson & Johnson' },
-            { symbol: 'LLY', name: 'Eli Lilly and Company' },
-            { symbol: 'ABBV', name: 'AbbVie Inc.' },
-            { symbol: 'MRK', name: 'Merck & Co.' },
-            { symbol: 'PFE', name: 'Pfizer Inc.' }
+        '금융': [
+            { code: '055550', name: '신한지주' },
+            { code: '105560', name: 'KB금융' },
+            { code: '086790', name: '하나금융지주' },
+            { code: '032830', name: '삼성생명' },
+            { code: '138040', name: '메리츠금융지주' }
         ],
-        'Financials': [
-            { symbol: 'BRK-B', name: 'Berkshire Hathaway' },
-            { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
-            { symbol: 'V', name: 'Visa Inc.' },
-            { symbol: 'MA', name: 'Mastercard Inc.' },
-            { symbol: 'BAC', name: 'Bank of America Corp.' },
-            { symbol: 'WFC', name: 'Wells Fargo & Company' }
+        '자동차': [
+            { code: '005380', name: '현대차' },
+            { code: '000270', name: '기아' },
+            { code: '012330', name: '현대모비스' },
+            { code: '161390', name: '한국타이어앤테크놀로지' }
         ],
-        'Consumer': [
-            { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-            { symbol: 'WMT', name: 'Walmart Inc.' },
-            { symbol: 'HD', name: 'The Home Depot Inc.' },
-            { symbol: 'MCD', name: "McDonald's Corporation" },
-            { symbol: 'NKE', name: 'NIKE Inc.' },
-            { symbol: 'COST', name: 'Costco Wholesale Corp.' }
+        '화학/에너지': [
+            { code: '051910', name: 'LG화학' },
+            { code: '096770', name: 'SK이노베이션' },
+            { code: '009830', name: '한화솔루션' },
+            { code: '010950', name: 'S-Oil' }
         ],
-        'Energy': [
-            { symbol: 'XOM', name: 'Exxon Mobil Corporation' },
-            { symbol: 'CVX', name: 'Chevron Corporation' },
-            { symbol: 'COP', name: 'ConocoPhillips' },
-            { symbol: 'SLB', name: 'Schlumberger Limited' }
+        '유통/소비재': [
+            { code: '028260', name: '삼성물산' },
+            { code: '139480', name: '이마트' },
+            { code: '051900', name: 'LG생활건강' },
+            { code: '097950', name: 'CJ제일제당' }
         ],
-        'Industrials': [
-            { symbol: 'BA', name: 'The Boeing Company' },
-            { symbol: 'UPS', name: 'United Parcel Service' },
-            { symbol: 'HON', name: 'Honeywell International' },
-            { symbol: 'CAT', name: 'Caterpillar Inc.' }
+        '건설/중공업': [
+            { code: '000720', name: '현대건설' },
+            { code: '028050', name: '삼성엔지니어링' },
+            { code: '009540', name: '한국조선해양' },
+            { code: '010140', name: '삼성중공업' }
         ],
-        'Communication': [
-            { symbol: 'NFLX', name: 'Netflix Inc.' },
-            { symbol: 'DIS', name: 'The Walt Disney Company' },
-            { symbol: 'CMCSA', name: 'Comcast Corporation' },
-            { symbol: 'T', name: 'AT&T Inc.' }
+        '엔터/미디어': [
+            { code: '035760', name: 'CJ ENM' },
+            { code: '036570', name: '엔씨소프트' },
+            { code: '251270', name: '넷마블' },
+            { code: '352820', name: '하이브' }
         ]
     };
 
-    // 색상 스케일
+    // 섹터 색상
     const sectorColors = {
-        'Technology': '#667eea',
-        'Healthcare': '#f093fb',
-        'Financials': '#4facfe',
-        'Consumer': '#43e97b',
-        'Energy': '#fa709a',
-        'Industrials': '#feca57',
-        'Communication': '#ff6b6b'
+        'IT/전자': '#667eea',
+        '금융': '#4facfe',
+        '자동차': '#43e97b',
+        '화학/에너지': '#fa709a',
+        '유통/소비재': '#feca57',
+        '건설/중공업': '#f093fb',
+        '엔터/미디어': '#ff6b6b'
     };
 
-    // Yahoo Finance API를 통한 실제 데이터 가져오기
-    async function fetchStockData() {
+    // CORS 프록시 (네이버 금융 크롤링용)
+    const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+    // 네이버 금융에서 주식 데이터 가져오기
+    async function fetchNaverStockData(code, name, sector) {
+        try {
+            // 네이버 금융 API 엔드포인트 (JSON 응답)
+            const url = `https://polling.finance.naver.com/api/realtime/domestic/stock/${code}`;
+            
+            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
+            const data = await response.json();
+
+            if (data && data.datas && data.datas.length > 0) {
+                const stockInfo = data.datas[0];
+                
+                // 시가총액 계산 (현재가 * 상장주식수)
+                const marketCap = parseFloat(stockInfo.nv) * parseFloat(stockInfo.lss);
+                
+                return {
+                    code: code,
+                    name: name,
+                    sector: sector,
+                    price: parseInt(stockInfo.nv),
+                    change: parseFloat(stockInfo.cr),
+                    changeAbs: parseInt(stockInfo.cv),
+                    volume: parseInt(stockInfo.aq),
+                    marketCap: marketCap,
+                    high: parseInt(stockInfo.hv),
+                    low: parseInt(stockInfo.lv),
+                    open: parseInt(stockInfo.ov),
+                    previousClose: parseInt(stockInfo.pcv)
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error(`${name} 데이터 조회 실패:`, error);
+            return null;
+        }
+    }
+
+    // 데이터 로드
+    async function loadData() {
         const loading = document.getElementById('loading');
         const chart = document.getElementById('chart');
         const progress = document.getElementById('progress');
+
         loading.style.display = 'block';
         chart.innerHTML = '';
-        
+
         stockData = [];
         let totalStocks = 0;
         let processedStocks = 0;
-        
+
         // 전체 주식 수 계산
         for (const stocks of Object.values(companies)) {
             totalStocks += stocks.length;
         }
-        
+
         for (const [sector, stocks] of Object.entries(companies)) {
             for (const stock of stocks) {
                 try {
-                    const data = await fetchYahooFinanceData(stock.symbol, stock.name, sector);
+                    progress.textContent = `${processedStocks}/${totalStocks} 종목 로딩 중... (${stock.name})`;
+                    
+                    const data = await fetchNaverStockData(stock.code, stock.name, sector);
                     if (data) {
                         stockData.push(data);
                     }
                     processedStocks++;
-                    progress.textContent = `${processedStocks}/${totalStocks} 종목 로딩 완료`;
                     
-                    // API 호출 제한 방지
-                    await sleep(100);
+                    // 과도한 요청 방지
+                    await sleep(200);
                 } catch (error) {
-                    console.error(`Error fetching ${stock.symbol}:`, error);
+                    console.error(`Error fetching ${stock.name}:`, error);
                     processedStocks++;
                 }
             }
         }
-        
+
         console.log(`데이터 로딩 완료: ${stockData.length}개 종목`);
-        
+
         loading.style.display = 'none';
-        
+
         if (stockData.length > 0) {
             renderChart();
             updateStats();
         } else {
-            loading.innerHTML = '<div class="error-message">⚠️ 데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.</div>';
+            loading.innerHTML = `
+                <div class="error-message">
+                    ⚠️ 데이터를 불러오는데 실패했습니다.<br><br>
+                    <strong>가능한 원인:</strong><br>
+                    1. CORS 프록시 서버 응답 지연<br>
+                    2. 네이버 금융 API 형식 변경<br>
+                    3. 네트워크 연결 문제<br><br>
+                    잠시 후 새로고침을 눌러주세요.
+                </div>
+            `;
             loading.style.display = 'block';
-        }
-    }
-
-    // Yahoo Finance 데이터 가져오기 (CORS 우회 프록시 사용)
-    async function fetchYahooFinanceData(symbol, name, sector) {
-        try {
-            // 여러 프록시 옵션
-            const proxies = [
-                `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`,
-                `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}`
-            ];
-            
-            let data = null;
-            
-            for (const proxyUrl of proxies) {
-                try {
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        continue;
-                    }
-                    
-                    const result = await response.json();
-                    
-                    if (result.chart && result.chart.result && result.chart.result[0]) {
-                        const chartData = result.chart.result[0];
-                        const meta = chartData.meta;
-                        const quote = chartData.indicators.quote[0];
-                        
-                        const currentPrice = meta.regularMarketPrice || meta.previousClose;
-                        const previousClose = meta.chartPreviousClose || meta.previousClose;
-                        const change = ((currentPrice - previousClose) / previousClose) * 100;
-                        
-                        data = {
-                            symbol: symbol,
-                            name: name,
-                            sector: sector,
-                            price: currentPrice,
-                            previousClose: previousClose,
-                            change: change,
-                            changeAbs: currentPrice - previousClose,
-                            marketCap: meta.marketCap || 100000000000,
-                            volume: meta.regularMarketVolume || 0,
-                            high: meta.regularMarketDayHigh || currentPrice,
-                            low: meta.regularMarketDayLow || currentPrice,
-                            open: meta.regularMarketOpen || currentPrice,
-                            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || currentPrice,
-                            fiftyTwoWeekLow: meta.fiftyTwoWeekLow || currentPrice
-                        };
-                        
-                        break;
-                    }
-                } catch (e) {
-                    console.error(`Proxy failed for ${symbol}:`, e);
-                    continue;
-                }
-            }
-            
-            return data;
-        } catch (error) {
-            console.error(`Error fetching Yahoo Finance data for ${symbol}:`, error);
-            return null;
         }
     }
 
@@ -420,12 +420,12 @@
         const container = document.getElementById('chart');
         container.innerHTML = '';
 
-        const width = Math.min(1400, window.innerWidth - 80);
+        const width = Math.min(1500, window.innerWidth - 80);
         const height = 700;
 
         // 데이터 구조화
         const hierarchyData = {
-            name: 'US Stock Market',
+            name: 'Korean Stock Market',
             children: Object.keys(sectorColors).map(sector => ({
                 name: sector,
                 children: stockData
@@ -446,8 +446,8 @@
         const treemap = d3.treemap()
             .size([width, height])
             .paddingOuter(4)
-            .paddingTop(25)
-            .paddingInner(2)
+            .paddingTop(28)
+            .paddingInner(3)
             .round(true);
 
         treemap(root);
@@ -470,15 +470,15 @@
             .attr('width', d => d.x1 - d.x0)
             .attr('height', d => d.y1 - d.y0)
             .attr('fill', d => sectorColors[d.data.name])
-            .attr('opacity', 0.1)
+            .attr('opacity', 0.12)
             .attr('rx', 8);
 
         // 섹터 레이블
         nodes.append('text')
-            .attr('x', 8)
-            .attr('y', 18)
-            .attr('fill', '#fff')
-            .attr('font-size', '14px')
+            .attr('x', 10)
+            .attr('y', 20)
+            .attr('fill', '#333')
+            .attr('font-size', '15px')
             .attr('font-weight', 'bold')
             .text(d => d.data.name);
 
@@ -494,66 +494,78 @@
             .attr('height', d => Math.max(0, d.y1 - d.y0))
             .attr('fill', d => {
                 if (currentView === 'change') {
-                    return d.data.change >= 0 ? '#10b981' : '#ef4444';
+                    return d.data.change >= 0 ? '#ef4444' : '#3b82f6';
                 }
                 return sectorColors[d.parent.data.name];
             })
             .attr('opacity', d => {
                 if (currentView === 'change') {
-                    return Math.min(Math.abs(d.data.change) / 5, 1) * 0.6 + 0.3;
+                    return Math.min(Math.abs(d.data.change) / 10, 1) * 0.6 + 0.4;
                 }
-                return 0.8;
+                return 0.85;
             })
-            .attr('rx', 4);
+            .attr('rx', 6);
 
-        // 주식 심볼 텍스트
+        // 주식 이름 텍스트
         cells.append('text')
             .attr('class', 'cell-label')
             .attr('x', d => (d.x1 - d.x0) / 2)
-            .attr('y', d => (d.y1 - d.y0) / 2 - 5)
+            .attr('y', d => (d.y1 - d.y0) / 2 - 8)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#fff')
+            .attr('fill', '#000')
             .attr('font-size', d => {
                 const width = d.x1 - d.x0;
-                return Math.min(width / 4, 16) + 'px';
+                const height = d.y1 - d.y0;
+                const size = Math.min(width / 4.5, height / 3, 17);
+                return size + 'px';
             })
-            .text(d => d.data.symbol);
+            .attr('font-weight', '700')
+            .text(d => d.data.name);
 
         // 가격/변동률/거래량 텍스트
         cells.append('text')
             .attr('class', 'cell-label')
             .attr('x', d => (d.x1 - d.x0) / 2)
-            .attr('y', d => (d.y1 - d.y0) / 2 + 12)
+            .attr('y', d => (d.y1 - d.y0) / 2 + 10)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#fff')
+            .attr('fill', d => {
+                if (currentView === 'change') {
+                    return d.data.change >= 0 ? '#7f1d1d' : '#1e3a8a';
+                }
+                return '#1f2937';
+            })
             .attr('font-size', d => {
                 const width = d.x1 - d.x0;
-                return Math.min(width / 6, 12) + 'px';
+                const height = d.y1 - d.y0;
+                const size = Math.min(width / 6, height / 4, 13);
+                return size + 'px';
             })
+            .attr('font-weight', '600')
             .text(d => {
                 if (currentView === 'change') {
-                    return `${d.data.change >= 0 ? '+' : ''}${d.data.change.toFixed(2)}%`;
+                    return `${d.data.change >= 0 ? '▲' : '▼'} ${Math.abs(d.data.change).toFixed(2)}%`;
                 } else if (currentView === 'volume') {
-                    return `${(d.data.volume / 1e6).toFixed(1)}M`;
+                    return `${(d.data.volume / 10000).toFixed(0)}만`;
                 }
-                return `$${d.data.price.toFixed(2)}`;
+                return `${d.data.price.toLocaleString()}`;
             });
 
         // 툴팁 이벤트
         cells.on('mouseover', function(event, d) {
-            const changeColor = d.data.change >= 0 ? '#10b981' : '#ef4444';
+            const changeColor = d.data.change >= 0 ? '#ef4444' : '#3b82f6';
+            const changeIcon = d.data.change >= 0 ? '▲' : '▼';
             
             tooltip.html(`
-                <strong style="font-size: 14px;">${d.data.name}</strong><br/>
-                <span style="color: #8892b0;">${d.data.symbol} • ${d.parent.data.name}</span><br/>
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(136, 146, 176, 0.3);">
-                <strong>현재가:</strong> $${d.data.price.toFixed(2)}<br/>
-                <strong>전일종가:</strong> $${d.data.previousClose.toFixed(2)}<br/>
-                <strong>변동:</strong> <span style="color: ${changeColor}">${d.data.change >= 0 ? '+' : ''}${d.data.change.toFixed(2)}% ($${d.data.changeAbs >= 0 ? '+' : ''}${d.data.changeAbs.toFixed(2)})</span><br/>
-                <strong>시가총액:</strong> $${formatLargeNumber(d.data.marketCap)}<br/>
-                <strong>거래량:</strong> ${formatLargeNumber(d.data.volume)}<br/>
-                <strong>당일 고가/저가:</strong> $${d.data.high.toFixed(2)} / $${d.data.low.toFixed(2)}<br/>
-                <strong>52주 고가/저가:</strong> $${d.data.fiftyTwoWeekHigh.toFixed(2)} / $${d.data.fiftyTwoWeekLow.toFixed(2)}
+                <strong style="font-size: 16px;">${d.data.name}</strong><br/>
+                <span style="color: #8892b0;">${d.data.code} • ${d.parent.data.name}</span><br/>
+                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(136, 146, 176, 0.3);">
+                <strong>현재가:</strong> ${d.data.price.toLocaleString()}원<br/>
+                <strong>전일대비:</strong> <span style="color: ${changeColor}; font-weight: bold;">${changeIcon} ${Math.abs(d.data.change).toFixed(2)}% (${Math.abs(d.data.changeAbs).toLocaleString()}원)</span><br/>
+                <strong>시가총액:</strong> ${(d.data.marketCap / 1e12).toFixed(2)}조원<br/>
+                <strong>거래량:</strong> ${d.data.volume.toLocaleString()}주<br/>
+                <strong>고가:</strong> ${d.data.high.toLocaleString()}원<br/>
+                <strong>저가:</strong> ${d.data.low.toLocaleString()}원<br/>
+                <strong>시가:</strong> ${d.data.open.toLocaleString()}원
                 </div>
             `)
                 .classed('show', true)
@@ -562,15 +574,11 @@
         })
         .on('mouseout', function() {
             tooltip.classed('show', false);
+        })
+        .on('click', function(event, d) {
+            // 네이버 금융 종목 페이지로 이동
+            window.open(`https://finance.naver.com/item/main.naver?code=${d.data.code}`, '_blank');
         });
-    }
-
-    function formatLargeNumber(num) {
-        if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-        if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-        if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-        if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-        return num.toFixed(0);
     }
 
     function updateStats() {
@@ -581,31 +589,36 @@
 
         const statsHtml = `
             <div class="stat-item">
-                <div class="stat-value">$${(totalMarketCap / 1e12).toFixed(2)}T</div>
+                <div class="stat-value">${(totalMarketCap / 1e12).toFixed(1)}조</div>
                 <div class="stat-label">총 시가총액</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" style="color: ${avgChange >= 0 ? '#10b981' : '#ef4444'}">
-                    ${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%
+                <div class="stat-value" style="color: ${avgChange >= 0 ? '#fee2e2' : '#dbeafe'}">
+                    ${avgChange >= 0 ? '▲' : '▼'} ${Math.abs(avgChange).toFixed(2)}%
                 </div>
                 <div class="stat-label">평균 등락률</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" style="color: #10b981">${gainers}</div>
+                <div class="stat-value" style="color: #fee2e2">${gainers}</div>
                 <div class="stat-label">상승 종목</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value" style="color: #ef4444">${losers}</div>
+                <div class="stat-value" style="color: #dbeafe">${losers}</div>
                 <div class="stat-label">하락 종목</div>
             </div>
         `;
 
         document.getElementById('stats').innerHTML = statsHtml;
         document.getElementById('last-update').innerHTML = 
-            `마지막 업데이트: ${new Date().toLocaleString('ko-KR')} • Powered by Yahoo Finance`;
+            `<div class="success-message">✅ 실시간 데이터 로딩 완료 - ${stockData.length}개 종목</div>마지막 업데이트: ${new Date().toLocaleString('ko-KR')} • 데이터 출처: 네이버 금융`;
     }
 
     function updateView(view) {
+        if (stockData.length === 0) {
+            alert('먼저 데이터를 로드해주세요.');
+            return;
+        }
+        
         currentView = view;
         document.querySelectorAll('.control-btn').forEach(btn => {
             btn.classList.remove('active');
@@ -614,13 +627,9 @@
         renderChart();
     }
 
-    function refreshData() {
-        fetchStockData();
-    }
-
     // 초기 로드
     window.addEventListener('load', () => {
-        fetchStockData();
+        loadData();
     });
 
     // 반응형 처리

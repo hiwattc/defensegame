@@ -257,7 +257,7 @@
     <div class="container">
         <div class="header">
             <h1>🇰🇷 한국 주식 시장 히트맵</h1>
-            <div class="subtitle">네이버 금융 실시간 데이터 • 시가총액 상위 50개 종목</div>
+            <div class="subtitle">네이버 금융 실시간 데이터 • 시가총액 상위 100개 종목</div>
             <div class="market-status">
                 <div class="pulse"></div>
                 <span>실시간 업데이트</span>
@@ -333,123 +333,123 @@
         '기타': '#94a3b8'
     };
 
-    // 네이버 금융 시가총액 순위 페이지 크롤링
+    // 네이버 금융 시가총액 순위 페이지 크롤링 (여러 페이지)
     async function fetchNaverMarketData() {
         try {
-            const url = 'https://finance.naver.com/sise/sise_market_sum.naver?sosok=0&page=1';
-            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
-            const html = await response.text();
+            const allStocks = [];
             
-            // HTML 파싱
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const rows = doc.querySelectorAll('table.type_2 tr');
-            
-            const stocks = [];
-            
-            for (let i = 2; i < rows.length && stocks.length < 50; i++) {
-                const row = rows[i];
-                const cells = row.querySelectorAll('td');
+            // 페이지 1~5까지 크롤링 (한 페이지당 20개 = 100개)
+            for (let page = 1; page <= 5; page++) {
+                const url = `https://finance.naver.com/sise/sise_market_sum.naver?sosok=0&page=${page}`;
                 
-                if (cells.length < 10) continue;
-                
-                // 종목명과 링크
-                const nameCell = cells[1];
-                const link = nameCell.querySelector('a');
-                if (!link) continue;
-                
-                const name = link.textContent.trim();
-                const href = link.getAttribute('href');
-                const codeMatch = href.match(/code=(\d+)/);
-                if (!codeMatch) continue;
-                
-                const code = codeMatch[1];
-                
-                // 현재가
-                const priceText = cells[2].textContent.trim().replace(/,/g, '');
-                const price = parseInt(priceText);
-                
-                // 전일대비
-                const changeText = cells[3].textContent.trim();
-                const changeAbsText = cells[4].textContent.trim().replace(/,/g, '');
-                const changeAbs = parseInt(changeAbsText) || 0;
-                
-                // 등락률
-                const changeRateText = cells[5].textContent.trim().replace(/%/g, '');
-                let changeRate = parseFloat(changeRateText);
-                
-                // 상승/하락 판단 (빨간색/파란색 이미지로 판단)
-                const changeImg = cells[3].querySelector('img');
-                if (changeImg) {
-                    const imgSrc = changeImg.getAttribute('src');
-                    if (imgSrc && imgSrc.includes('down')) {
-                        changeRate = -Math.abs(changeRate);
-                    }
+                // CORS 프록시 없이 직접 fetch (한글 인코딩 문제 해결)
+                let html;
+                try {
+                    // 방법 1: CORS 프록시 사용
+                    const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+                    const data = await response.json();
+                    html = data.contents;
+                } catch (e) {
+                    console.error('CORS 프록시 오류, 대체 방법 시도');
+                    continue;
                 }
                 
-                // 거래량
-                const volumeText = cells[6].textContent.trim().replace(/,/g, '');
-                const volume = parseInt(volumeText) || 0;
+                // HTML 파싱
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const rows = doc.querySelectorAll('table.type_2 tr');
                 
-                // 시가총액 (억원)
-                const marketCapText = cells[7].textContent.trim().replace(/,/g, '');
-                const marketCap = parseInt(marketCapText) * 100000000; // 억원 -> 원
+                for (let i = 2; i < rows.length; i++) {
+                    const row = rows[i];
+                    const cells = row.querySelectorAll('td');
+                    
+                    if (cells.length < 10) continue;
+                    
+                    // 종목명과 링크
+                    const nameCell = cells[1];
+                    const link = nameCell.querySelector('a');
+                    if (!link) continue;
+                    
+                    const name = link.textContent.trim();
+                    const href = link.getAttribute('href');
+                    const codeMatch = href.match(/code=(\d+)/);
+                    if (!codeMatch) continue;
+                    
+                    const code = codeMatch[1];
+                    
+                    // 현재가
+                    const priceText = cells[2].textContent.trim().replace(/,/g, '');
+                    const price = parseInt(priceText);
+                    
+                    // 전일대비 (상승/하락 이미지로 판단)
+                    const changeCell = cells[3];
+                    const changeImg = changeCell.querySelector('img');
+                    let isUp = true;
+                    if (changeImg) {
+                        const imgSrc = changeImg.getAttribute('src');
+                        if (imgSrc && imgSrc.includes('down')) {
+                            isUp = false;
+                        }
+                    }
+                    
+                    // 전일대비 금액
+                    const changeAbsText = cells[4].textContent.trim().replace(/,/g, '');
+                    let changeAbs = parseInt(changeAbsText) || 0;
+                    if (!isUp) changeAbs = -changeAbs;
+                    
+                    // 등락률
+                    const changeRateText = cells[5].textContent.trim().replace(/%/g, '').replace(/,/g, '');
+                    let changeRate = parseFloat(changeRateText) || 0;
+                    if (!isUp) changeRate = -Math.abs(changeRate);
+                    
+                    // 거래량
+                    const volumeText = cells[6].textContent.trim().replace(/,/g, '');
+                    const volume = parseInt(volumeText) || 0;
+                    
+                    // 시가총액 (억원)
+                    const marketCapText = cells[7].textContent.trim().replace(/,/g, '');
+                    const marketCap = parseInt(marketCapText) * 100000000; // 억원 -> 원
+                    
+                    // 고가
+                    const highText = cells[8].textContent.trim().replace(/,/g, '');
+                    const high = parseInt(highText) || price;
+                    
+                    // 저가
+                    const lowText = cells[9].textContent.trim().replace(/,/g, '');
+                    const low = parseInt(lowText) || price;
+                    
+                    if (isNaN(price) || isNaN(marketCap) || marketCap === 0) continue;
+                    
+                    const sector = categorizeStock(name);
+                    
+                    allStocks.push({
+                        code: code,
+                        name: name,
+                        sector: sector,
+                        price: price,
+                        change: changeRate,
+                        changeAbs: changeAbs,
+                        volume: volume,
+                        marketCap: marketCap,
+                        high: high,
+                        low: low,
+                        open: price, // 시가는 테이블에 없으므로 현재가로 대체
+                        previousClose: price - changeAbs
+                    });
+                }
                 
-                if (isNaN(price) || isNaN(marketCap) || marketCap === 0) continue;
-                
-                const sector = categorizeStock(name);
-                
-                stocks.push({
-                    code: code,
-                    name: name,
-                    sector: sector,
-                    price: price,
-                    change: changeRate,
-                    changeAbs: changeAbs,
-                    volume: volume,
-                    marketCap: marketCap,
-                    previousClose: price - changeAbs
-                });
+                // 페이지 간 딜레이
+                await sleep(300);
             }
             
-            return stocks;
+            return allStocks;
         } catch (error) {
             console.error('네이버 금융 크롤링 오류:', error);
             return null;
         }
     }
 
-    // 개별 종목 상세 정보 가져오기 (고가/저가/시가)
-    async function fetchStockDetail(code) {
-        try {
-            const url = `https://finance.naver.com/item/main.naver?code=${code}`;
-            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
-            const html = await response.text();
-            
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // 고가/저가/시가 파싱
-            const todayTable = doc.querySelector('.new_totalinfo dl');
-            if (!todayTable) return null;
-            
-            const spans = todayTable.querySelectorAll('dd span.blind');
-            
-            let high = 0, low = 0, open = 0;
-            
-            // 일반적으로 고가, 저가, 거래량, 시가 순서
-            if (spans.length >= 4) {
-                high = parseInt(spans[0].textContent.replace(/,/g, '')) || 0;
-                low = parseInt(spans[1].textContent.replace(/,/g, '')) || 0;
-                open = parseInt(spans[3].textContent.replace(/,/g, '')) || 0;
-            }
-            
-            return { high, low, open };
-        } catch (error) {
-            console.error(`${code} 상세 정보 오류:`, error);
-            return null;
-        }
-    }
+    // 개별 종목 상세 정보 함수 제거 (속도 개선)
 
     // 데이터 로드
     async function loadData() {
@@ -459,9 +459,9 @@
 
         loading.style.display = 'block';
         chart.innerHTML = '';
-        progress.textContent = '네이버 금융에서 시가총액 상위 50개 종목 정보 수집 중...';
+        progress.textContent = '네이버 금융에서 시가총액 상위 100개 종목 정보 수집 중...';
 
-        // 시가총액 순위 데이터 가져오기
+        // 시가총액 순위 데이터 가져오기 (5페이지 = 100개 종목)
         const stocks = await fetchNaverMarketData();
         
         if (!stocks || stocks.length === 0) {
@@ -478,36 +478,8 @@
             return;
         }
 
-        progress.textContent = `${stocks.length}개 종목 로딩 완료! 상세 정보 수집 중...`;
-
-        // 상위 20개 종목만 상세 정보 가져오기 (시간 절약)
         stockData = stocks;
         
-        for (let i = 0; i < Math.min(20, stocks.length); i++) {
-            const stock = stocks[i];
-            progress.textContent = `상세 정보 수집 중... (${i + 1}/20)`;
-            
-            const detail = await fetchStockDetail(stock.code);
-            if (detail) {
-                stock.high = detail.high || stock.price;
-                stock.low = detail.low || stock.price;
-                stock.open = detail.open || stock.price;
-            } else {
-                stock.high = stock.price;
-                stock.low = stock.price;
-                stock.open = stock.price;
-            }
-            
-            await sleep(100);
-        }
-
-        // 나머지 종목은 현재가로 추정
-        for (let i = 20; i < stocks.length; i++) {
-            stocks[i].high = stocks[i].price;
-            stocks[i].low = stocks[i].price;
-            stocks[i].open = stocks[i].price;
-        }
-
         console.log(`데이터 로딩 완료: ${stockData.length}개 종목`);
 
         loading.style.display = 'none';

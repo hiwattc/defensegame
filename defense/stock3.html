@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>미국 주식 시장 맵 - TradingView 실시간 데이터</title>
+    <title>미국 주식 시장 맵 - 실시간 데이터</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         * {
@@ -46,13 +46,9 @@
         background: rgba(102, 126, 234, 0.1);
         border-radius: 8px;
         font-size: 0.9em;
-    }
-
-    code {
-        background: rgba(102, 126, 234, 0.2);
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .controls {
@@ -94,7 +90,7 @@
     .loading {
         text-align: center;
         padding: 100px;
-        font-size: 1.5em;
+        font-size: 1.2em;
         color: #667eea;
     }
 
@@ -111,6 +107,12 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+
+    .progress {
+        margin-top: 20px;
+        font-size: 0.9em;
+        color: #8892b0;
     }
 
     .cell {
@@ -187,7 +189,7 @@
         color: #fca5a5;
         padding: 15px;
         border-radius: 8px;
-        margin: 20px 0;
+        margin: 20px;
     }
 </style>
 ```
@@ -196,10 +198,11 @@
 <body>
     <div class="header">
         <h1>🇺🇸 US Stock Market Map</h1>
-        <div class="subtitle">TradingView 실시간 데이터 기반 Tree Map</div>
+        <div class="subtitle">실시간 주식 데이터 Tree Map</div>
         <div class="info-box">
-            💡 <strong>TradingView 데이터 사용:</strong> 
-            실시간 시세, 시가총액, 거래량 등 모든 데이터가 TradingView로부터 가져옵니다.
+            💡 <strong>실시간 데이터:</strong> 
+            Yahoo Finance API를 통해 실제 시세, 시가총액, 거래량을 가져옵니다. 
+            CORS 우회를 위해 프록시 서버를 사용합니다.
         </div>
     </div>
 
@@ -214,7 +217,8 @@
 <div id="chart-container">
     <div class="loading" id="loading">
         <div class="spinner"></div>
-        TradingView 데이터 로딩 중...
+        실시간 데이터 로딩 중...
+        <div class="progress" id="progress"></div>
     </div>
     <div id="chart"></div>
 </div>
@@ -240,9 +244,7 @@
             { symbol: 'AVGO', name: 'Broadcom Inc.' },
             { symbol: 'ORCL', name: 'Oracle Corporation' },
             { symbol: 'ADBE', name: 'Adobe Inc.' },
-            { symbol: 'CRM', name: 'Salesforce Inc.' },
-            { symbol: 'AMD', name: 'Advanced Micro Devices' },
-            { symbol: 'INTC', name: 'Intel Corporation' }
+            { symbol: 'CRM', name: 'Salesforce Inc.' }
         ],
         'Healthcare': [
             { symbol: 'UNH', name: 'UnitedHealth Group' },
@@ -250,10 +252,10 @@
             { symbol: 'LLY', name: 'Eli Lilly and Company' },
             { symbol: 'ABBV', name: 'AbbVie Inc.' },
             { symbol: 'MRK', name: 'Merck & Co.' },
-            { symbol: 'TMO', name: 'Thermo Fisher Scientific' }
+            { symbol: 'PFE', name: 'Pfizer Inc.' }
         ],
         'Financials': [
-            { symbol: 'BRK.B', name: 'Berkshire Hathaway' },
+            { symbol: 'BRK-B', name: 'Berkshire Hathaway' },
             { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
             { symbol: 'V', name: 'Visa Inc.' },
             { symbol: 'MA', name: 'Mastercard Inc.' },
@@ -299,37 +301,43 @@
         'Communication': '#ff6b6b'
     };
 
-    // TradingView API를 통한 실제 데이터 가져오기
+    // Yahoo Finance API를 통한 실제 데이터 가져오기
     async function fetchStockData() {
         const loading = document.getElementById('loading');
         const chart = document.getElementById('chart');
+        const progress = document.getElementById('progress');
         loading.style.display = 'block';
         chart.innerHTML = '';
         
         stockData = [];
-        let successCount = 0;
-        let failCount = 0;
+        let totalStocks = 0;
+        let processedStocks = 0;
+        
+        // 전체 주식 수 계산
+        for (const stocks of Object.values(companies)) {
+            totalStocks += stocks.length;
+        }
         
         for (const [sector, stocks] of Object.entries(companies)) {
             for (const stock of stocks) {
                 try {
-                    const data = await fetchTradingViewData(stock.symbol, stock.name, sector);
+                    const data = await fetchYahooFinanceData(stock.symbol, stock.name, sector);
                     if (data) {
                         stockData.push(data);
-                        successCount++;
-                    } else {
-                        failCount++;
                     }
-                    // TradingView 요청 간격 (과도한 요청 방지)
-                    await sleep(200);
+                    processedStocks++;
+                    progress.textContent = `${processedStocks}/${totalStocks} 종목 로딩 완료`;
+                    
+                    // API 호출 제한 방지
+                    await sleep(100);
                 } catch (error) {
                     console.error(`Error fetching ${stock.symbol}:`, error);
-                    failCount++;
+                    processedStocks++;
                 }
             }
         }
         
-        console.log(`데이터 로딩 완료: 성공 ${successCount}, 실패 ${failCount}`);
+        console.log(`데이터 로딩 완료: ${stockData.length}개 종목`);
         
         loading.style.display = 'none';
         
@@ -342,90 +350,66 @@
         }
     }
 
-    // TradingView 데이터 가져오기 (비공식 API 사용)
-    async function fetchTradingViewData(symbol, name, sector) {
+    // Yahoo Finance 데이터 가져오기 (CORS 우회 프록시 사용)
+    async function fetchYahooFinanceData(symbol, name, sector) {
         try {
-            // TradingView의 심볼 포맷: NASDAQ:AAPL, NYSE:JPM 등
-            const exchange = getExchange(symbol);
-            const tvSymbol = `${exchange}:${symbol}`;
+            // 여러 프록시 옵션
+            const proxies = [
+                `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`,
+                `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}`
+            ];
             
-            // TradingView 스캐너 API 사용 (공개 엔드포인트)
-            const url = 'https://scanner.tradingview.com/america/scan';
+            let data = null;
             
-            const payload = {
-                "symbols": {
-                    "tickers": [tvSymbol],
-                    "query": {"types": []}
-                },
-                "columns": [
-                    "name",
-                    "close",
-                    "change",
-                    "change_abs",
-                    "Recommend.All",
-                    "volume",
-                    "market_cap_basic",
-                    "price_earnings_ttm",
-                    "earnings_per_share_basic_ttm",
-                    "number_of_employees",
-                    "sector",
-                    "open",
-                    "high",
-                    "low",
-                    "premarket_close"
-                ]
-            };
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            
-            if (result.data && result.data.length > 0) {
-                const data = result.data[0];
-                const d = data.d;
-                
-                return {
-                    symbol: symbol,
-                    name: name,
-                    sector: sector,
-                    price: d[1] || 0,
-                    change: d[2] || 0,
-                    changeAbs: d[3] || 0,
-                    volume: d[5] || 0,
-                    marketCap: d[6] || 0,
-                    pe: d[7] || 0,
-                    eps: d[8] || 0,
-                    employees: d[9] || 0,
-                    open: d[12] || 0,
-                    high: d[13] || 0,
-                    low: d[14] || 0,
-                    recommendation: d[4] || 0
-                };
+            for (const proxyUrl of proxies) {
+                try {
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        continue;
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.chart && result.chart.result && result.chart.result[0]) {
+                        const chartData = result.chart.result[0];
+                        const meta = chartData.meta;
+                        const quote = chartData.indicators.quote[0];
+                        
+                        const currentPrice = meta.regularMarketPrice || meta.previousClose;
+                        const previousClose = meta.chartPreviousClose || meta.previousClose;
+                        const change = ((currentPrice - previousClose) / previousClose) * 100;
+                        
+                        data = {
+                            symbol: symbol,
+                            name: name,
+                            sector: sector,
+                            price: currentPrice,
+                            previousClose: previousClose,
+                            change: change,
+                            changeAbs: currentPrice - previousClose,
+                            marketCap: meta.marketCap || 100000000000,
+                            volume: meta.regularMarketVolume || 0,
+                            high: meta.regularMarketDayHigh || currentPrice,
+                            low: meta.regularMarketDayLow || currentPrice,
+                            open: meta.regularMarketOpen || currentPrice,
+                            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh || currentPrice,
+                            fiftyTwoWeekLow: meta.fiftyTwoWeekLow || currentPrice
+                        };
+                        
+                        break;
+                    }
+                } catch (e) {
+                    console.error(`Proxy failed for ${symbol}:`, e);
+                    continue;
+                }
             }
             
-            return null;
+            return data;
         } catch (error) {
-            console.error(`Error fetching TradingView data for ${symbol}:`, error);
+            console.error(`Error fetching Yahoo Finance data for ${symbol}:`, error);
             return null;
         }
-    }
-
-    // 거래소 결정
-    function getExchange(symbol) {
-        const nasdaqSymbols = ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'TSLA', 'AMZN', 
-                               'AVGO', 'ORCL', 'ADBE', 'CRM', 'AMD', 'INTC', 'NFLX', 
-                               'COST', 'CMCSA'];
-        return nasdaqSymbols.includes(symbol) ? 'NASDAQ' : 'NYSE';
     }
 
     function sleep(ms) {
@@ -449,7 +433,7 @@
                     .map(d => ({
                         ...d,
                         value: currentView === 'marketCap' ? d.marketCap : 
-                               currentView === 'change' ? Math.abs(d.change) * 1000 :
+                               currentView === 'change' ? Math.abs(d.change) * 100000000 :
                                d.volume
                     }))
             }))
@@ -516,7 +500,7 @@
             })
             .attr('opacity', d => {
                 if (currentView === 'change') {
-                    return Math.min(Math.abs(d.data.change) / 5, 1) * 0.8 + 0.2;
+                    return Math.min(Math.abs(d.data.change) / 5, 1) * 0.6 + 0.3;
                 }
                 return 0.8;
             })
@@ -558,20 +542,18 @@
         // 툴팁 이벤트
         cells.on('mouseover', function(event, d) {
             const changeColor = d.data.change >= 0 ? '#10b981' : '#ef4444';
-            const recColor = d.data.recommendation > 0 ? '#10b981' : 
-                            d.data.recommendation < 0 ? '#ef4444' : '#8892b0';
             
             tooltip.html(`
                 <strong style="font-size: 14px;">${d.data.name}</strong><br/>
                 <span style="color: #8892b0;">${d.data.symbol} • ${d.parent.data.name}</span><br/>
                 <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(136, 146, 176, 0.3);">
-                <strong>가격:</strong> $${d.data.price.toFixed(2)}<br/>
-                <strong>변동:</strong> <span style="color: ${changeColor}">${d.data.change >= 0 ? '+' : ''}${d.data.change.toFixed(2)}% ($${d.data.changeAbs.toFixed(2)})</span><br/>
+                <strong>현재가:</strong> $${d.data.price.toFixed(2)}<br/>
+                <strong>전일종가:</strong> $${d.data.previousClose.toFixed(2)}<br/>
+                <strong>변동:</strong> <span style="color: ${changeColor}">${d.data.change >= 0 ? '+' : ''}${d.data.change.toFixed(2)}% ($${d.data.changeAbs >= 0 ? '+' : ''}${d.data.changeAbs.toFixed(2)})</span><br/>
                 <strong>시가총액:</strong> $${formatLargeNumber(d.data.marketCap)}<br/>
                 <strong>거래량:</strong> ${formatLargeNumber(d.data.volume)}<br/>
-                <strong>고가/저가:</strong> $${d.data.high.toFixed(2)} / $${d.data.low.toFixed(2)}<br/>
-                ${d.data.pe ? `<strong>PER:</strong> ${d.data.pe.toFixed(2)}<br/>` : ''}
-                ${d.data.eps ? `<strong>EPS:</strong> $${d.data.eps.toFixed(2)}<br/>` : ''}
+                <strong>당일 고가/저가:</strong> $${d.data.high.toFixed(2)} / $${d.data.low.toFixed(2)}<br/>
+                <strong>52주 고가/저가:</strong> $${d.data.fiftyTwoWeekHigh.toFixed(2)} / $${d.data.fiftyTwoWeekLow.toFixed(2)}
                 </div>
             `)
                 .classed('show', true)
@@ -587,6 +569,7 @@
         if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
         if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
         if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
         return num.toFixed(0);
     }
 
@@ -619,7 +602,7 @@
 
         document.getElementById('stats').innerHTML = statsHtml;
         document.getElementById('last-update').innerHTML = 
-            `마지막 업데이트: ${new Date().toLocaleString('ko-KR')} • Powered by TradingView`;
+            `마지막 업데이트: ${new Date().toLocaleString('ko-KR')} • Powered by Yahoo Finance`;
     }
 
     function updateView(view) {

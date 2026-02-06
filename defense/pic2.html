@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>위키 아트 갤러리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        overflow: hidden;
+    }
+
+    header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 50px 30px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: headerPulse 15s ease-in-out infinite;
+    }
+
+    @keyframes headerPulse {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        50% { transform: translate(30px, 30px) scale(1.1); }
+    }
+
+    h1 {
+        font-size: 3.2em;
+        margin-bottom: 15px;
+        text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        position: relative;
+        font-weight: 800;
+        letter-spacing: -1px;
+        background: linear-gradient(to right, #fff, #f0e6ff, #fff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: titleShimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes titleShimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .title-emoji {
+        display: inline-block;
+        animation: emojiFloat 3s ease-in-out infinite;
+        font-size: 1.1em;
+    }
+
+    @keyframes emojiFloat {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-10px) rotate(5deg); }
+    }
+
+    .subtitle {
+        font-size: 1.2em;
+        opacity: 0.95;
+        position: relative;
+        font-weight: 300;
+        letter-spacing: 0.5px;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .search-section {
+        padding: 30px;
+        background: #f8f9fa;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .search-container {
+        display: flex;
+        gap: 15px;
+        max-width: 800px;
+        margin: 0 auto;
+        flex-wrap: wrap;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 250px;
+        padding: 15px 20px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .category-select {
+        padding: 15px 20px;
+        font-size: 16px;
+        border: 2px solid #ddd;
+        border-radius: 10px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .category-select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .search-btn {
+        padding: 15px 40px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .search-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .search-btn:active {
+        transform: translateY(0);
+    }
+
+    .quick-categories {
+        margin-top: 20px;
+    }
+
+    .tag-row {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f0f0f0;
+    }
+
+    .tag-row::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .tag-row::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 10px;
+    }
+
+    .tag-row::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+
+    .tag-row::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
+    }
+
+    .quick-btn {
+        padding: 8px 16px;
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .quick-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 60px;
+        font-size: 1.2em;
+        color: #666;
+        display: none;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .gallery {
+        padding: 30px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+    }
+
+    .artwork-card {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .artwork-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+
+    .artwork-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        background: #f0f0f0;
+    }
+
+    .artwork-info {
+        padding: 20px;
+    }
+
+    .artwork-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .artwork-artist {
+        color: #667eea;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+    }
+
+    .artwork-description {
+        color: #666;
+        font-size: 0.9em;
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        overflow: auto;
+    }
+
+    .modal-content {
+        background: white;
+        margin: 30px auto;
+        padding: 0;
+        max-width: 1000px;
+        border-radius: 15px;
+        overflow: hidden;
+        animation: modalSlideIn 0.3s;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 25px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.8em;
+        font-weight: bold;
+    }
+
+    .close {
+        color: white;
+        font-size: 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        line-height: 1;
+    }
+
+    .close:hover {
+        transform: scale(1.2);
+    }
+
+    .modal-body {
+        padding: 30px;
+    }
+
+    .modal-image {
+        width: 100%;
+        max-height: 500px;
+        object-fit: contain;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+
+    .modal-info {
+        line-height: 1.8;
+    }
+
+    .modal-info h3 {
+        color: #333;
+        margin: 20px 0 10px 0;
+        font-size: 1.3em;
+    }
+
+    .modal-info p {
+        color: #666;
+        margin-bottom: 15px;
+    }
+
+    .wiki-link {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 25px;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+
+    .wiki-link:hover {
+        background: #764ba2;
+        transform: translateY(-2px);
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+        display: none;
+    }
+
+    .no-results h2 {
+        font-size: 1.8em;
+        margin-bottom: 15px;
+    }
+
+    .load-more-container {
+        text-align: center;
+        padding: 30px;
+        display: none;
+    }
+
+    .load-more-btn {
+        padding: 15px 50px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .load-more-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .load-more-btn:active {
+        transform: translateY(-1px);
+    }
+
+    .load-more-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 1.8em;
+        }
+
+        .search-container {
+            flex-direction: column;
+        }
+
+        .gallery {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .modal-content {
+            margin: 10px;
+            max-width: calc(100% - 20px);
+        }
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="title-emoji">🎨</span> 위키 아트 갤러리</h1>
+            <p class="subtitle">위키미디어 컬렉션에서 세계의 명화를 감상하세요</p>
+        </header>
+
+```
+    <div class="search-section">
+        <div class="search-container">
+            <input type="text" class="search-input" id="searchInput" placeholder="작품명, 작가명을 검색하세요... (예: 반 고흐, 모나리자)">
+            <select class="category-select" id="categorySelect">
+                <option value="">카테고리 선택</option>
+                <option value="Vincent van Gogh">반 고흐</option>
+                <option value="Leonardo da Vinci">레오나르도 다빈치</option>
+                <option value="Claude Monet">클로드 모네</option>
+                <option value="Pablo Picasso">피카소</option>
+                <option value="Rembrandt">렘브란트</option>
+                <option value="Johannes Vermeer">베르메르</option>
+                <option value="Michelangelo">미켈란젤로</option>
+                <option value="Edvard Munch">에드바르 뭉크</option>
+            </select>
+            <button class="search-btn" onclick="searchArtworks()">검색</button>
+        </div>
+        <div class="quick-categories">
+            <div class="tag-row">
+                <button class="quick-btn" onclick="quickSearch('Vincent van Gogh')">반 고흐</button>
+                <button class="quick-btn" onclick="quickSearch('Leonardo da Vinci')">레오나르도 다빈치</button>
+                <button class="quick-btn" onclick="quickSearch('Claude Monet')">클로드 모네</button>
+                <button class="quick-btn" onclick="quickSearch('Pablo Picasso')">파블로 피카소</button>
+                <button class="quick-btn" onclick="quickSearch('Rembrandt')">렘브란트</button>
+                <button class="quick-btn" onclick="quickSearch('Johannes Vermeer')">요하네스 베르메르</button>
+                <button class="quick-btn" onclick="quickSearch('Michelangelo')">미켈란젤로</button>
+                <button class="quick-btn" onclick="quickSearch('Edvard Munch')">에드바르 뭉크</button>
+                <button class="quick-btn" onclick="quickSearch('Raphael')">라파엘로</button>
+                <button class="quick-btn" onclick="quickSearch('Caravaggio')">카라바조</button>
+                <button class="quick-btn" onclick="quickSearch('Gustav Klimt')">구스타프 클림트</button>
+                <button class="quick-btn" onclick="quickSearch('Pierre-Auguste Renoir')">피에르 오귀스트 르누아르</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Cézanne')">폴 세잔</button>
+                <button class="quick-btn" onclick="quickSearch('Edgar Degas')">에드가 드가</button>
+                <button class="quick-btn" onclick="quickSearch('Henri Matisse')">앙리 마티스</button>
+                <button class="quick-btn" onclick="quickSearch('Salvador Dalí')">살바도르 달리</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Gauguin')">폴 고갱</button>
+                <button class="quick-btn" onclick="quickSearch('Frida Kahlo')">프리다 칼로</button>
+                <button class="quick-btn" onclick="quickSearch('Wassily Kandinsky')">바실리 칸딘스키</button>
+                <button class="quick-btn" onclick="quickSearch('Egon Schiele')">에곤 실레</button>
+                <button class="quick-btn" onclick="quickSearch('Georges Seurat')">조르주 쇠라</button>
+                <button class="quick-btn" onclick="quickSearch('Édouard Manet')">에두아르 마네</button>
+                <button class="quick-btn" onclick="quickSearch('Henri de Toulouse-Lautrec')">툴루즈 로트렉</button>
+                <button class="quick-btn" onclick="quickSearch('Jan van Eyck')">얀 판 에이크</button>
+                <button class="quick-btn" onclick="quickSearch('Titian')">티치아노</button>
+            </div>
+            <div class="tag-row">
+                <button class="quick-btn" onclick="quickSearch('Francisco Goya')">프란시스코 고야</button>
+                <button class="quick-btn" onclick="quickSearch('Diego Velázquez')">디에고 벨라스케스</button>
+                <button class="quick-btn" onclick="quickSearch('Peter Paul Rubens')">페테르 파울 루벤스</button>
+                <button class="quick-btn" onclick="quickSearch('J.M.W. Turner')">윌리엄 터너</button>
+                <button class="quick-btn" onclick="quickSearch('Caspar David Friedrich')">카스파르 다비트 프리드리히</button>
+                <button class="quick-btn" onclick="quickSearch('Albrecht Dürer')">알브레히트 뤼러</button>
+                <button class="quick-btn" onclick="quickSearch('Hieronymus Bosch')">히에로니무스 보스</button>
+                <button class="quick-btn" onclick="quickSearch('Marc Chagall')">마르크 샤갈</button>
+                <button class="quick-btn" onclick="quickSearch('Amedeo Modigliani')">아메데오 모딜리아니</button>
+                <button class="quick-btn" onclick="quickSearch('Piet Mondrian')">피트 몬드리안</button>
+                <button class="quick-btn" onclick="quickSearch('Joan Miró')">호안 미로</button>
+                <button class="quick-btn" onclick="quickSearch('René Magritte')">르네 마그리트</button>
+                <button class="quick-btn" onclick="quickSearch('Sandro Botticelli')">산드로 보티첼리</button>
+                <button class="quick-btn" onclick="quickSearch('El Greco')">엘 그레코</button>
+                <button class="quick-btn" onclick="quickSearch('Camille Pissarro')">카미유 피사로</button>
+                <button class="quick-btn" onclick="quickSearch('Gustave Courbet')">귀스타브 쿠르베</button>
+                <button class="quick-btn" onclick="quickSearch('John Singer Sargent')">존 싱어 사전트</button>
+                <button class="quick-btn" onclick="quickSearch('Winslow Homer')">윈슬로 호머</button>
+                <button class="quick-btn" onclick="quickSearch('Edward Hopper')">에드워드 호퍼</button>
+                <button class="quick-btn" onclick="quickSearch('Jackson Pollock')">잭슨 폴록</button>
+                <button class="quick-btn" onclick="quickSearch('Andy Warhol')">앤디 워홀</button>
+                <button class="quick-btn" onclick="quickSearch('Roy Lichtenstein')">로이 리히텐슈타인</button>
+                <button class="quick-btn" onclick="quickSearch('Georgia O Keeffe')">조지아 오키프</button>
+                <button class="quick-btn" onclick="quickSearch('Kazimir Malevich')">카지미르 말레비치</button>
+                <button class="quick-btn" onclick="quickSearch('Paul Klee')">파울 클레</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>명화를 불러오는 중...</p>
+    </div>
+
+    <div class="no-results" id="noResults">
+        <h2>검색 결과가 없습니다</h2>
+        <p>다른 키워드로 검색해보세요</p>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+
+    <div class="load-more-container" id="loadMoreContainer">
+        <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">더 많은 작품 보기</button>
+    </div>
+</div>
+
+<div id="artworkModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle"></div>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    // 전역 변수
+    let currentQuery = '';
+    let currentOffset = 0;
+    let isLoading = false;
+    let hasMore = true;
+    const LIMIT = 20;
+    
+    // 페이지 로드 시 기본 작품 표시
+    window.onload = function() {
+        quickSearch('Vincent van Gogh');
+    };
+
+    // Enter 키 검색
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchArtworks();
+        }
+    });
+
+    async function searchArtworks() {
+        const searchTerm = document.getElementById('searchInput').value.trim();
+        const category = document.getElementById('categorySelect').value;
+        const query = category || searchTerm || 'famous paintings';
+        
+        // 새로운 검색 시 초기화
+        currentQuery = query;
+        currentOffset = 0;
+        hasMore = true;
+        document.getElementById('gallery').innerHTML = '';
+        
+        showLoading();
+        hideNoResults();
+        hideLoadMore();
+        
+        try {
+            const artworks = await fetchArtworks(query, 0);
+            displayArtworks(artworks, false);
+        } catch (error) {
+            console.error('Error:', error);
+            hideLoading();
+            showNoResults();
+        }
+    }
+
+    async function quickSearch(query) {
+        document.getElementById('searchInput').value = query;
+        document.getElementById('categorySelect').value = '';
+        
+        // 새로운 검색 시 초기화
+        currentQuery = query;
+        currentOffset = 0;
+        hasMore = true;
+        document.getElementById('gallery').innerHTML = '';
+        
+        showLoading();
+        hideNoResults();
+        hideLoadMore();
+        
+        try {
+            const artworks = await fetchArtworks(query, 0);
+            displayArtworks(artworks, false);
+        } catch (error) {
+            console.error('Error:', error);
+            hideLoading();
+            showNoResults();
+        }
+    }
+
+    async function loadMore() {
+        if (isLoading || !hasMore) return;
+        
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.textContent = '로딩 중...';
+        isLoading = true;
+        
+        try {
+            currentOffset += LIMIT;
+            const artworks = await fetchArtworks(currentQuery, currentOffset);
+            displayArtworks(artworks, true);
+        } catch (error) {
+            console.error('Error:', error);
+        } finally {
+            loadMoreBtn.disabled = false;
+            loadMoreBtn.textContent = '더 많은 작품 보기';
+            isLoading = false;
+        }
+    }
+
+    async function fetchArtworks(query, offset) {
+        // 병렬로 여러 검색어 조합을 시도하여 속도 개선
+        const searchTerms = [
+            `${query} painting`,
+            `${query} art`,
+            `${query} artwork`
+        ];
+        
+        // 첫 번째 검색어로 시도
+        const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(searchTerms[0])}&gsroffset=${offset}&gsrlimit=${LIMIT}&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=400&origin=*`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!data.query || !data.query.pages) {
+            hasMore = false;
+            return [];
+        }
+        
+        const artworks = [];
+        const pages = data.query.pages;
+        
+        // 병렬 처리로 이미지 정보 추출 속도 개선
+        const pageIds = Object.keys(pages);
+        const promises = pageIds.map(async (pageId) => {
+            const page = pages[pageId];
+            if (page.imageinfo && page.imageinfo[0]) {
+                const imageInfo = page.imageinfo[0];
+                const metadata = imageInfo.extmetadata || {};
+                
+                return {
+                    title: page.title.replace('File:', '').replace(/\.(jpg|png|jpeg|JPG|PNG|JPEG)/gi, ''),
+                    image: imageInfo.thumburl || imageInfo.url,
+                    fullImage: imageInfo.url,
+                    artist: metadata.Artist?.value?.replace(/<[^>]*>/g, '') || '알 수 없음',
+                    description: metadata.ImageDescription?.value?.replace(/<[^>]*>/g, '').substring(0, 200) || '설명 없음',
+                    date: metadata.DateTimeOriginal?.value || metadata.ObjectName?.value || '',
+                    license: metadata.LicenseShortName?.value || '',
+                    url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title)}`
+                };
+            }
+            return null;
+        });
+        
+        const results = await Promise.all(promises);
+        const validArtworks = results.filter(artwork => artwork !== null);
+        
+        // 결과가 LIMIT보다 적으면 더 이상 없음
+        if (validArtworks.length < LIMIT) {
+            hasMore = false;
+        }
+        
+        return validArtworks;
+    }
+
+    function displayArtworks(artworks, append = false) {
+        const gallery = document.getElementById('gallery');
+        
+        if (!append) {
+            gallery.innerHTML = '';
+        }
+        
+        hideLoading();
+        
+        if (artworks.length === 0 && !append) {
+            showNoResults();
+            hideLoadMore();
+            return;
+        }
+        
+        // DocumentFragment 사용으로 DOM 조작 최적화
+        const fragment = document.createDocumentFragment();
+        
+        artworks.forEach((artwork, index) => {
+            const card = document.createElement('div');
+            card.className = 'artwork-card';
+            card.onclick = () => showModal(artwork);
+            
+            card.innerHTML = `
+                <img src="${artwork.image}" alt="${artwork.title}" class="artwork-image" 
+                     loading="lazy"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22%3E이미지 없음%3C/text%3E%3C/svg%3E'">
+                <div class="artwork-info">
+                    <div class="artwork-title">${artwork.title}</div>
+                    <div class="artwork-artist">${artwork.artist}</div>
+                    <div class="artwork-description">${artwork.description}</div>
+                </div>
+            `;
+            
+            fragment.appendChild(card);
+        });
+        
+        gallery.appendChild(fragment);
+        
+        // 더보기 버튼 표시/숨김
+        if (hasMore && artworks.length > 0) {
+            showLoadMore();
+        } else {
+            hideLoadMore();
+        }
+    }
+
+    function showModal(artwork) {
+        const modal = document.getElementById('artworkModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        
+        modalTitle.textContent = artwork.title;
+        modalBody.innerHTML = `
+            <img src="${artwork.fullImage}" alt="${artwork.title}" class="modal-image"
+                 onerror="this.src='${artwork.image}'">
+            <div class="modal-info">
+                <h3>작가</h3>
+                <p>${artwork.artist}</p>
+                
+                ${artwork.date ? `<h3>제작 시기</h3><p>${artwork.date}</p>` : ''}
+                
+                <h3>설명</h3>
+                <p>${artwork.description}</p>
+                
+                ${artwork.license ? `<h3>라이선스</h3><p>${artwork.license}</p>` : ''}
+                
+                <a href="${artwork.url}" target="_blank" class="wiki-link">위키미디어에서 자세히 보기 →</a>
+            </div>
+        `;
+        
+        modal.style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('artworkModal').style.display = 'none';
+    }
+
+    // 모달 외부 클릭 시 닫기
+    window.onclick = function(event) {
+        const modal = document.getElementById('artworkModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    function showLoading() {
+        document.getElementById('loading').style.display = 'block';
+    }
+
+    function hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    function showNoResults() {
+        document.getElementById('noResults').style.display = 'block';
+    }
+
+    function hideNoResults() {
+        document.getElementById('noResults').style.display = 'none';
+    }
+
+    function showLoadMore() {
+        document.getElementById('loadMoreContainer').style.display = 'block';
+    }
+
+    function hideLoadMore() {
+        document.getElementById('loadMoreContainer').style.display = 'none';
+    }
+</script>
+```
+
+</body>
+</html>

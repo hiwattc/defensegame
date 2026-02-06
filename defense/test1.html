@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커피 바리스타 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Malgun Gothic', 'Apple Gothic', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #8B4513, #D2691E);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #FFF8DC;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-item h3 {
+            font-size: 0.9em;
+            color: #8B4513;
+            margin-bottom: 5px;
+        }
+
+        .status-item .value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2F4F2F;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #8B4513;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            background: rgba(139, 69, 19, 0.1);
+        }
+
+        .tab-button.active {
+            background: #8B4513;
+            color: white;
+        }
+
+        .game-area {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            min-height: 500px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* 원두 구매 화면 */
+        .bean-shop {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .bean-item {
+            background: #FFF8DC;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #DEB887;
+            text-align: center;
+        }
+
+        .bean-item h3 {
+            color: #8B4513;
+            margin-bottom: 10px;
+        }
+
+        .bean-info {
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .bean-price {
+            font-weight: bold;
+            color: #2F4F2F;
+            margin: 10px 0;
+        }
+
+        .buy-button {
+            background: #228B22;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .buy-button:hover {
+            background: #32CD32;
+        }
+
+        .buy-button:disabled {
+            background: #A9A9A9;
+            cursor: not-allowed;
+        }
+
+        /* 로스팅 화면 */
+        .roasting-station {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .roast-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-group {
+            text-align: center;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #8B4513;
+        }
+
+        .control-input {
+            width: 80px;
+            padding: 8px;
+            border: 2px solid #DEB887;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .roast-button {
+            background: #DC143C;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .roast-button:hover {
+            background: #FF6347;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #DDD;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF6347, #DC143C);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* 드립 화면 */
+        .drip-station {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .drip-setup {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .ingredient-item {
+            text-align: center;
+            padding: 15px;
+            background: #FFF8DC;
+            border-radius: 10px;
+            border: 2px solid #DEB887;
+        }
+
+        .drip-button {
+            background: #8B4513;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .drip-button:hover {
+            background: #A0522D;
+        }
+
+        /* 지식 화면 */
+        .knowledge-library {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .knowledge-card {
+            background: #FFF8DC;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #DEB887;
+        }
+
+        .knowledge-card h3 {
+            color: #8B4513;
+            margin-bottom: 10px;
+        }
+
+        .knowledge-card p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .learn-button {
+            background: #4169E1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .learn-button:hover {
+            background: #6495ED;
+        }
+
+        .learn-button.learned {
+            background: #228B22;
+        }
+
+        /* 메시지 시스템 */
+        .message-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .message {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #8B4513;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .message.success {
+            border-left-color: #228B22;
+        }
+
+        .message.error {
+            border-left-color: #DC143C;
+        }
+
+        .message.info {
+            border-left-color: #4169E1;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .drip-setup {
+                flex-direction: column;
+            }
+
+            .roast-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>☕ 커피 바리스타 게임</h1>
+            <p>원두부터 완벽한 커피까지, 당신의 바리스타 여정을 시작하세요!</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <h3>💰 자금</h3>
+                <div class="value" id="money">10000원</div>
+            </div>
+            <div class="status-item">
+                <h3>⭐ 경험치</h3>
+                <div class="value" id="experience">0 XP</div>
+            </div>
+            <div class="status-item">
+                <h3>📚 지식 레벨</h3>
+                <div class="value" id="knowledge-level">1</div>
+            </div>
+            <div class="status-item">
+                <h3>☕ 완성된 커피</h3>
+                <div class="value" id="coffee-count">0잔</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="shop">🛒 원두 구매</button>
+            <button class="tab-button" data-tab="roasting">🔥 로스팅</button>
+            <button class="tab-button" data-tab="drip">💧 드립 추출</button>
+            <button class="tab-button" data-tab="knowledge">📖 지식 습득</button>
+            <button class="tab-button" data-tab="inventory">📦 인벤토리</button>
+        </div>
+
+        <div class="game-area">
+            <!-- 원두 구매 화면 -->
+            <div id="shop-screen" class="screen active">
+                <h2>🛒 원두 구매</h2>
+                <p>좋은 커피는 좋은 원두에서 시작됩니다. 다양한 원종과 등급의 원두를 구매하세요.</p>
+                <div class="bean-shop" id="bean-shop">
+                    <!-- JavaScript로 동적으로 생성됨 -->
+                </div>
+            </div>
+
+            <!-- 로스팅 화면 -->
+            <div id="roasting-screen" class="screen">
+                <h2>🔥 로스팅 스테이션</h2>
+                <p>원두의 맛을 결정짓는 중요한 단계입니다. 온도와 시간을 정확히 조절하세요.</p>
+                <div class="roasting-station">
+                    <div class="roast-controls">
+                        <div class="control-group">
+                            <label for="roast-temp">온도 (°C)</label>
+                            <input type="number" id="roast-temp" class="control-input" value="200" min="150" max="250">
+                        </div>
+                        <div class="control-group">
+                            <label for="roast-time">시간 (분)</label>
+                            <input type="number" id="roast-time" class="control-input" value="12" min="8" max="20">
+                        </div>
+                        <div class="control-group">
+                            <label for="bean-type-select">원두 선택</label>
+                            <select id="bean-type-select" class="control-input">
+                                <option value="">원두를 선택하세요</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="roast-progress"></div>
+                    </div>
+                    <button id="start-roast" class="roast-button">🔥 로스팅 시작</button>
+                    <div id="roast-result"></div>
+                </div>
+            </div>
+
+            <!-- 드립 추출 화면 -->
+            <div id="drip-screen" class="screen">
+                <h2>💧 드립 추출</h2>
+                <p>완벽한 커피를 만들기 위해 물의 양, 추출 시간, 원두량을 조절하세요.</p>
+                <div class="drip-station">
+                    <div class="drip-setup">
+                        <div class="control-group">
+                            <label for="water-amount">물의 양 (ml)</label>
+                            <input type="number" id="water-amount" class="control-input" value="200" min="100" max="300">
+                        </div>
+                        <div class="control-group">
+                            <label for="brew-time">추출 시간 (초)</label>
+                            <input type="number" id="brew-time" class="control-input" value="240" min="120" max="360">
+                        </div>
+                        <div class="control-group">
+                            <label for="coffee-amount">원두량 (g)</label>
+                            <input type="number" id="coffee-amount" class="control-input" value="20" min="10" max="30">
+                        </div>
+                        <div class="control-group">
+                            <label for="roasted-bean-select">로스팅된 원두</label>
+                            <select id="roasted-bean-select" class="control-input">
+                                <option value="">원두를 선택하세요</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="drip-progress"></div>
+                    </div>
+                    <button id="start-drip" class="drip-button">💧 드립 시작</button>
+                    <div id="drip-result"></div>
+                </div>
+            </div>
+
+            <!-- 지식 습득 화면 -->
+            <div id="knowledge-screen" class="screen">
+                <h2>📖 커피 지식 라이브러리</h2>
+                <p>커피에 대한 다양한 지식을 습득하여 더 나은 바리스타가 되세요.</p>
+                <div class="knowledge-library" id="knowledge-library">
+                    <!-- JavaScript로 동적으로 생성됨 -->
+                </div>
+            </div>
+
+            <!-- 인벤토리 화면 -->
+            <div id="inventory-screen" class="screen">
+                <h2>📦 인벤토리</h2>
+                <p>보유하고 있는 원두와 로스팅된 원두를 확인하세요.</p>
+                <div id="inventory-content">
+                    <div class="inventory-section">
+                        <h3>🌱 생원두</h3>
+                        <div id="green-beans-list"></div>
+                    </div>
+                    <div class="inventory-section">
+                        <h3>🔥 로스팅된 원두</h3>
+                        <div id="roasted-beans-list"></div>
+                    </div>
+                    <div class="inventory-section">
+                        <h3>☕ 완성된 커피</h3>
+                        <div id="finished-coffees-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="message-area" id="message-area"></div>
+
+    <script>
+        // 게임 상태 관리
+        class CoffeeBaristaGame {
+            constructor() {
+                this.money = 10000;
+                this.experience = 0;
+                this.knowledgeLevel = 1;
+                this.coffeeCount = 0;
+
+                // 인벤토리
+                this.greenBeans = [];
+                this.roastedBeans = [];
+                this.finishedCoffees = [];
+
+                // 원두 데이터
+                this.beanTypes = [
+                    {
+                        id: 'ethiopia_yirgacheffe',
+                        name: '에티오피아 예가체프',
+                        price: 5000,
+                        quality: '프리미엄',
+                        notes: '꽃향, 밝은 산미, 복합적인 풍미',
+                        description: '세계적으로 유명한 에티오피아의 특산품으로, 밝은 산미와 복합적인 풍미가 특징입니다.'
+                    },
+                    {
+                        id: 'colombia_supremo',
+                        name: '콜롬비아 수프리모',
+                        price: 3500,
+                        quality: '스페셜티',
+                        notes: '균형 잡힌 바디, 카라멜, 초콜릿',
+                        description: '콜롬비아 고산지대에서 재배되는 고품질 원두로, 균형 잡힌 맛이 특징입니다.'
+                    },
+                    {
+                        id: 'brazil_santos',
+                        name: '브라질 산토스',
+                        price: 2800,
+                        quality: '상업용',
+                        notes: '부드러운 바디, 낮은 산미, 너트',
+                        description: '세계 최대 커피 생산국의 대표적인 원두로, 부드러운 맛이 특징입니다.'
+                    },
+                    {
+                        id: 'guatemala_antigua',
+                        name: '과테말라 안티구아',
+                        price: 4200,
+                        quality: '스페셜티',
+                        notes: '강한 바디, 스모키, 카라멜',
+                        description: '화산토양에서 재배되어 독특한 스모키한 풍미를 가진 원두입니다.'
+                    }
+                ];
+
+                // 지식 데이터
+                this.knowledgeItems = [
+                    {
+                        id: 'coffee_origins',
+                        title: '커피의 기원',
+                        content: '커피는 9세기경 에티오피아에서 발견되었습니다. 양치기 칼디가 양들이 커피 열매를 먹고 활기차게 뛰노는 것을 보고 발견했다는 전설이 있습니다.',
+                        xpReward: 50,
+                        learned: false
+                    },
+                    {
+                        id: 'roasting_levels',
+                        title: '로스팅 단계',
+                        content: '커피 로스팅은 라이트, 미디엄, 다크로 나뉩니다. 라이트 로스트는 밝은 산미, 미디엄은 균형, 다크는 강한 바디와 쓴맛이 특징입니다.',
+                        xpReward: 75,
+                        learned: false
+                    },
+                    {
+                        id: 'drip_brewing',
+                        content: '드립 커피는 물의 온도(90-96°C), 추출 시간(2-4분), 원두와 물의 비율(1:15-1:18)이 중요합니다. 너무 세게 부으면 쓴맛이 나고, 약하게 부으면 시큼한 맛이 납니다.',
+                        xpReward: 100,
+                        learned: false
+                    },
+                    {
+                        id: 'coffee_tasting',
+                        title: '커피 테이스팅',
+                        content: '커피 맛 평가 시 산미(Acidity), 단맛(Sweetness), 바디(Body), 밸런스(Balance), 애프터테이스트(Aftertaste)를 고려합니다.',
+                        xpReward: 80,
+                        learned: false
+                    },
+                    {
+                        id: 'bean_grading',
+                        title: '원두 등급',
+                        content: '커피 원두는 결함두 수에 따라 등급이 매겨집니다. 스페셜티 등급은 80점 이상으로, 결함이 거의 없는 고품질 원두입니다.',
+                        xpReward: 60,
+                        learned: false
+                    }
+                ];
+
+                this.initializeGame();
+                this.setupEventListeners();
+            }
+
+            initializeGame() {
+                this.updateUI();
+                this.renderBeanShop();
+                this.renderKnowledgeLibrary();
+                this.updateInventory();
+            }
+
+            setupEventListeners() {
+                // 탭 전환
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.dataset.tab;
+                        this.switchTab(tabId);
+                    });
+                });
+
+                // 로스팅 시작
+                document.getElementById('start-roast').addEventListener('click', () => {
+                    this.startRoasting();
+                });
+
+                // 드립 시작
+                document.getElementById('start-drip').addEventListener('click', () => {
+                    this.startDrip();
+                });
+            }
+
+            switchTab(tabId) {
+                // 탭 버튼 활성화
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+                // 화면 전환
+                document.querySelectorAll('.screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById(`${tabId}-screen`).classList.add('active');
+
+                // 특정 탭 초기화
+                if (tabId === 'roasting') {
+                    this.updateRoastingOptions();
+                } else if (tabId === 'drip') {
+                    this.updateDripOptions();
+                }
+            }
+
+            updateUI() {
+                document.getElementById('money').textContent = this.money.toLocaleString() + '원';
+                document.getElementById('experience').textContent = this.experience + ' XP';
+                document.getElementById('knowledge-level').textContent = this.knowledgeLevel;
+                document.getElementById('coffee-count').textContent = this.coffeeCount + '잔';
+            }
+
+            renderBeanShop() {
+                const shop = document.getElementById('bean-shop');
+                shop.innerHTML = '';
+
+                this.beanTypes.forEach(bean => {
+                    const beanElement = document.createElement('div');
+                    beanElement.className = 'bean-item';
+                    beanElement.innerHTML = `
+                        <h3>${bean.name}</h3>
+                        <div class="bean-info">
+                            <strong>등급:</strong> ${bean.quality}<br>
+                            <strong>특징:</strong> ${bean.notes}
+                        </div>
+                        <p class="bean-price">💰 ${bean.price.toLocaleString()}원/100g</p>
+                        <button class="buy-button" onclick="game.buyBean('${bean.id}')">
+                            구매하기
+                        </button>
+                    `;
+                    shop.appendChild(beanElement);
+                });
+            }
+
+            buyBean(beanId) {
+                const bean = this.beanTypes.find(b => b.id === beanId);
+                if (!bean) return;
+
+                if (this.money >= bean.price) {
+                    this.money -= bean.price;
+                    this.addGreenBean(bean);
+                    this.updateUI();
+                    this.showMessage(`✅ ${bean.name} 100g을 구매했습니다!`, 'success');
+                } else {
+                    this.showMessage('❌ 자금이 부족합니다!', 'error');
+                }
+            }
+
+            addGreenBean(beanType) {
+                const existing = this.greenBeans.find(b => b.id === beanType.id);
+                if (existing) {
+                    existing.amount += 100;
+                } else {
+                    this.greenBeans.push({
+                        ...beanType,
+                        amount: 100
+                    });
+                }
+                this.updateInventory();
+            }
+
+            updateRoastingOptions() {
+                const select = document.getElementById('bean-type-select');
+                select.innerHTML = '<option value="">원두를 선택하세요</option>';
+
+                this.greenBeans.forEach(bean => {
+                    if (bean.amount > 0) {
+                        const option = document.createElement('option');
+                        option.value = bean.id;
+                        option.textContent = `${bean.name} (${bean.amount}g)`;
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            startRoasting() {
+                const temp = parseInt(document.getElementById('roast-temp').value);
+                const time = parseInt(document.getElementById('roast-time').value);
+                const beanId = document.getElementById('bean-type-select').value;
+
+                if (!beanId) {
+                    this.showMessage('❌ 로스팅할 원두를 선택해주세요!', 'error');
+                    return;
+                }
+
+                const bean = this.greenBeans.find(b => b.id === beanId);
+                if (!bean || bean.amount < 20) {
+                    this.showMessage('❌ 로스팅할 원두가 부족합니다!', 'error');
+                    return;
+                }
+
+                // 로스팅 진행
+                this.showMessage('🔥 로스팅을 시작합니다...', 'info');
+                const progressBar = document.getElementById('roast-progress');
+                const button = document.getElementById('start-roast');
+                button.disabled = true;
+
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 2;
+                    progressBar.style.width = progress + '%';
+
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        this.completeRoasting(bean, temp, time);
+                        button.disabled = false;
+                        progressBar.style.width = '0%';
+                    }
+                }, 100);
+            }
+
+            completeRoasting(bean, temp, time) {
+                bean.amount -= 20;
+
+                // 로스팅 품질 계산
+                let quality = '보통';
+                let qualityScore = 50;
+
+                // 이상적인 로스팅 조건
+                const idealTemp = 200;
+                const idealTime = 12;
+
+                const tempDiff = Math.abs(temp - idealTemp);
+                const timeDiff = Math.abs(time - idealTime);
+
+                qualityScore = 100 - (tempDiff * 2) - (timeDiff * 3);
+                qualityScore = Math.max(10, Math.min(100, qualityScore));
+
+                if (qualityScore >= 80) quality = '완벽';
+                else if (qualityScore >= 60) quality = '좋음';
+                else if (qualityScore >= 40) quality = '보통';
+                else quality = '나쁨';
+
+                const roastedBean = {
+                    id: bean.id + '_roasted_' + Date.now(),
+                    originalBean: bean,
+                    quality: quality,
+                    qualityScore: qualityScore,
+                    roastTemp: temp,
+                    roastTime: time,
+                    amount: 20
+                };
+
+                this.roastedBeans.push(roastedBean);
+                this.experience += 25;
+                this.updateUI();
+                this.updateInventory();
+
+                const resultDiv = document.getElementById('roast-result');
+                resultDiv.innerHTML = `
+                    <div style="text-align: center; margin: 20px 0;">
+                        <h3>로스팅 완료! 🎉</h3>
+                        <p>품질: <strong>${quality}</strong> (점수: ${qualityScore})</p>
+                        <p>경험치 +25 XP</p>
+                    </div>
+                `;
+
+                this.showMessage(`🔥 ${bean.name} 로스팅이 완료되었습니다! 품질: ${quality}`, 'success');
+            }
+
+            updateDripOptions() {
+                const select = document.getElementById('roasted-bean-select');
+                select.innerHTML = '<option value="">원두를 선택하세요</option>';
+
+                this.roastedBeans.forEach(bean => {
+                    if (bean.amount > 0) {
+                        const option = document.createElement('option');
+                        option.value = bean.id;
+                        option.textContent = `${bean.originalBean.name} (${bean.quality}, ${bean.amount}g)`;
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            startDrip() {
+                const waterAmount = parseInt(document.getElementById('water-amount').value);
+                const brewTime = parseInt(document.getElementById('brew-time').value);
+                const coffeeAmount = parseInt(document.getElementById('coffee-amount').value);
+                const beanId = document.getElementById('roasted-bean-select').value;
+
+                if (!beanId) {
+                    this.showMessage('❌ 추출할 원두를 선택해주세요!', 'error');
+                    return;
+                }
+
+                const bean = this.roastedBeans.find(b => b.id === beanId);
+                if (!bean || bean.amount < coffeeAmount) {
+                    this.showMessage('❌ 추출할 원두가 부족합니다!', 'error');
+                    return;
+                }
+
+                // 드립 진행
+                this.showMessage('💧 드립 추출을 시작합니다...', 'info');
+                const progressBar = document.getElementById('drip-progress');
+                const button = document.getElementById('start-drip');
+                button.disabled = true;
+
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 1;
+                    progressBar.style.width = progress + '%';
+
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        this.completeDrip(bean, waterAmount, brewTime, coffeeAmount);
+                        button.disabled = false;
+                        progressBar.style.width = '0%';
+                    }
+                }, 50);
+            }
+
+            completeDrip(bean, waterAmount, brewTime, coffeeAmount) {
+                bean.amount -= coffeeAmount;
+
+                // 드립 품질 계산
+                const ratio = waterAmount / coffeeAmount;
+                const idealRatio = 15; // 1:15 비율이 이상적
+                const timeIdeal = 240; // 4분이 이상적
+
+                let qualityScore = bean.qualityScore;
+                const ratioDiff = Math.abs(ratio - idealRatio);
+                const timeDiff = Math.abs(brewTime - timeIdeal);
+
+                qualityScore -= (ratioDiff * 5) + (timeDiff / 10);
+                qualityScore = Math.max(0, Math.min(100, qualityScore));
+
+                let quality = '보통';
+                if (qualityScore >= 80) quality = '완벽';
+                else if (qualityScore >= 60) quality = '좋음';
+                else if (qualityScore >= 40) quality = '보통';
+                else quality = '나쁨';
+
+                const coffee = {
+                    id: 'coffee_' + Date.now(),
+                    bean: bean,
+                    quality: quality,
+                    qualityScore: qualityScore,
+                    waterAmount: waterAmount,
+                    brewTime: brewTime,
+                    coffeeAmount: coffeeAmount,
+                    createdAt: new Date()
+                };
+
+                this.finishedCoffees.push(coffee);
+                this.coffeeCount++;
+                this.experience += 50;
+                this.money += qualityScore * 10; // 커피 판매로 수익
+                this.updateUI();
+                this.updateInventory();
+
+                const resultDiv = document.getElementById('drip-result');
+                resultDiv.innerHTML = `
+                    <div style="text-align: center; margin: 20px 0;">
+                        <h3>드립 완료! ☕</h3>
+                        <p>품질: <strong>${quality}</strong> (점수: ${qualityScore})</p>
+                        <p>판매 수익: +${(qualityScore * 10).toLocaleString()}원</p>
+                        <p>경험치 +50 XP</p>
+                    </div>
+                `;
+
+                this.showMessage(`☕ 완벽한 커피가 완성되었습니다! 품질: ${quality}`, 'success');
+
+                // 레벨업 체크
+                this.checkLevelUp();
+            }
+
+            checkLevelUp() {
+                const newLevel = Math.floor(this.experience / 500) + 1;
+                if (newLevel > this.knowledgeLevel) {
+                    this.knowledgeLevel = newLevel;
+                    this.showMessage(`🎉 축하합니다! 지식 레벨이 ${this.knowledgeLevel}로 상승했습니다!`, 'success');
+                    this.updateUI();
+                }
+            }
+
+            renderKnowledgeLibrary() {
+                const library = document.getElementById('knowledge-library');
+                library.innerHTML = '';
+
+                this.knowledgeItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'knowledge-card';
+                    card.innerHTML = `
+                        <h3>${item.title}</h3>
+                        <p>${item.content}</p>
+                        <p><strong>보상: ${item.xpReward} XP</strong></p>
+                        <button class="learn-button ${item.learned ? 'learned' : ''}"
+                                onclick="game.learnKnowledge('${item.id}')"
+                                ${item.learned ? 'disabled' : ''}>
+                            ${item.learned ? '✅ 학습완료' : '📖 학습하기'}
+                        </button>
+                    `;
+                    library.appendChild(card);
+                });
+            }
+
+            learnKnowledge(itemId) {
+                const item = this.knowledgeItems.find(i => i.id === itemId);
+                if (!item || item.learned) return;
+
+                item.learned = true;
+                this.experience += item.xpReward;
+                this.updateUI();
+                this.renderKnowledgeLibrary();
+                this.showMessage(`📖 "${item.title}"을 학습했습니다! 경험치 +${item.xpReward} XP`, 'success');
+                this.checkLevelUp();
+            }
+
+            updateInventory() {
+                // 생원두 목록
+                const greenBeansList = document.getElementById('green-beans-list');
+                greenBeansList.innerHTML = '';
+
+                if (this.greenBeans.length === 0) {
+                    greenBeansList.innerHTML = '<p>보유한 생원두가 없습니다.</p>';
+                } else {
+                    this.greenBeans.forEach(bean => {
+                        const item = document.createElement('div');
+                        item.className = 'inventory-item';
+                        item.innerHTML = `
+                            <h4>${bean.name}</h4>
+                            <p>수량: ${bean.amount}g | 등급: ${bean.quality}</p>
+                            <p>특징: ${bean.notes}</p>
+                        `;
+                        greenBeansList.appendChild(item);
+                    });
+                }
+
+                // 로스팅된 원두 목록
+                const roastedBeansList = document.getElementById('roasted-beans-list');
+                roastedBeansList.innerHTML = '';
+
+                if (this.roastedBeans.length === 0) {
+                    roastedBeansList.innerHTML = '<p>로스팅된 원두가 없습니다.</p>';
+                } else {
+                    this.roastedBeans.forEach(bean => {
+                        const item = document.createElement('div');
+                        item.className = 'inventory-item';
+                        item.innerHTML = `
+                            <h4>${bean.originalBean.name} (로스팅됨)</h4>
+                            <p>수량: ${bean.amount}g | 품질: ${bean.quality} (${bean.qualityScore}점)</p>
+                            <p>로스팅: ${bean.roastTemp}°C, ${bean.roastTime}분</p>
+                        `;
+                        roastedBeansList.appendChild(item);
+                    });
+                }
+
+                // 완성된 커피 목록
+                const finishedCoffeesList = document.getElementById('finished-coffees-list');
+                finishedCoffeesList.innerHTML = '';
+
+                if (this.finishedCoffees.length === 0) {
+                    finishedCoffeesList.innerHTML = '<p>완성된 커피가 없습니다.</p>';
+                } else {
+                    // 최근 5개만 표시
+                    const recentCoffees = this.finishedCoffees.slice(-5);
+                    recentCoffees.forEach(coffee => {
+                        const item = document.createElement('div');
+                        item.className = 'inventory-item';
+                        item.innerHTML = `
+                            <h4>커피 #${coffee.id.split('_')[1]}</h4>
+                            <p>품질: ${coffee.quality} (${coffee.qualityScore}점)</p>
+                            <p>사용 원두: ${coffee.bean.originalBean.name}</p>
+                            <p>비율: 1:${Math.round(coffee.waterAmount/coffee.coffeeAmount)}</p>
+                        `;
+                        finishedCoffeesList.appendChild(item);
+                    });
+                }
+            }
+
+            showMessage(text, type = 'info') {
+                const messageArea = document.getElementById('message-area');
+                const message = document.createElement('div');
+                message.className = `message ${type}`;
+                message.textContent = text;
+
+                messageArea.appendChild(message);
+
+                // 3초 후 자동 제거
+                setTimeout(() => {
+                    message.remove();
+                }, 3000);
+            }
+        }
+
+        // 게임 시작
+        const game = new CoffeeBaristaGame();
+    </script>
+</body>
+</html>

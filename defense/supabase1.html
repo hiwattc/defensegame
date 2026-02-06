@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase CRUD 관리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .config-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .btn-info {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #3182ce;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f7fafc;
+            font-weight: 600;
+            color: #2d3748;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f7fafc;
+        }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .json-view {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .filter-section {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Supabase CRUD 관리 시스템</h1>
+            
+            <div class="config-panel">
+                <div class="input-group">
+                    <label for="apiKey">API Key (anon key)</label>
+                    <input type="password" id="apiKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="tableName">테이블 이름</label>
+                    <input type="text" id="tableName" placeholder="예: users, products, posts" value="news">
+                </div>
+                
+                <div class="input-group">
+                    <label for="limit">조회 개수</label>
+                    <input type="number" id="limit" value="10" min="1" max="1000">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="fetchData()">📊 데이터 조회</button>
+                <button class="btn-success" onclick="openCreateModal()">➕ 데이터 추가</button>
+                <button class="btn-info" onclick="fetchCount()">🔢 카운트 조회</button>
+                <button class="btn-danger" onclick="clearResults()">🗑️ 결과 초기화</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="messageArea"></div>
+            
+            <div id="statsArea" style="display: none;">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalCount">0</div>
+                        <div class="stat-label">전체 레코드</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="displayedCount">0</div>
+                        <div class="stat-label">표시된 레코드</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="responseTime">0ms</div>
+                        <div class="stat-label">응답 시간</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resultsArea"></div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="dataModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">데이터 추가</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalBody"></div>
+            <div class="button-group" style="margin-top: 20px;">
+                <button class="btn-success" onclick="saveData()">💾 저장</button>
+                <button class="btn-danger" onclick="closeModal()">❌ 취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>삭제 확인</h2>
+                <span class="close" onclick="closeDeleteModal()">&times;</span>
+            </div>
+            <p style="margin: 20px 0; font-size: 16px;">정말로 이 데이터를 삭제하시겠습니까?</p>
+            <div id="deleteDataPreview" class="json-view" style="margin: 20px 0;"></div>
+            <div class="button-group">
+                <button class="btn-danger" onclick="confirmDelete()">🗑️ 삭제</button>
+                <button class="btn-primary" onclick="closeDeleteModal()">❌ 취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://127.0.0.1:54321/rest/v1';
+        let currentEditData = null;
+        let currentDeleteData = null;
+        let currentColumns = [];
+        let primaryKey = 'id'; // 기본 primary key
+        
+        async function fetchData() {
+            const apiKey = document.getElementById('apiKey').value;
+            const tableName = document.getElementById('tableName').value;
+            const limit = document.getElementById('limit').value;
+            
+            if (!apiKey || !tableName) {
+                showMessage('API Key와 테이블 이름을 입력해주세요.', 'error');
+                return;
+            }
+            
+            showMessage('데이터를 조회하는 중...', 'loading');
+            const startTime = performance.now();
+            
+            try {
+                const response = await fetch(`${BASE_URL}/${tableName}?limit=${limit}`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const endTime = performance.now();
+                const responseTime = Math.round(endTime - startTime);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                displayResults(data, responseTime);
+                
+            } catch (error) {
+                showMessage(`오류 발생: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        async function fetchCount() {
+            const apiKey = document.getElementById('apiKey').value;
+            const tableName = document.getElementById('tableName').value;
+            
+            if (!apiKey || !tableName) {
+                showMessage('API Key와 테이블 이름을 입력해주세요.', 'error');
+                return;
+            }
+            
+            showMessage('카운트를 조회하는 중...', 'loading');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/${tableName}?select=count`, {
+                    method: 'HEAD',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Prefer': 'count=exact'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const count = response.headers.get('content-range')?.split('/')[1] || '0';
+                showMessage(`총 ${count}개의 레코드가 존재합니다.`, 'success');
+                document.getElementById('totalCount').textContent = count;
+                document.getElementById('statsArea').style.display = 'block';
+                
+            } catch (error) {
+                showMessage(`오류 발생: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        async function createData(data) {
+            const apiKey = document.getElementById('apiKey').value;
+            const tableName = document.getElementById('tableName').value;
+            
+            showMessage('데이터를 생성하는 중...', 'loading');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/${tableName}`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                showMessage('데이터가 성공적으로 추가되었습니다.', 'success');
+                closeModal();
+                fetchData();
+                
+            } catch (error) {
+                showMessage(`오류 발생: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        async function updateData(id, data) {
+            const apiKey = document.getElementById('apiKey').value;
+            const tableName = document.getElementById('tableName').value;
+            
+            showMessage('데이터를 수정하는 중...', 'loading');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/${tableName}?${primaryKey}=eq.${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                showMessage('데이터가 성공적으로 수정되었습니다.', 'success');
+                closeModal();
+                fetchData();
+                
+            } catch (error) {
+                showMessage(`오류 발생: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        async function deleteData(id) {
+            const apiKey = document.getElementById('apiKey').value;
+            const tableName = document.getElementById('tableName').value;
+            
+            showMessage('데이터를 삭제하는 중...', 'loading');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/${tableName}?${primaryKey}=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': apiKey,
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                showMessage('데이터가 성공적으로 삭제되었습니다.', 'success');
+                closeDeleteModal();
+                fetchData();
+                
+            } catch (error) {
+                showMessage(`오류 발생: ${error.message}`, 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        function displayResults(data, responseTime) {
+            if (!data || data.length === 0) {
+                showMessage('조회된 데이터가 없습니다.', 'error');
+                return;
+            }
+            
+            showMessage(`${data.length}개의 레코드를 성공적으로 조회했습니다.`, 'success');
+            
+            // 통계 업데이트
+            document.getElementById('displayedCount').textContent = data.length;
+            document.getElementById('responseTime').textContent = `${responseTime}ms`;
+            document.getElementById('statsArea').style.display = 'block';
+            
+            // 테이블 생성
+            const resultsArea = document.getElementById('resultsArea');
+            const columns = Object.keys(data[0]);
+            currentColumns = columns;
+            
+            // Primary key 자동 감지 (id, pk 등)
+            if (columns.includes('id')) primaryKey = 'id';
+            else if (columns.includes('pk')) primaryKey = 'pk';
+            else primaryKey = columns[0];
+            
+            let tableHTML = '<h3 class="section-title">📋 데이터 목록</h3>';
+            tableHTML += '<div class="table-container"><table>';
+            tableHTML += '<thead><tr>';
+            columns.forEach(col => {
+                tableHTML += `<th>${col}</th>`;
+            });
+            tableHTML += '<th style="width: 150px;">작업</th>';
+            tableHTML += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                tableHTML += '<tr>';
+                columns.forEach(col => {
+                    let value = row[col];
+                    if (typeof value === 'object' && value !== null) {
+                        value = JSON.stringify(value);
+                    }
+                    if (value && value.length > 50) {
+                        value = value.substring(0, 50) + '...';
+                    }
+                    tableHTML += `<td>${value !== null ? value : '<em>null</em>'}</td>`;
+                });
+                
+                const pkValue = row[primaryKey];
+                tableHTML += `<td class="actions">
+                    <button class="btn-warning btn-small" onclick='openEditModal(${JSON.stringify(row)})'>✏️ 수정</button>
+                    <button class="btn-danger btn-small" onclick='openDeleteModal(${JSON.stringify(row)})'>🗑️ 삭제</button>
+                </td>`;
+                tableHTML += '</tr>';
+            });
+            
+            tableHTML += '</tbody></table></div>';
+            
+            // JSON 뷰 추가
+            tableHTML += '<h3 class="section-title">📄 JSON 응답</h3>';
+            tableHTML += `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+            
+            resultsArea.innerHTML = tableHTML;
+        }
+        
+        function openCreateModal() {
+            if (currentColumns.length === 0) {
+                showMessage('먼저 데이터를 조회해주세요.', 'error');
+                return;
+            }
+            
+            currentEditData = null;
+            document.getElementById('modalTitle').textContent = '➕ 데이터 추가';
+            
+            let formHTML = '<div class="form-grid">';
+            currentColumns.forEach(col => {
+                if (col === primaryKey || col === 'created_at' || col === 'updated_at') {
+                    return; // Primary key와 timestamp는 스킵
+                }
+                
+                formHTML += `
+                    <div class="input-group">
+                        <label for="field_${col}">${col}</label>
+                        <input type="text" id="field_${col}" placeholder="${col} 입력">
+                    </div>
+                `;
+            });
+            formHTML += '</div>';
+            
+            document.getElementById('modalBody').innerHTML = formHTML;
+            document.getElementById('dataModal').style.display = 'block';
+        }
+        
+        function openEditModal(data) {
+            currentEditData = data;
+            document.getElementById('modalTitle').textContent = '✏️ 데이터 수정';
+            
+            let formHTML = '<div class="form-grid">';
+            currentColumns.forEach(col => {
+                if (col === primaryKey || col === 'created_at' || col === 'updated_at') {
+                    return; // Primary key와 timestamp는 스킵
+                }
+                
+                let value = data[col];
+                if (typeof value === 'object' && value !== null) {
+                    value = JSON.stringify(value);
+                }
+                
+                formHTML += `
+                    <div class="input-group">
+                        <label for="field_${col}">${col}</label>
+                        <input type="text" id="field_${col}" value="${value || ''}" placeholder="${col} 입력">
+                    </div>
+                `;
+            });
+            formHTML += '</div>';
+            
+            document.getElementById('modalBody').innerHTML = formHTML;
+            document.getElementById('dataModal').style.display = 'block';
+        }
+        
+        function openDeleteModal(data) {
+            currentDeleteData = data;
+            document.getElementById('deleteDataPreview').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('dataModal').style.display = 'none';
+            currentEditData = null;
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            currentDeleteData = null;
+        }
+        
+        function saveData() {
+            const data = {};
+            
+            currentColumns.forEach(col => {
+                if (col === primaryKey || col === 'created_at' || col === 'updated_at') {
+                    return;
+                }
+                
+                const input = document.getElementById(`field_${col}`);
+                if (input) {
+                    let value = input.value;
+                    
+                    // 빈 값은 null로 처리
+                    if (value === '') {
+                        data[col] = null;
+                    } else {
+                        // JSON 파싱 시도
+                        try {
+                            if (value.startsWith('{') || value.startsWith('[')) {
+                                data[col] = JSON.parse(value);
+                            } else {
+                                data[col] = value;
+                            }
+                        } catch {
+                            data[col] = value;
+                        }
+                    }
+                }
+            });
+            
+            if (currentEditData) {
+                // 수정
+                updateData(currentEditData[primaryKey], data);
+            } else {
+                // 생성
+                createData(data);
+            }
+        }
+        
+        function confirmDelete() {
+            if (currentDeleteData) {
+                deleteData(currentDeleteData[primaryKey]);
+            }
+        }
+        
+        function showMessage(message, type) {
+            const messageArea = document.getElementById('messageArea');
+            let className = '';
+            
+            if (type === 'error') className = 'error';
+            else if (type === 'success') className = 'success';
+            else if (type === 'loading') className = 'loading';
+            
+            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+            
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    messageArea.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('resultsArea').innerHTML = '';
+            document.getElementById('messageArea').innerHTML = '';
+            document.getElementById('statsArea').style.display = 'none';
+            document.getElementById('totalCount').textContent = '0';
+            document.getElementById('displayedCount').textContent = '0';
+            document.getElementById('responseTime').textContent = '0ms';
+            currentColumns = [];
+        }
+        
+        // 모달 외부 클릭시 닫기
+        window.onclick = function(event) {
+            const dataModal = document.getElementById('dataModal');
+            const deleteModal = document.getElementById('deleteModal');
+            
+            if (event.target === dataModal) {
+                closeModal();
+            }
+            if (event.target === deleteModal) {
+                closeDeleteModal();
+            }
+        }
+    </script>
+</body>
+</html>

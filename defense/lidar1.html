@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone LiDAR - Depth Sensing</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button:active {
+            background: #0051D5;
+        }
+        .status {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+        <div id="info">
+            <div><strong>LiDAR Depth Sensing</strong></div>
+            <div id="status">초기화 중...</div>
+            <div id="depthInfo">깊이 정보: -</div>
+            <div id="deviceInfo"></div>
+        </div>
+        <div id="controls">
+            <button id="startBtn">AR 시작</button>
+            <button id="measureBtn" style="display:none;">거리 측정</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        const depthInfoEl = document.getElementById('depthInfo');
+        const deviceInfoEl = document.getElementById('deviceInfo');
+        const startBtn = document.getElementById('startBtn');
+        const measureBtn = document.getElementById('measureBtn');
+
+        let xrSession = null;
+        let xrRefSpace = null;
+        let depthData = null;
+
+        // 캔버스 크기 설정
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // WebXR 지원 확인
+        async function checkXRSupport() {
+            if (!navigator.xr) {
+                statusEl.textContent = '❌ WebXR을 지원하지 않는 브라우저입니다';
+                deviceInfoEl.textContent = 'Safari 및 WebXR 지원 필요';
+                return false;
+            }
+
+            const supported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (!supported) {
+                statusEl.textContent = '❌ AR 세션을 지원하지 않습니다';
+                deviceInfoEl.textContent = 'iPhone 12 Pro 이상 + iOS 14+ 필요';
+                return false;
+            }
+
+            statusEl.textContent = '✅ LiDAR 사용 가능';
+            deviceInfoEl.textContent = 'LiDAR 지원 기기 감지됨';
+            return true;
+        }
+
+        // AR 세션 시작
+        async function startARSession() {
+            try {
+                // depth-sensing 기능 요청
+                xrSession = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['local'],
+                    optionalFeatures: ['depth-sensing', 'dom-overlay'],
+                    depthSensing: {
+                        usagePreference: ['cpu-optimized', 'gpu-optimized'],
+                        dataFormatPreference: ['luminance-alpha', 'float32']
+                    },
+                    domOverlay: { root: document.getElementById('container') }
+                });
+
+                statusEl.textContent = '✅ AR 세션 활성화';
+                startBtn.style.display = 'none';
+                measureBtn.style.display = 'inline-block';
+
+                xrRefSpace = await xrSession.requestReferenceSpace('local');
+                
+                xrSession.requestAnimationFrame(onXRFrame);
+
+                xrSession.addEventListener('end', () => {
+                    statusEl.textContent = 'AR 세션 종료';
+                    startBtn.style.display = 'inline-block';
+                    measureBtn.style.display = 'none';
+                    xrSession = null;
+                });
+
+            } catch (error) {
+                statusEl.textContent = '❌ AR 시작 실패: ' + error.message;
+                console.error(error);
+            }
+        }
+
+        // XR 프레임 렌더링
+        function onXRFrame(time, frame) {
+            if (!xrSession) return;
+
+            xrSession.requestAnimationFrame(onXRFrame);
+
+            const pose = frame.getViewerPose(xrRefSpace);
+            if (!pose) return;
+
+            // Depth 정보 가져오기
+            const view = pose.views[0];
+            if (view && frame.getDepthInformation) {
+                try {
+                    depthData = frame.getDepthInformation(view);
+                    
+                    if (depthData) {
+                        // Depth 데이터 시각화
+                        visualizeDepth(depthData);
+                    }
+                } catch (e) {
+                    console.log('Depth 정보 가져오기 실패:', e);
+                }
+            }
+
+            // 기본 AR 뷰 렌더링
+            renderARView(pose);
+        }
+
+        // Depth 데이터 시각화
+        function visualizeDepth(depthInfo) {
+            if (!depthInfo.data) return;
+
+            const width = depthInfo.width;
+            const height = depthInfo.height;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.createImageData(width, height);
+            const data = new Float32Array(depthInfo.data);
+            
+            // Depth 값을 색상으로 변환
+            for (let i = 0; i < data.length; i++) {
+                const depth = data[i];
+                const normalized = Math.min(depth / 5.0, 1.0); // 5m까지 정규화
+                const color = Math.floor((1 - normalized) * 255);
+                
+                imageData.data[i * 4] = color;     // R
+                imageData.data[i * 4 + 1] = color; // G
+                imageData.data[i * 4 + 2] = 255;   // B
+                imageData.data[i * 4 + 3] = 255;   // A
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            
+            // 중앙 픽셀의 거리 표시
+            const centerIdx = Math.floor(width * height / 2);
+            const centerDepth = data[centerIdx];
+            depthInfoEl.textContent = `중앙 거리: ${centerDepth.toFixed(2)}m`;
+        }
+
+        // 기본 AR 뷰 렌더링
+        function renderARView(pose) {
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+            ctx.fillRect(canvas.width / 2 - 50, canvas.height / 2 - 50, 100, 100);
+        }
+
+        // 거리 측정
+        measureBtn.addEventListener('click', () => {
+            if (depthData && depthData.data) {
+                const width = depthData.width;
+                const height = depthData.height;
+                const data = new Float32Array(depthData.data);
+                const centerIdx = Math.floor(width * height / 2);
+                const distance = data[centerIdx];
+                
+                alert(`측정된 거리: ${distance.toFixed(2)} 미터`);
+            }
+        });
+
+        // 시작 버튼
+        startBtn.addEventListener('click', startARSession);
+
+        // 초기화
+        checkXRSupport();
+    </script>
+</body>
+</html>

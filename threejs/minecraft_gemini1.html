@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Three.js Racing - 5 AI</title>
+<style>
+  body { margin:0; overflow:hidden; background:#111; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(50,100,50);
+scene.add(light);
+
+// ===== 트랙 =====
+const trackShape = new THREE.Shape();
+trackShape.absellipse(0,0,40,25,0,Math.PI*2,false,0);
+const hole = new THREE.Path();
+hole.absellipse(0,0,25,12,0,Math.PI*2,true,0);
+trackShape.holes.push(hole);
+
+const track = new THREE.Mesh(
+  new THREE.ShapeGeometry(trackShape),
+  new THREE.MeshStandardMaterial({color:0x555555})
+);
+track.rotation.x = -Math.PI/2;
+scene.add(track);
+
+// ===== 차량 생성 =====
+function createCar(color){
+  const geo = new THREE.BoxGeometry(2,1,4);
+  const mat = new THREE.MeshStandardMaterial({color});
+  const car = new THREE.Mesh(geo, mat);
+  car.position.y = 0.5;
+  scene.add(car);
+  return car;
+}
+
+// 플레이어
+const player = createCar(0xff0000);
+player.position.set(0,0.5,20);
+
+// ===== AI 5대 =====
+const AI_COUNT = 5;
+const aiCars = [];
+const aiAngles = [];
+
+for(let i=0;i<AI_COUNT;i++){
+  const car = createCar(0x00ff00);
+  aiCars.push(car);
+  aiAngles.push((Math.PI*2/AI_COUNT)*i);
+}
+
+// ===== 키 입력 =====
+const keys = {};
+document.addEventListener("keydown", e=>keys[e.key]=true);
+document.addEventListener("keyup", e=>keys[e.key]=false);
+
+// ===== 속도 =====
+let speed = 0;
+const maxSpeed = 0.04;
+const accel = 0.001;
+
+const playerBox = new THREE.Box3();
+const aiBox = new THREE.Box3();
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  // ---- 플레이어 이동 ----
+  if(keys["ArrowUp"]) speed += accel;
+  if(keys["ArrowDown"]) speed -= accel;
+  speed *= 0.98;
+  speed = Math.max(-0.03, Math.min(maxSpeed, speed));
+
+  if(keys["ArrowLeft"]) player.rotation.y += 0.03;
+  if(keys["ArrowRight"]) player.rotation.y -= 0.03;
+
+  player.position.x -= Math.sin(player.rotation.y) * speed * 10;
+  player.position.z -= Math.cos(player.rotation.y) * speed * 10;
+
+  // ---- AI 이동 ----
+  for(let i=0;i<aiCars.length;i++){
+    aiAngles[i] += 0.01;
+    const car = aiCars[i];
+    car.position.x = Math.cos(aiAngles[i]) * 30;
+    car.position.z = Math.sin(aiAngles[i]) * 18;
+    car.rotation.y = -aiAngles[i];
+
+    // 충돌 체크
+    aiBox.setFromObject(car);
+    playerBox.setFromObject(player);
+
+    if(playerBox.intersectsBox(aiBox)){
+      speed *= -0.5;
+
+      const dx = player.position.x - car.position.x;
+      const dz = player.position.z - car.position.z;
+      const dist = Math.sqrt(dx*dx + dz*dz) || 1;
+
+      player.position.x += (dx/dist) * 0.5;
+      player.position.z += (dz/dist) * 0.5;
+    }
+  }
+
+  // ---- 트랙 이탈 감속 ----
+  const distCenter = Math.sqrt(player.position.x**2 + player.position.z**2);
+  if(distCenter > 40 || distCenter < 12){
+    speed *= 0.95;
+  }
+
+  // ---- 카메라 ----
+  camera.position.set(player.position.x, 25, player.position.z + 20);
+  camera.lookAt(player.position);
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>

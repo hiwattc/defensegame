@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Minecraft World with Forest House & Robot</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #bfe3dd; font-family: sans-serif; }
+        #info {
+            position: absolute; top: 20px; width: 100%; text-align: center;
+            color: #222; pointer-events: none; z-index: 10;
+        }
+        .ui-panel {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 12px 20px; border-radius: 12px; display: inline-block;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div class="ui-panel">
+            <b>중앙에 건물이 생성되었습니다!</b><br>
+            WASD: 이동 | Shift: 달리기 | 클릭: 블록 파괴 | Shift+클릭: 설치
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+        let camera, scene, renderer, player, mixer;
+        const clock = new THREE.Clock();
+        const keyState = {};
+        const actions = {};
+        let activeAction;
+
+        const worldSize = 60;
+        const blockSize = 100;
+        const worldData = [];
+        let instancedMesh;
+        const matrix = new THREE.Matrix4();
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let rollOverMesh;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xbfe3dd);
+            scene.fog = new THREE.Fog(0xbfe3dd, 1000, 15000);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 30000);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+            dirLight.position.set(1000, 2000, 1000);
+            scene.add(dirLight);
+
+            // 1. 지형 생성
+            const perlin = new ImprovedNoise();
+            for (let x = 0; x < worldSize; x++) {
+                worldData[x] = [];
+                for (let z = 0; z < worldSize; z++) {
+                    worldData[x][z] = [];
+                    const h = Math.floor(Math.abs(perlin.noise(x / 15, z / 15, 0) * 10));
+                    for (let y = 0; y < 12; y++) {
+                        // 중앙 건물 자리는 평지로 비워두기 (선택 사항)
+                        const isCenter = Math.abs(x - worldSize/2) < 5 && Math.abs(z - worldSize/2) < 5;
+                        if (isCenter) {
+                            worldData[x][z][y] = (y <= 2) ? 1 : 0; 
+                        } else {
+                            worldData[x][z][y] = (y <= h) ? 1 : 0;
+                        }
+                    }
+                }
+            }
+
+            const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+            const texture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/minecraft/atlas.png');
+            texture.magFilter = THREE.NearestFilter;
+            const material = new THREE.MeshLambertMaterial({ map: texture });
+            instancedMesh = new THREE.InstancedMesh(geometry, material, worldSize * worldSize * 15);
+            scene.add(instancedMesh);
+            updateWorldMesh();
+
+            // 2. 가이드 박스
+            rollOverMesh = new THREE.Mesh(new THREE.BoxGeometry(102, 102, 102), new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true }));
+            scene.add(rollOverMesh);
+
+            // 3. 중앙 건물 로드 (Forest House)
+            loadBuilding();
+
+            // 4. 로봇 로드
+            loadRobot();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', (e) => keyState[e.code] = true);
+            document.addEventListener('keyup', (e) => keyState[e.code] = false);
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerdown', onPointerDown);
+        }
+
+        function loadBuilding() {
+            const loader = new GLTFLoader();
+            // Draco 압축 해제 설정 (해당 모델이 필요로 할 수 있음)
+            const dracoLoader = new DRACOLoader();
+            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+            loader.setDRACOLoader(dracoLoader);
+
+            loader.load('https://threejs.org/examples/models/gltf/ForestHouse.glb', (gltf) => {
+                const building = gltf.scene;
+                // 건물 크기와 위치 조정
+                building.scale.set(100, 100, 100); 
+                building.position.set(0, 250, 0); // 지면 위로 살짝 올림
+                scene.add(building);
+            });
+        }
+
+        function loadRobot() {
+            new GLTFLoader().load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', (gltf) => {
+                player = gltf.scene;
+                player.scale.set(40, 40, 40);
+                scene.add(player);
+                mixer = new THREE.AnimationMixer(player);
+                gltf.animations.forEach(clip => actions[clip.name] = mixer.clipAction(clip));
+                activeAction = actions['Idle'];
+                activeAction.play();
+                player.position.set(500, 1000, 500); // 건물 옆에서 시작
+            });
+        }
+
+        function updateWorldMesh() {
+            let count = 0;
+            for (let x = 0; x < worldSize; x++) {
+                for (let z = 0; z < worldSize; z++) {
+                    for (let y = 0; y < 12; y++) {
+                        if (worldData[x][z][y] === 1) {
+                            matrix.makeTranslation((x - worldSize/2) * blockSize, y * blockSize, (z - worldSize/2) * blockSize);
+                            instancedMesh.setMatrixAt(count++, matrix);
+                        }
+                    }
+                }
+            }
+            instancedMesh.count = count;
+            instancedMesh.instanceMatrix.needsUpdate = true;
+        }
+
+        function onPointerMove(event) {
+            mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(instancedMesh);
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const tempMat = new THREE.Matrix4();
+                instancedMesh.getMatrixAt(intersect.instanceId, tempMat);
+                rollOverMesh.position.setFromMatrixPosition(tempMat);
+                if (keyState['ShiftLeft']) rollOverMesh.position.add(intersect.face.normal.multiplyScalar(blockSize));
+                rollOverMesh.visible = true;
+            } else { rollOverMesh.visible = false; }
+        }
+
+        function onPointerDown(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(instancedMesh);
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const tempMat = new THREE.Matrix4();
+                instancedMesh.getMatrixAt(intersect.instanceId, tempMat);
+                const pos = new THREE.Vector3().setFromMatrixPosition(tempMat);
+                const gx = Math.round(pos.x / blockSize + worldSize / 2);
+                const gz = Math.round(pos.z / blockSize + worldSize / 2);
+                const gy = Math.round(pos.y / blockSize);
+
+                if (event.shiftKey) {
+                    const nx = gx + intersect.face.normal.x;
+                    const ny = gy + intersect.face.normal.y;
+                    const nz = gz + intersect.face.normal.z;
+                    if (nx >= 0 && nx < worldSize && nz >= 0 && nz < worldSize && ny < 12) worldData[nx][nz][ny] = 1;
+                } else {
+                    worldData[gx][gz][gy] = 0;
+                }
+                updateWorldMesh();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            if (player) {
+                const speed = keyState['ShiftLeft'] ? 900 : 400;
+                const moveDir = new THREE.Vector3();
+                if (keyState['KeyW']) moveDir.z -= 1;
+                if (keyState['KeyS']) moveDir.z += 1;
+                if (keyState['KeyA']) moveDir.x -= 1;
+                if (keyState['KeyD']) moveDir.x += 1;
+
+                if (moveDir.length() > 0) {
+                    moveDir.normalize();
+                    player.position.add(moveDir.multiplyScalar(speed * dt));
+                    player.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+                    const anim = keyState['ShiftLeft'] ? 'Running' : 'Walking';
+                    if (activeAction.getClip().name !== anim) {
+                        const next = actions[anim];
+                        activeAction.fadeOut(0.2);
+                        next.reset().fadeIn(0.2).play();
+                        activeAction = next;
+                    }
+                } else {
+                    if (activeAction.getClip().name !== 'Idle' && activeAction.getClip().name !== 'Dance' && activeAction.getClip().name !== 'Wave') {
+                        const next = actions['Idle'];
+                        activeAction.fadeOut(0.2);
+                        next.reset().fadeIn(0.2).play();
+                        activeAction = next;
+                    }
+                }
+
+                if (keyState['KeyT']) { activeAction.fadeOut(0.2); actions['Wave'].reset().fadeIn(0.2).play(); activeAction = actions['Wave']; }
+                if (keyState['KeyE']) { activeAction.fadeOut(0.2); actions['Dance'].reset().fadeIn(0.2).play(); activeAction = actions['Dance']; }
+
+                // 물리 (지면 밀착)
+                const groundRay = new THREE.Raycaster(new THREE.Vector3(player.position.x, player.position.y + 500, player.position.z), new THREE.Vector3(0, -1, 0));
+                const hits = groundRay.intersectObject(instancedMesh);
+                if (hits.length > 0) player.position.y = THREE.MathUtils.lerp(player.position.y, hits[0].point.y, 0.2);
+
+                camera.position.lerp(player.position.clone().add(new THREE.Vector3(0, 1500, 1500)), 0.1);
+                camera.lookAt(player.position);
+            }
+
+            if (mixer) mixer.update(dt);
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>

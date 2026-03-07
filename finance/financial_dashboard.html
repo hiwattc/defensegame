@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 금융 대시보드 - 위젯 통합</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+            padding: 15px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .last-update {
+            font-size: 14px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .widget-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .widget-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .widget-iframe {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        /* 그리드 레이아웃 */
+        .full-width {
+            grid-column: span 12;
+        }
+
+        .half-width {
+            grid-column: span 6;
+        }
+
+        .third-width {
+            grid-column: span 4;
+        }
+
+        .two-thirds {
+            grid-column: span 8;
+        }
+
+        /* 반응형 */
+        @media (max-width: 1400px) {
+            .two-thirds {
+                grid-column: span 12;
+            }
+            .third-width {
+                grid-column: span 6;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .half-width,
+            .third-width,
+            .two-thirds {
+                grid-column: span 12;
+            }
+        }
+
+        /* 탭 스타일 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 15px;
+        }
+
+        .info-banner {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            color: #00ff88;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 위젯별 높이 조정 */
+        .height-300 { height: 300px; }
+        .height-400 { height: 400px; }
+        .height-500 { height: 500px; }
+        .height-600 { height: 600px; }
+        .height-700 { height: 700px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                🌐 실시간 금융 대시보드
+            </h1>
+            <div class="last-update">
+                <span class="status-indicator"></span>
+                <span id="updateTime">--:--:--</span>
+            </div>
+        </div>
+
+        <div class="info-banner">
+            💡 모든 위젯은 실시간 데이터를 제공하는 무료 TradingView 서비스입니다. 일부 위젯은 로딩에 시간이 걸릴 수 있습니다.
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('overview')">📊 전체 개요</div>
+            <div class="tab" onclick="switchTab('stocks')">📈 주식 시장</div>
+            <div class="tab" onclick="switchTab('crypto')">₿ 암호화폐</div>
+            <div class="tab" onclick="switchTab('commodities')">🥇 원자재</div>
+            <div class="tab" onclick="switchTab('forex')">💱 외환</div>
+        </div>
+
+        <!-- 전체 개요 탭 -->
+        <div id="overview" class="tab-content active">
+            <!-- 주요 지수 티커 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">📊 글로벌 주요 지수</div>
+                <div style="height: 46px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                        {
+                        "symbols": [
+                            {"proName": "FOREXCOM:SPXUSD", "title": "S&P 500"},
+                            {"proName": "FOREXCOM:NSXUSD", "title": "US 100"},
+                            {"proName": "FOREXCOM:DJI", "title": "Dow 30"},
+                            {"proName": "INDEX:BTCUSD", "title": "Bitcoin"},
+                            {"proName": "INDEX:ETHUSD", "title": "Ethereum"},
+                            {"description": "금", "proName": "TVC:GOLD"},
+                            {"description": "은", "proName": "TVC:SILVER"}
+                        ],
+                        "showSymbolLogo": true,
+                        "colorTheme": "dark",
+                        "isTransparent": false,
+                        "displayMode": "adaptive",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 시장 개요 - 수정된 버전 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🌍 시장 개요</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+                        {
+                        "colorTheme": "dark",
+                        "dateRange": "12M",
+                        "showChart": true,
+                        "locale": "kr",
+                        "largeChartUrl": "",
+                        "isTransparent": false,
+                        "showSymbolLogo": true,
+                        "showFloatingTooltip": false,
+                        "width": "100%",
+                        "height": "100%",
+                        "tabs": [
+                            {
+                            "title": "지수",
+                            "symbols": [
+                                {"s": "FOREXCOM:SPXUSD", "d": "S&P 500"},
+                                {"s": "FOREXCOM:NSXUSD", "d": "US 100"},
+                                {"s": "FOREXCOM:DJI", "d": "Dow 30"},
+                                {"s": "INDEX:NKY", "d": "Nikkei 225"},
+                                {"s": "INDEX:DEU40", "d": "DAX Index"}
+                            ],
+                            "originalTitle": "Indices"
+                            },
+                            {
+                            "title": "원자재",
+                            "symbols": [
+                                {"s": "TVC:GOLD", "d": "금"},
+                                {"s": "TVC:SILVER", "d": "은"},
+                                {"s": "NYMEX:CL1!", "d": "WTI 원유"},
+                                {"s": "NYMEX:NG1!", "d": "천연가스"}
+                            ],
+                            "originalTitle": "Commodities"
+                            }
+                        ]
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 히트맵 - 수정된 버전 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🔥 주식 히트맵</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>
+                        {
+                        "exchanges": [],
+                        "dataSource": "SPX500",
+                        "grouping": "sector",
+                        "blockSize": "market_cap_basic",
+                        "blockColor": "change",
+                        "locale": "kr",
+                        "symbolUrl": "",
+                        "colorTheme": "dark",
+                        "hasTopBar": false,
+                        "isDataSetEnabled": false,
+                        "isZoomEnabled": true,
+                        "hasSymbolTooltip": true,
+                        "width": "100%",
+                        "height": "100%"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 비트코인 -->
+            <div class="widget-card third-width">
+                <div class="widget-title">₿ 비트코인</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_btc" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "BINANCE:BTCUSDT",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "hide_top_toolbar": false,
+                            "hide_legend": false,
+                            "save_image": false,
+                            "container_id": "tradingview_btc"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 이더리움 -->
+            <div class="widget-card third-width">
+                <div class="widget-title">💎 이더리움</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_eth" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "BINANCE:ETHUSDT",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "hide_top_toolbar": false,
+                            "hide_legend": false,
+                            "save_image": false,
+                            "container_id": "tradingview_eth"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 금 시세 -->
+            <div class="widget-card third-width">
+                <div class="widget-title">🥇 금 시세</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_gold" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "TVC:GOLD",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "hide_top_toolbar": false,
+                            "hide_legend": false,
+                            "save_image": false,
+                            "container_id": "tradingview_gold"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 경제 캘린더 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">📅 경제 캘린더</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+                        {
+                        "colorTheme": "dark",
+                        "isTransparent": false,
+                        "width": "100%",
+                        "height": "100%",
+                        "locale": "kr",
+                        "importanceFilter": "-1,0,1"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 주식 시장 탭 -->
+        <div id="stocks" class="tab-content">
+            <!-- S&P 500 차트 -->
+            <div class="widget-card two-thirds">
+                <div class="widget-title">📊 S&P 500 차트</div>
+                <div style="height: 600px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_spx" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "SP:SPX",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_spx"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 기술 분석 -->
+            <div class="widget-card third-width">
+                <div class="widget-title">🔍 기술적 분석</div>
+                <div style="height: 600px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+                        {
+                        "interval": "1m",
+                        "width": "100%",
+                        "isTransparent": false,
+                        "height": "100%",
+                        "symbol": "NASDAQ:AAPL",
+                        "showIntervalTabs": true,
+                        "locale": "kr",
+                        "colorTheme": "dark"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 상위 종목 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🏆 활발한 종목</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-hotlists.js" async>
+                        {
+                        "colorTheme": "dark",
+                        "dateRange": "1D",
+                        "exchange": "US",
+                        "showChart": true,
+                        "locale": "kr",
+                        "largeChartUrl": "",
+                        "isTransparent": false,
+                        "showSymbolLogo": false,
+                        "showFloatingTooltip": false,
+                        "width": "100%",
+                        "height": "100%",
+                        "plotLineColorGrowing": "rgba(41, 98, 255, 1)",
+                        "plotLineColorFalling": "rgba(41, 98, 255, 1)",
+                        "gridLineColor": "rgba(240, 243, 250, 0)",
+                        "scaleFontColor": "rgba(106, 109, 120, 1)",
+                        "belowLineFillColorGrowing": "rgba(41, 98, 255, 0.12)",
+                        "belowLineFillColorFalling": "rgba(41, 98, 255, 0.12)",
+                        "belowLineFillColorGrowingBottom": "rgba(41, 98, 255, 0)",
+                        "belowLineFillColorFallingBottom": "rgba(41, 98, 255, 0)",
+                        "symbolActiveColor": "rgba(41, 98, 255, 0.12)"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 주요 기업 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🏢 주요 기업</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js" async>
+                        {
+                        "symbols": [
+                            ["Apple", "AAPL|1D"],
+                            ["Google", "GOOGL|1D"],
+                            ["Microsoft", "MSFT|1D"],
+                            ["Amazon", "AMZN|1D"],
+                            ["Tesla", "TSLA|1D"],
+                            ["NVIDIA", "NVDA|1D"]
+                        ],
+                        "chartOnly": false,
+                        "width": "100%",
+                        "height": "100%",
+                        "locale": "kr",
+                        "colorTheme": "dark",
+                        "autosize": false,
+                        "showVolume": false,
+                        "showMA": false,
+                        "hideDateRanges": false,
+                        "hideMarketStatus": false,
+                        "hideSymbolLogo": false,
+                        "scalePosition": "right",
+                        "scaleMode": "Normal",
+                        "fontFamily": "-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif",
+                        "fontSize": "10",
+                        "noTimeScale": false,
+                        "valuesTracking": "1",
+                        "changeMode": "price-and-percent",
+                        "chartType": "area",
+                        "maLineColor": "#2962FF",
+                        "maLineWidth": 1,
+                        "maLength": 9,
+                        "lineWidth": 2,
+                        "lineType": 0,
+                        "dateRanges": [
+                            "1d|1",
+                            "1m|30",
+                            "3m|60",
+                            "12m|1D",
+                            "60m|1W",
+                            "all|1M"
+                        ]
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 종목 스크리너 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">🔎 종목 스크리너</div>
+                <div style="height: 600px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+                        {
+                        "width": "100%",
+                        "height": "100%",
+                        "defaultColumn": "overview",
+                        "defaultScreen": "most_capitalized",
+                        "market": "america",
+                        "showToolbar": true,
+                        "colorTheme": "dark",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 암호화폐 탭 -->
+        <div id="crypto" class="tab-content">
+            <!-- 암호화폐 티커 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">₿ 암호화폐 실시간 시세</div>
+                <div style="height: 46px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                        {
+                        "symbols": [
+                            {"proName": "BINANCE:BTCUSDT", "title": "Bitcoin"},
+                            {"proName": "BINANCE:ETHUSDT", "title": "Ethereum"},
+                            {"proName": "BINANCE:BNBUSDT", "title": "BNB"},
+                            {"proName": "BINANCE:SOLUSDT", "title": "Solana"},
+                            {"proName": "BINANCE:XRPUSDT", "title": "XRP"},
+                            {"proName": "BINANCE:ADAUSDT", "title": "Cardano"},
+                            {"proName": "BINANCE:DOGEUSDT", "title": "Dogecoin"}
+                        ],
+                        "showSymbolLogo": true,
+                        "colorTheme": "dark",
+                        "isTransparent": false,
+                        "displayMode": "adaptive",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- BTC 차트 -->
+            <div class="widget-card two-thirds">
+                <div class="widget-title">₿ 비트코인 차트</div>
+                <div style="height: 600px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_btc_main" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "BINANCE:BTCUSDT",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_btc_main"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 암호화폐 히트맵 -->
+            <div class="widget-card third-width">
+                <div class="widget-title">🔥 암호화폐 히트맵</div>
+                <div style="height: 600px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-crypto-coins-heatmap.js" async>
+                        {
+                        "dataSource": "Crypto",
+                        "blockSize": "market_cap_calc",
+                        "blockColor": "change",
+                        "locale": "kr",
+                        "symbolUrl": "",
+                        "colorTheme": "dark",
+                        "hasTopBar": false,
+                        "isDataSetEnabled": false,
+                        "isZoomEnabled": true,
+                        "hasSymbolTooltip": true,
+                        "width": "100%",
+                        "height": "100%"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- ETH 차트 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">💎 이더리움</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_eth_main" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "BINANCE:ETHUSDT",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_eth_main"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 암호화폐 스크리너 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">📊 암호화폐 스크리너</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+                        {
+                        "width": "100%",
+                        "height": "100%",
+                        "defaultColumn": "overview",
+                        "defaultScreen": "general",
+                        "market": "crypto",
+                        "showToolbar": true,
+                        "colorTheme": "dark",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 원자재 탭 -->
+        <div id="commodities" class="tab-content">
+            <!-- 금 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🥇 금 (GOLD)</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_gold_main" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "TVC:GOLD",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_gold_main"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 은 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🥈 은 (SILVER)</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_silver" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "TVC:SILVER",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_silver"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- WTI 원유 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🛢️ WTI 원유</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_oil" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "TVC:USOIL",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_oil"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 천연가스 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🔥 천연가스</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_gas" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "TVC:NATURALGAS",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_gas"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 구리 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🟫 구리</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_copper" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "COMEX:HG1!",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_copper"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 밀 -->
+            <div class="widget-card half-width">
+                <div class="widget-title">🌾 밀</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_wheat" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "CBOT:ZW1!",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_wheat"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 외환 탭 -->
+        <div id="forex" class="tab-content">
+            <!-- 주요 통화 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">💱 주요 환율</div>
+                <div style="height: 46px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                        {
+                        "symbols": [
+                            {"proName": "FX_IDC:EURUSD", "title": "EUR/USD"},
+                            {"proName": "FX_IDC:USDJPY", "title": "USD/JPY"},
+                            {"proName": "FX_IDC:GBPUSD", "title": "GBP/USD"},
+                            {"proName": "FX_IDC:USDKRW", "title": "USD/KRW"},
+                            {"proName": "FX_IDC:USDCNH", "title": "USD/CNH"},
+                            {"proName": "FX_IDC:AUDUSD", "title": "AUD/USD"}
+                        ],
+                        "showSymbolLogo": true,
+                        "colorTheme": "dark",
+                        "isTransparent": false,
+                        "displayMode": "adaptive",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- EUR/USD -->
+            <div class="widget-card half-width">
+                <div class="widget-title">💶 EUR/USD</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_eurusd" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "FX_IDC:EURUSD",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_eurusd"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- USD/JPY -->
+            <div class="widget-card half-width">
+                <div class="widget-title">💴 USD/JPY</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_usdjpy" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "FX_IDC:USDJPY",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_usdjpy"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- GBP/USD -->
+            <div class="widget-card half-width">
+                <div class="widget-title">💷 GBP/USD</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_gbpusd" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "FX_IDC:GBPUSD",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_gbpusd"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- USD/KRW -->
+            <div class="widget-card half-width">
+                <div class="widget-title">💵 USD/KRW (원달러)</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div id="tradingview_usdkrw" style="height:100%;width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                        <script type="text/javascript">
+                        new TradingView.widget({
+                            "autosize": true,
+                            "symbol": "FX_IDC:USDKRW",
+                            "interval": "D",
+                            "timezone": "Asia/Seoul",
+                            "theme": "dark",
+                            "style": "1",
+                            "locale": "kr",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_usdkrw"
+                        });
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 외환 크로스 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">🔄 외환 크로스</div>
+                <div style="height: 500px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-cross-rates.js" async>
+                        {
+                        "width": "100%",
+                        "height": "100%",
+                        "currencies": ["EUR", "USD", "JPY", "GBP", "CHF", "AUD", "CAD", "NZD", "CNY"],
+                        "isTransparent": false,
+                        "colorTheme": "dark",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+
+            <!-- 외환 히트맵 -->
+            <div class="widget-card full-width">
+                <div class="widget-title">🗺️ 외환 히트맵</div>
+                <div style="height: 400px;">
+                    <!-- TradingView Widget BEGIN -->
+                    <div class="tradingview-widget-container" style="height:100%;width:100%">
+                        <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-forex-heat-map.js" async>
+                        {
+                        "width": "100%",
+                        "height": "100%",
+                        "currencies": ["EUR", "USD", "JPY", "GBP", "CHF", "AUD", "CAD", "NZD", "CNY"],
+                        "isTransparent": false,
+                        "colorTheme": "dark",
+                        "locale": "kr"
+                        }
+                        </script>
+                    </div>
+                    <!-- TradingView Widget END -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 시간 업데이트
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: false
+            });
+            document.getElementById('updateTime').textContent = timeString;
+        }
+
+        // 탭 전환
+        function switchTab(tabName) {
+            // 모든 탭 비활성화
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 모든 탭 컨텐츠 숨기기
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 선택된 탭 활성화
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // 로컬 스토리지에 저장
+            localStorage.setItem('activeTab', tabName);
+        }
+
+        // 페이지 로드 시 마지막 탭 복원
+        window.addEventListener('load', () => {
+            const savedTab = localStorage.getItem('activeTab');
+            if (savedTab && savedTab !== 'overview') {
+                const tabButton = document.querySelector(`[onclick="switchTab('${savedTab}')"]`);
+                if (tabButton) {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tabButton.classList.add('active');
+                    document.getElementById(savedTab).classList.add('active');
+                }
+            }
+        });
+
+        // 초기 시간 설정 및 주기적 업데이트
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        console.log('🚀 실시간 금융 대시보드 시작');
+        console.log('📊 TradingView 위젯 기반 실시간 데이터');
+        console.log('💡 모든 데이터는 무료로 제공됩니다');
+    </script>
+</body>
+</html>

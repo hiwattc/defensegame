@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Optimized Top-Down World Exploration Game with Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Controls:<br>
+        - WASD: Move character<br>
+        - Space: Jump (triggers flap animation)<br>
+        - Shift: Run (faster movement)<br>
+        - Left Click: Place block<br>
+        - Right Click: Remove block<br>
+        - Mouse: Look around (orbit controls for top-down view)
+    </div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.161.0/build/three.module.js?module",
+                "three/addons/": "https://unpkg.com/three@0.161.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 0).normalize();
+        scene.add(directionalLight);
+
+        // World parameters
+        const blockSize = 1;
+        const chunkSize = 16; // Smaller chunks for loading
+        const viewDistance = 2; // Chunks around player
+        const worldHeight = 16;
+
+        const textureLoader = new THREE.TextureLoader();
+        const grassTexture = textureLoader.load('https://threejs.org/examples/textures/minecraft/atlas.png');
+        grassTexture.magFilter = THREE.NearestFilter;
+
+        const blockGeometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+        const blockMaterial = new THREE.MeshLambertMaterial({ map: grassTexture });
+
+        const chunks = new Map(); // Key: 'cx_cz'
+        const blocks = new Map(); // For individual block access
+
+        function generateChunk(cx, cz) {
+            const key = `${cx}_${cz}`;
+            if (chunks.has(key)) return;
+
+            const instanceCount = chunkSize * chunkSize * worldHeight; // Max possible
+            const instancedMesh = new THREE.InstancedMesh(blockGeometry, blockMaterial, instanceCount);
+            instancedMesh.position.set(cx * chunkSize * blockSize, -worldHeight / 2, cz * chunkSize * blockSize);
+            scene.add(instancedMesh);
+
+            let count = 0;
+            const matrix = new THREE.Matrix4();
+
+            for (let x = 0; x < chunkSize; x++) {
+                for (let z = 0; z < chunkSize; z++) {
+                    const height = Math.floor(Math.random() * worldHeight) + 1;
+                    for (let y = 0; y < height; y++) {
+                        matrix.setPosition(x * blockSize, y * blockSize, z * blockSize);
+                        instancedMesh.setMatrixAt(count, matrix);
+                        const globalPos = new THREE.Vector3(
+                            cx * chunkSize + x,
+                            y - worldHeight / 2,
+                            cz * chunkSize + z
+                        );
+                        blocks.set(globalPos.toArray().join(','), { mesh: instancedMesh, index: count });
+                        count++;
+                    }
+                }
+            }
+            instancedMesh.count = count;
+            chunks.set(key, instancedMesh);
+        }
+
+        function loadChunksAround(position) {
+            const cx = Math.floor(position.x / chunkSize);
+            const cz = Math.floor(position.z / chunkSize);
+
+            for (let dx = -viewDistance; dx <= viewDistance; dx++) {
+                for (let dz = -viewDistance; dz <= viewDistance; dz++) {
+                    generateChunk(cx + dx, cz + dz);
+                }
+            }
+
+            // Unload far chunks (optional for further optimization)
+            chunks.forEach((mesh, key) => {
+                const [mcx, mcz] = key.split('_').map(Number);
+                if (Math.abs(mcx - cx) > viewDistance + 1 || Math.abs(mcz - cz) > viewDistance + 1) {
+                    scene.remove(mesh);
+                    chunks.delete(key);
+                    // Clean up blocks too
+                    blocks.forEach((data, posKey) => {
+                        if (data.mesh === mesh) blocks.delete(posKey);
+                    });
+                }
+            });
+        }
+
+        // Initial load
+        loadChunksAround(new THREE.Vector3(0, 0, 0));
+
+        // Character (Parrot model)
+        let mixer, character, actions = {};
+        const loader = new GLTFLoader();
+        loader.load('https://threejs.org/examples/models/gltf/Parrot.glb', (gltf) => {
+            character = gltf.scene;
+            character.scale.set(0.1, 0.1, 0.1);
+            scene.add(character);
+
+            mixer = new THREE.AnimationMixer(character);
+            actions.idle = mixer.clipAction(gltf.animations[0]);
+            actions.flap = mixer.clipAction(gltf.animations[0]);
+
+            actions.idle.play();
+        });
+
+        // Camera setup for top-down
+        camera.position.set(0, 20, 0);
+        camera.lookAt(0, 0, 0);
+
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enablePan = true;
+        controls.enableZoom = true;
+        controls.target.set(0, 0, 0);
+
+        // Movement
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        const moveSpeed = 10;
+        let isRunning = false;
+
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.code] = true);
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // Raycaster for blocks
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function onMouseClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Array.from(chunks.values()));
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const instanceId = intersect.instanceId;
+                const mesh = intersect.object;
+
+                if (event.button === 0) { // Place block
+                    const pos = intersect.point.add(intersect.face.normal.multiplyScalar(blockSize / 2));
+                    pos.floor();
+                    const cx = Math.floor(pos.x / chunkSize);
+                    const cz = Math.floor(pos.z / chunkSize);
+                    generateChunk(cx, cz); // Ensure chunk exists
+                    const localPos = pos.clone().sub(mesh.position);
+                    const matrix = new THREE.Matrix4().setPosition(localPos);
+                    const count = mesh.count;
+                    mesh.setMatrixAt(count, matrix);
+                    mesh.count = count + 1;
+                    mesh.instanceMatrix.needsUpdate = true;
+                    blocks.set(pos.toArray().join(','), { mesh, index: count });
+                } else if (event.button === 2 && instanceId !== undefined) { // Remove block
+                    // Shift instances down
+                    const count = mesh.count;
+                    for (let i = instanceId; i < count - 1; i++) {
+                        mesh.getMatrixAt(i + 1, matrix);
+                        mesh.setMatrixAt(i, matrix);
+                    }
+                    mesh.count = count - 1;
+                    mesh.instanceMatrix.needsUpdate = true;
+                    // Remove from blocks map
+                    blocks.forEach((data, key) => {
+                        if (data.mesh === mesh && data.index === instanceId) blocks.delete(key);
+                    });
+                }
+            }
+        }
+        renderer.domElement.addEventListener('mousedown', onMouseClick);
+
+        // Animation loop
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (mixer) mixer.update(delta);
+
+            // Movement
+            velocity.set(0, 0, 0);
+            direction.z = Number(keys['KeyW']) - Number(keys['KeyS']);
+            direction.x = Number(keys['KeyA']) - Number(keys['KeyD']); // Note: A left, D right, so invert for standard
+            direction.normalize();
+
+            isRunning = keys['ShiftLeft'];
+            const speed = isRunning ? moveSpeed * 2 : moveSpeed;
+            if (direction.lengthSq() > 0) {
+                velocity.add(direction.multiplyScalar(speed * delta));
+            }
+
+            if (character) {
+                character.position.add(velocity);
+                if (keys['Space']) {
+                    actions.flap?.play();
+                    character.position.y += 0.5; // Simple jump
+                } else {
+                    actions.flap?.stop();
+                    actions.idle?.play();
+                }
+
+                // Face direction
+                if (velocity.lengthSq() > 0) {
+                    character.lookAt(character.position.clone().add(velocity));
+                }
+
+                // Load chunks
+                loadChunksAround(character.position);
+            }
+
+            // Sync camera
+            if (character) {
+                controls.target.copy(character.position);
+                camera.position.set(character.position.x, character.position.y + 20, character.position.z);
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

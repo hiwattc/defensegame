@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 탐험 게임 - Littlest Tokyo</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            min-width: 200px;
+        }
+        #ui h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #4CAF50;
+        }
+        #ui .stat {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        #ui .stat-label {
+            color: #aaa;
+        }
+        #ui .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        #minimap {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #controls h3 {
+            margin: 0 0 15px 0;
+            color: #4CAF50;
+        }
+        #controls .control-row {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        #controls .key {
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            font-size: 20px;
+            text-align: center;
+            z-index: 1000;
+        }
+        #loading .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #mission {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 999;
+        }
+        #mission h1 {
+            color: #4CAF50;
+            margin: 0 0 20px 0;
+        }
+        #mission button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        #mission button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div>게임 로딩 중...</div>
+        <div class="spinner"></div>
+        <div id="loadingText">모델 불러오는 중...</div>
+    </div>
+    
+    <div id="mission">
+        <h1>🎮 3D 탐험 게임</h1>
+        <p>Littlest Tokyo를 탐험하세요!</p>
+        <p>병사를 조종하여 도시에 침투한 <strong>100명의 적</strong>을 모두 처치하세요.</p>
+        <p><small>이동 적 30명 + 고정 적 70명</small></p>
+        <button onclick="startGame()">게임 시작</button>
+    </div>
+    
+    <div id="container"></div>
+    
+    <div id="ui">
+        <h2>📊 게임 상태</h2>
+        <div class="stat">
+            <span class="stat-label">위치 X:</span>
+            <span class="stat-value" id="posX">0.0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">위치 Z:</span>
+            <span class="stat-value" id="posZ">0.0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">상태:</span>
+            <span class="stat-value" id="state">대기</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">애니메이션:</span>
+            <span class="stat-value" id="animation">Idle</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">적 처치:</span>
+            <span class="stat-value" id="kills">0 / 100</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">체력:</span>
+            <span class="stat-value" id="health">100</span>
+        </div>
+    </div>
+    
+    <div id="minimap">
+        <canvas id="minimapCanvas" width="200" height="200"></canvas>
+    </div>
+    
+    <div id="controls">
+        <h3>🎮 조작법</h3>
+        <div class="control-row">
+            <span class="key">W</span>
+            <span>앞으로</span>
+            <span class="key">S</span>
+            <span>뒤로</span>
+        </div>
+        <div class="control-row">
+            <span class="key">A</span>
+            <span>왼쪽</span>
+            <span class="key">D</span>
+            <span>오른쪽</span>
+        </div>
+        <div class="control-row">
+            <span class="key">Shift</span>
+            <span>걷기 (기본: 달리기)</span>
+        </div>
+        <div class="control-row">
+            <span class="key">마우스 클릭</span>
+            <span>총 발사</span>
+        </div>
+        <div class="control-row">
+            <span>마우스 이동으로 시야 조작</span>
+        </div>
+        <div class="control-row">
+            <span style="font-size: 12px; color: #aaa;">게임 화면 클릭으로 마우스 잠금</span>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+        import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+        // 게임 상태
+        let gameStarted = false;
+        const gameState = {
+            moveForward: false,
+            moveBackward: false,
+            moveLeft: false,
+            moveRight: false,
+            walk: false, // Shift로 걷기
+            shooting: false,
+            velocity: new THREE.Vector3(),
+            direction: new THREE.Vector3()
+        };
+
+        // 마우스 컨트롤
+        let mouseX = 0;
+        let mouseY = 0;
+        let cameraPitch = 0; // 상하 각도
+        const maxPitch = Math.PI / 3; // 최대 60도
+        let isPointerLocked = false;
+
+        // 적과 총알 배열
+        const enemies = [];
+        const bullets = [];
+        let enemiesKilled = 0;
+        const particles = []; // 파티클 효과 배열
+        const buildings = []; // 건물 배열 (충돌 감지용)
+
+        // 미니맵 설정
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const minimapScale = 2; // 1미터 = 2픽셀
+
+        // Scene 설정
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xbfe3dd);
+        scene.fog = new THREE.Fog(0xbfe3dd, 50, 200);
+
+        // Camera 설정
+        const camera = new THREE.PerspectiveCamera(
+            50,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, -8, 15);
+
+        // Renderer 설정
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1;
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Environment
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        // 조명 설정
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        directionalLight.position.set(30, 50, 30);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.camera.left = -50;
+        directionalLight.shadow.camera.right = 50;
+        directionalLight.shadow.camera.top = 50;
+        directionalLight.shadow.camera.bottom = -50;
+        directionalLight.shadow.camera.near = 1;
+        directionalLight.shadow.camera.far = 200;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+
+        // 지면 (넓은 평면) - 플레이 가능 영역
+        const playableSize = 200; // 플레이 가능 영역 크기 (2배 증가)
+        const playableGroundGeometry = new THREE.PlaneGeometry(playableSize, playableSize);
+        const playableGroundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x3a8c3a, // 초록색 - 플레이 가능
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const playableGround = new THREE.Mesh(playableGroundGeometry, playableGroundMaterial);
+        playableGround.rotation.x = -Math.PI / 2;
+        playableGround.position.y = -10;
+        playableGround.receiveShadow = true;
+        scene.add(playableGround);
+
+        // 외곽 경계 지면 - 갈 수 없는 영역 (옅은 회색)
+        const boundarySize = 500;
+        const boundaryGroundGeometry = new THREE.PlaneGeometry(boundarySize, boundarySize);
+        const boundaryGroundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xcccccc, // 옅은 회색 - 갈 수 없는 영역
+            roughness: 0.9,
+            metalness: 0.1
+        });
+        const boundaryGround = new THREE.Mesh(boundaryGroundGeometry, boundaryGroundMaterial);
+        boundaryGround.rotation.x = -Math.PI / 2;
+        boundaryGround.position.y = -10.01; // 플레이 영역보다 살짝 아래
+        boundaryGround.receiveShadow = true;
+        scene.add(boundaryGround);
+
+        // 배경 건물 추가
+        function createBuilding(x, z, width, height, depth, color) {
+            const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+            const buildingMaterial = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            building.position.set(x, -10 + height / 2, z);
+            building.castShadow = true;
+            building.receiveShadow = true;
+            scene.add(building);
+            
+            // 건물을 충돌 감지 배열에 추가
+            buildings.push({
+                mesh: building,
+                box: new THREE.Box3().setFromObject(building)
+            });
+            
+            return building;
+        }
+
+        // 건물 3개 추가
+        createBuilding(-40, -20, 15, 20, 15, 0x8b8b8b); // 왼쪽 뒤 - 회색 빌딩
+        createBuilding(45, -15, 12, 25, 12, 0xa0a0a0);  // 오른쪽 뒤 - 밝은 회색 빌딩
+        createBuilding(0, -50, 20, 18, 20, 0x9a9a9a);   // 중앙 뒤 - 중간 회색 빌딩
+
+        // 카메라 컨트롤 (주인공 시점)
+        const cameraOffset = new THREE.Vector3(0, 2, 5); // 주인공 뒤에서 약간 위
+        const cameraLookAtOffset = new THREE.Vector3(0, 1, 0); // 주인공 머리 높이
+
+        // 모델 로더 설정
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        
+        const loader = new GLTFLoader();
+        loader.setDRACOLoader(dracoLoader);
+
+        // 게임 변수
+        let soldier, soldierMixer, idleAction, walkAction, runAction;
+        let tokyoModel, tokyoMixer;
+        let currentAction = 'idle';
+        const clock = new THREE.Clock();
+
+        // 모델 로딩 카운터
+        let modelsLoaded = 0;
+        const totalModels = 2;
+
+        // 적 생성 함수
+        let soldierGLTF = null; // Soldier 모델 캐싱
+        
+        function createEnemy(x, z) {
+            if (!soldierGLTF) {
+                console.log('Soldier 모델이 아직 로드되지 않음');
+                return;
+            }
+            
+            // SkeletonUtils를 사용하여 SkinnedMesh 복제
+            const enemy = SkeletonUtils.clone(soldierGLTF.scene);
+            enemy.position.set(x, -10, z);
+            enemy.scale.set(1, 1, 1);
+            
+            console.log('적 클론 생성 (SkeletonUtils):', enemy);
+            
+            // 플레이어 방향으로 회전
+            enemy.lookAt(0, -10, 10);
+            
+            // 적을 빨간색으로 표시
+            let meshCount = 0;
+            enemy.traverse(function(child) {
+                if (child.isMesh || child.isSkinnedMesh) {
+                    meshCount++;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.visible = true;
+                    if (child.material) {
+                        // 재질을 완전히 새로 만들기
+                        const oldMaterial = child.material;
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: 0xff0000,
+                            emissive: 0x440000,
+                            emissiveIntensity: 0.8,
+                            skinning: child.isSkinnedMesh, // 스키닝 활성화
+                            map: oldMaterial.map,
+                            transparent: false,
+                            opacity: 1.0
+                        });
+                    }
+                }
+            });
+            
+            console.log('적의 메쉬 수:', meshCount);
+            
+            scene.add(enemy);
+            console.log('적을 씬에 추가 완료');
+            
+            // 적 애니메이션
+            const enemyMixer = new THREE.AnimationMixer(enemy);
+            const enemyIdleAction = enemyMixer.clipAction(soldierGLTF.animations[0]);
+            const enemyWalkAction = enemyMixer.clipAction(soldierGLTF.animations[3]);
+            
+            // 초기에는 Idle
+            enemyIdleAction.play();
+            
+            enemies.push({
+                model: enemy,
+                mixer: enemyMixer,
+                idleAction: enemyIdleAction,
+                walkAction: enemyWalkAction,
+                isWalking: false,
+                health: 100,
+                alive: true,
+                lastAttackTime: 0,
+                attackCooldown: 2.0,
+                moveSpeed: 2.0,
+                attackRange: 5.0
+            });
+            
+            console.log('적 생성 완료 - 위치:', x, z, '총 적 수:', enemies.length);
+        }
+
+        // 고정 적 생성 함수 (이동하지 않고 제자리에서 공격만)
+        function createStationaryEnemy(x, z) {
+            if (!soldierGLTF) {
+                console.log('Soldier 모델이 아직 로드되지 않음');
+                return;
+            }
+            
+            // SkeletonUtils를 사용하여 SkinnedMesh 복제
+            const enemy = SkeletonUtils.clone(soldierGLTF.scene);
+            enemy.position.set(x, -10, z);
+            enemy.scale.set(1, 1, 1);
+            
+            // 플레이어 방향으로 회전
+            const targetPosition = new THREE.Vector3(0, -10, 10);
+            enemy.lookAt(targetPosition);
+            enemy.rotateY(Math.PI);
+            
+            // 적을 빨간색으로 표시
+            let meshCount = 0;
+            enemy.traverse(function(child) {
+                if (child.isMesh || child.isSkinnedMesh) {
+                    meshCount++;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.visible = true;
+                    if (child.material) {
+                        const oldMaterial = child.material;
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: 0xff0000,
+                            emissive: 0x440000,
+                            emissiveIntensity: 0.8,
+                            skinning: child.isSkinnedMesh,
+                            map: oldMaterial.map,
+                            transparent: false,
+                            opacity: 1.0
+                        });
+                    }
+                }
+            });
+            
+            scene.add(enemy);
+            
+            // 적 애니메이션 (Idle만 사용)
+            const enemyMixer = new THREE.AnimationMixer(enemy);
+            const enemyIdleAction = enemyMixer.clipAction(soldierGLTF.animations[0]);
+            enemyIdleAction.play();
+            
+            enemies.push({
+                model: enemy,
+                mixer: enemyMixer,
+                idleAction: enemyIdleAction,
+                walkAction: null,
+                isWalking: false,
+                health: 100,
+                alive: true,
+                lastAttackTime: 0,
+                attackCooldown: 2.0,
+                moveSpeed: 0, // 이동하지 않음
+                attackRange: 1000, // 사거리 무제한
+                isStationary: true // 고정 적 표시
+            });
+            
+            console.log('고정 적 생성 완료 - 위치:', x, z);
+        }
+
+        // 총알 발사 함수
+        function shootBullet() {
+            if (!soldier) {
+                console.log('주인공이 아직 로드되지 않음');
+                return;
+            }
+            
+            const bulletGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            // 총알 시작 위치 (카메라 위치에서 시작)
+            bullet.position.copy(camera.position);
+            
+            // 총알 방향 (카메라가 바라보는 방향)
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.normalize();
+            
+            scene.add(bullet);
+            
+            bullets.push({
+                mesh: bullet,
+                velocity: direction.multiplyScalar(50),
+                life: 5.0,
+                isEnemyBullet: false
+            });
+            
+            console.log('총알 발사! 위치:', bullet.position, '방향:', direction, '총알 수:', bullets.length);
+        }
+
+        // 충돌 효과 생성 함수
+        function createHitEffect(position, color) {
+            const particleCount = 20;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    transparent: true,
+                    opacity: 1.0
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                
+                particle.position.copy(position);
+                
+                // 랜덤 방향으로 속도 설정
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10
+                );
+                
+                scene.add(particle);
+                
+                particles.push({
+                    mesh: particle,
+                    velocity: velocity,
+                    life: 0.5, // 0.5초 동안 유지
+                    gravity: -20
+                });
+            }
+            
+            // 충격파 링 효과
+            const ringGeometry = new THREE.RingGeometry(0.5, 0.7, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({ 
+                color: color,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.copy(position);
+            ring.lookAt(position.x, position.y + 1, position.z);
+            scene.add(ring);
+            
+            particles.push({
+                mesh: ring,
+                velocity: new THREE.Vector3(0, 0, 0),
+                life: 0.3,
+                isRing: true,
+                scale: 1,
+                scaleSpeed: 5
+            });
+        }
+
+        // 폭발 효과 생성 함수 (적 사망 시)
+        function createExplosionEffect(position) {
+            const particleCount = 40;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({ 
+                    color: new THREE.Color().setHSL(Math.random() * 0.1, 1.0, 0.5), // 빨강-주황
+                    transparent: true,
+                    opacity: 1.0,
+                    emissive: new THREE.Color(0xff0000),
+                    emissiveIntensity: 1.0
+                });
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                
+                particle.position.copy(position);
+                
+                // 폭발 방향
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 15,
+                    Math.random() * 10,
+                    (Math.random() - 0.5) * 15
+                );
+                
+                scene.add(particle);
+                
+                particles.push({
+                    mesh: particle,
+                    velocity: velocity,
+                    life: 1.0,
+                    gravity: -15
+                });
+            }
+        }
+
+        // 건물 충돌 감지 함수
+        function checkBulletBuildingCollisions() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                const bulletPos = bullet.mesh.position;
+                
+                // 각 건물과의 충돌 체크
+                for (let j = 0; j < buildings.length; j++) {
+                    const building = buildings[j];
+                    
+                    // Bounding Box 업데이트
+                    building.box.setFromObject(building.mesh);
+                    
+                    // 총알 위치가 건물 안에 있는지 체크
+                    if (building.box.containsPoint(bulletPos)) {
+                        // 건물 충돌 효과 (회색-흰색 파티클)
+                        createHitEffect(bulletPos.clone(), 0xaaaaaa);
+                        
+                        // 먼지 효과 추가
+                        const dustCount = 10;
+                        for (let k = 0; k < dustCount; k++) {
+                            const dustGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+                            const dustMaterial = new THREE.MeshBasicMaterial({ 
+                                color: 0xcccccc,
+                                transparent: true,
+                                opacity: 0.8
+                            });
+                            const dust = new THREE.Mesh(dustGeometry, dustMaterial);
+                            dust.position.copy(bulletPos);
+                            
+                            const velocity = new THREE.Vector3(
+                                (Math.random() - 0.5) * 5,
+                                Math.random() * 5,
+                                (Math.random() - 0.5) * 5
+                            );
+                            
+                            scene.add(dust);
+                            
+                            particles.push({
+                                mesh: dust,
+                                velocity: velocity,
+                                life: 0.8,
+                                gravity: -8
+                            });
+                        }
+                        
+                        // 총알 제거
+                        scene.remove(bullet.mesh);
+                        bullets.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 충돌 감지 함수
+        function checkBulletCollisions() {
+            bullets.forEach((bullet, bIndex) => {
+                // 적 총알은 건너뛰기
+                if (bullet.isEnemyBullet) return;
+                
+                enemies.forEach((enemy, eIndex) => {
+                    if (!enemy.alive) return;
+                    
+                    const distance = bullet.mesh.position.distanceTo(enemy.model.position);
+                    if (distance < 2) {
+                        // 히트 이펙트 생성
+                        createHitEffect(bullet.mesh.position.clone(), 0xff0000);
+                        
+                        // 적 피격
+                        enemy.health -= 50;
+                        
+                        if (enemy.health <= 0) {
+                            enemy.alive = false;
+                            
+                            // 폭발 이펙트 생성
+                            createExplosionEffect(enemy.model.position.clone());
+                            
+                            scene.remove(enemy.model);
+                            enemiesKilled++;
+                            console.log('적 처치! 총 처치:', enemiesKilled);
+                            
+                            if (enemiesKilled >= 100) {
+                                setTimeout(() => {
+                                    alert('🎉 승리! 모든 적을 처치했습니다!');
+                                }, 100);
+                            }
+                        }
+                        
+                        // 총알 제거
+                        scene.remove(bullet.mesh);
+                        bullets.splice(bIndex, 1);
+                    }
+                });
+            });
+        }
+
+        // 적 AI 업데이트 함수
+        function updateEnemyAI(delta) {
+            if (!soldier) return;
+            
+            const playerPos = soldier.position;
+            
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                const enemyPos = enemy.model.position;
+                const distanceToPlayer = enemyPos.distanceTo(playerPos);
+                
+                // 플레이어를 바라보기
+                const targetPosition = playerPos.clone();
+                enemy.model.lookAt(targetPosition);
+                enemy.model.rotateY(Math.PI);
+                
+                // 고정 적은 이동하지 않음
+                if (enemy.isStationary) {
+                    // 공격만 수행
+                    const currentTime = performance.now() / 1000;
+                    if (currentTime - enemy.lastAttackTime > enemy.attackCooldown) {
+                        enemyAttack(enemy);
+                        enemy.lastAttackTime = currentTime;
+                    }
+                    return; // 이동 로직 스킵
+                }
+                
+                // 이동하는 적 로직 (기존)
+                const direction = new THREE.Vector3()
+                    .subVectors(playerPos, enemyPos)
+                    .normalize();
+                
+                // 공격 범위 밖이면 플레이어에게 이동
+                if (distanceToPlayer > enemy.attackRange) {
+                    // 걷기 애니메이션 시작
+                    if (!enemy.isWalking) {
+                        enemy.idleAction.fadeOut(0.3);
+                        enemy.walkAction.reset().fadeIn(0.3).play();
+                        enemy.isWalking = true;
+                    }
+                    
+                    // 앞으로 이동
+                    const moveVector = direction.clone().multiplyScalar(enemy.moveSpeed * delta);
+                    enemy.model.position.add(moveVector);
+                } else {
+                    // 공격 범위 안이면 정지 및 공격
+                    if (enemy.isWalking) {
+                        enemy.walkAction.fadeOut(0.3);
+                        enemy.idleAction.reset().fadeIn(0.3).play();
+                        enemy.isWalking = false;
+                    }
+                    
+                    const currentTime = performance.now() / 1000;
+                    if (currentTime - enemy.lastAttackTime > enemy.attackCooldown) {
+                        enemyAttack(enemy);
+                        enemy.lastAttackTime = currentTime;
+                    }
+                }
+            });
+        }
+
+        // 적 공격 함수
+        function enemyAttack(enemy) {
+            if (!soldier) return;
+            
+            console.log('적 공격!');
+            
+            // 적 총알 생성 (빨간색)
+            const bulletGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+            const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            bullet.position.copy(enemy.model.position);
+            bullet.position.y += 1;
+            
+            // 플레이어 방향으로 발사
+            const direction = new THREE.Vector3()
+                .subVectors(soldier.position, enemy.model.position)
+                .normalize();
+            
+            scene.add(bullet);
+            
+            bullets.push({
+                mesh: bullet,
+                velocity: direction.multiplyScalar(30),
+                life: 5.0,
+                isEnemyBullet: true
+            });
+        }
+
+        // 플레이어 피격 체크
+        let playerHealth = 10000; // 체력 10배 증가
+        function checkPlayerHit() {
+            if (!soldier) return;
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                if (!bullet.isEnemyBullet) continue;
+                
+                const distance = bullet.mesh.position.distanceTo(soldier.position);
+                if (distance < 1.5) {
+                    // 플레이어 피격 이펙트
+                    createHitEffect(bullet.mesh.position.clone(), 0xffff00);
+                    
+                    playerHealth -= 20;
+                    console.log('플레이어 피격! 체력:', playerHealth);
+                    
+                    scene.remove(bullet.mesh);
+                    bullets.splice(i, 1);
+                    
+                    if (playerHealth <= 0) {
+                        alert('💀 게임 오버! 적에게 패배했습니다.');
+                        location.reload();
+                    }
+                }
+            }
+        }
+
+        function updateLoadingText(text) {
+            const loadingEl = document.getElementById('loadingText');
+            if (loadingEl) {
+                loadingEl.textContent = text;
+            }
+            console.log('로딩 상태:', text);
+        }
+
+        function checkAllModelsLoaded() {
+            modelsLoaded++;
+            console.log('모델 로드 완료:', modelsLoaded, '/', totalModels);
+            if (modelsLoaded >= totalModels) {
+                console.log('모든 모델 로드 완료! 미션 화면 표시');
+                const loadingEl = document.getElementById('loading');
+                const missionEl = document.getElementById('mission');
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (missionEl) missionEl.style.display = 'block';
+            }
+        }
+
+        // Littlest Tokyo 배경 로드
+        updateLoadingText('도시 모델 로딩 중...');
+        loader.load(
+            'https://threejs.org/examples/models/gltf/LittlestTokyo.glb',
+            function(gltf) {
+                console.log('Tokyo GLTF 로드 시작');
+                
+                // 원본 Tokyo 모델
+                tokyoModel = gltf.scene;
+                tokyoModel.position.set(0, 0, 0);
+                tokyoModel.scale.set(0.05, 0.05, 0.05);
+                
+                tokyoModel.traverse(function(child) {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        
+                        // Tokyo 모델의 메쉬들을 충돌 감지 배열에 추가
+                        buildings.push({
+                            mesh: child,
+                            box: new THREE.Box3().setFromObject(child)
+                        });
+                    }
+                });
+                
+                scene.add(tokyoModel);
+                
+                // Tokyo 애니메이션
+                if (gltf.animations && gltf.animations.length > 0) {
+                    tokyoMixer = new THREE.AnimationMixer(tokyoModel);
+                    tokyoMixer.clipAction(gltf.animations[0]).play();
+                }
+                
+                // Tokyo 모델 복제본 4개 추가
+                const tokyoPositions = [
+                    { x: 60, z: 0 },    // 오른쪽
+                    { x: -60, z: 0 },   // 왼쪽
+                    { x: 0, z: -60 },   // 뒤쪽
+                    { x: 45, z: -45 }   // 오른쪽 뒤 대각선
+                ];
+                
+                tokyoPositions.forEach((pos, index) => {
+                    const tokyoClone = gltf.scene.clone();
+                    tokyoClone.position.set(pos.x, 0, pos.z);
+                    tokyoClone.scale.set(0.05, 0.05, 0.05);
+                    
+                    // 약간씩 다른 회전 적용
+                    tokyoClone.rotation.y = (Math.PI / 2) * index;
+                    
+                    tokyoClone.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            
+                            // 복제본 메쉬들도 충돌 감지 배열에 추가
+                            buildings.push({
+                                mesh: child,
+                                box: new THREE.Box3().setFromObject(child)
+                            });
+                        }
+                    });
+                    
+                    scene.add(tokyoClone);
+                    
+                    // 복제본에도 애니메이션 추가
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        const cloneMixer = new THREE.AnimationMixer(tokyoClone);
+                        cloneMixer.clipAction(gltf.animations[0]).play();
+                        
+                        // 믹서 배열에 저장 (업데이트를 위해)
+                        if (!window.tokyoMixers) window.tokyoMixers = [];
+                        window.tokyoMixers.push(cloneMixer);
+                    }
+                    
+                    console.log(`Tokyo 복제본 ${index + 1} 추가 완료:`, pos);
+                });
+                
+                console.log('Tokyo 모델 로드 완료 (원본 + 복제본 4개)');
+                console.log('총 충돌 가능 건물/메쉬 수:', buildings.length);
+                updateLoadingText('병사 모델 로딩 중...');
+                checkAllModelsLoaded();
+            },
+            function(xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            function(error) {
+                console.error('Tokyo 로드 에러:', error);
+                updateLoadingText('도시 모델 로드 실패 - 기본 환경으로 진행');
+                checkAllModelsLoaded(); // 에러가 나도 진행
+            }
+        );
+
+        // Soldier 주인공 로드
+        loader.load(
+            'https://threejs.org/examples/models/gltf/Soldier.glb',
+            function(gltf) {
+                console.log('Soldier GLTF 로드 시작');
+                soldierGLTF = gltf; // 적 생성을 위해 저장
+                
+                soldier = gltf.scene;
+                soldier.position.set(0, -10, 10);
+                soldier.scale.set(1, 1, 1);
+                
+                soldier.traverse(function(child) {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(soldier);
+                
+                // 애니메이션 설정
+                soldierMixer = new THREE.AnimationMixer(soldier);
+                
+                // animations[0] = Idle, [1] = Run, [3] = Walk
+                idleAction = soldierMixer.clipAction(gltf.animations[0]);
+                runAction = soldierMixer.clipAction(gltf.animations[1]);
+                walkAction = soldierMixer.clipAction(gltf.animations[3]);
+                
+                // 초기 애니메이션 설정
+                idleAction.play();
+                
+                console.log('Soldier 모델 로드 완료');
+                checkAllModelsLoaded();
+            },
+            function(xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            function(error) {
+                console.error('Soldier 로드 에러:', error);
+                updateLoadingText('병사 모델 로드 실패');
+                checkAllModelsLoaded(); // 에러가 나도 진행
+            }
+        );
+
+        // 애니메이션 전환 함수
+        function fadeToAction(name, duration = 0.3) {
+            const previousAction = currentAction;
+            currentAction = name;
+            
+            let newAction;
+            if (name === 'idle') newAction = idleAction;
+            else if (name === 'walk') newAction = walkAction;
+            else if (name === 'run') newAction = runAction;
+            
+            if (!newAction) return;
+            
+            let oldAction;
+            if (previousAction === 'idle') oldAction = idleAction;
+            else if (previousAction === 'walk') oldAction = walkAction;
+            else if (previousAction === 'run') oldAction = runAction;
+            
+            if (oldAction && oldAction !== newAction) {
+                oldAction.fadeOut(duration);
+            }
+            
+            newAction.reset().fadeIn(duration).play();
+        }
+
+        // 키보드 이벤트
+        document.addEventListener('keydown', (event) => {
+            if (!gameStarted) return;
+            
+            switch (event.code) {
+                case 'KeyW':
+                    gameState.moveForward = true;
+                    break;
+                case 'KeyS':
+                    gameState.moveBackward = true;
+                    break;
+                case 'KeyA':
+                    gameState.moveLeft = true;
+                    break;
+                case 'KeyD':
+                    gameState.moveRight = true;
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    gameState.walk = true;
+                    break;
+                case 'Space':
+                    event.preventDefault();
+                    shootBullet();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'KeyW':
+                    gameState.moveForward = false;
+                    break;
+                case 'KeyS':
+                    gameState.moveBackward = false;
+                    break;
+                case 'KeyA':
+                    gameState.moveLeft = false;
+                    break;
+                case 'KeyD':
+                    gameState.moveRight = false;
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    gameState.walk = false;
+                    break;
+            }
+        });
+
+        // Pointer Lock API - 마우스 잠금
+        renderer.domElement.addEventListener('click', function() {
+            if (gameStarted) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', function() {
+            isPointerLocked = document.pointerLockElement === renderer.domElement;
+        });
+        
+        // 마우스 클릭으로 총 발사
+        document.addEventListener('mousedown', function(event) {
+            if (!gameStarted || !isPointerLocked) return;
+            
+            if (event.button === 0) { // 왼쪽 클릭
+                shootBullet();
+            }
+        });
+
+        // 마우스 움직임 이벤트
+        document.addEventListener('mousemove', function(event) {
+            if (!isPointerLocked || !gameStarted) return;
+            
+            const sensitivity = 0.002;
+            mouseX = event.movementX * sensitivity;
+            mouseY = event.movementY * sensitivity;
+            
+            // 주인공 좌우 회전
+            if (soldier) {
+                soldier.rotation.y -= mouseX;
+            }
+            
+            // 카메라 상하 각도 조정
+            cameraPitch -= mouseY;
+            cameraPitch = Math.max(-maxPitch, Math.min(maxPitch, cameraPitch));
+        });
+
+        // 게임 시작 함수
+        window.startGame = function() {
+            gameStarted = true;
+            document.getElementById('mission').style.display = 'none';
+            document.getElementById('controls').style.display = 'none'; // 조작법 숨김
+            
+            console.log('게임 시작! 주인공 위치:', soldier ? soldier.position : '로드안됨');
+            
+            // 이동하는 적 30명 생성 (원형으로 배치)
+            const movingEnemies = 30;
+            const radius = 30;
+            
+            for (let i = 0; i < movingEnemies; i++) {
+                const angle = (i / movingEnemies) * Math.PI * 2;
+                const distance = radius + Math.random() * 30;
+                const x = Math.cos(angle) * distance;
+                const z = Math.sin(angle) * distance;
+                
+                createEnemy(x, z);
+            }
+            
+            // 고정 적 70명 생성 (랜덤 위치)
+            const stationaryEnemies = 70;
+            for (let i = 0; i < stationaryEnemies; i++) {
+                // 랜덤 위치 (-90 ~ 90 범위)
+                const x = (Math.random() - 0.5) * 180;
+                const z = (Math.random() - 0.5) * 180;
+                
+                // 주인공 근처(반경 15m)는 피하기
+                const distanceFromPlayer = Math.sqrt(x*x + z*z);
+                if (distanceFromPlayer > 15) {
+                    createStationaryEnemy(x, z);
+                } else {
+                    i--; // 너무 가까우면 다시 생성
+                }
+            }
+            
+            console.log('적 생성 완료, 총 적:', enemies.length);
+            console.log('씬에 있는 객체 수:', scene.children.length);
+        };
+
+        // UI 업데이트
+        function updateUI() {
+            if (!soldier) return;
+            
+            const pos = soldier.position;
+            document.getElementById('posX').textContent = pos.x.toFixed(1);
+            document.getElementById('posZ').textContent = pos.z.toFixed(1);
+            
+            let stateText = '대기';
+            let animText = 'Idle';
+            
+            if (gameState.moveForward || gameState.moveBackward || gameState.moveLeft || gameState.moveRight) {
+                if (gameState.walk) {
+                    stateText = '걷기';
+                    animText = 'Walk';
+                } else {
+                    stateText = '달리기';
+                    animText = 'Run';
+                }
+            }
+            
+            document.getElementById('state').textContent = stateText;
+            document.getElementById('animation').textContent = animText;
+            document.getElementById('kills').textContent = enemiesKilled + ' / 100';
+            document.getElementById('health').textContent = playerHealth;
+        }
+
+        // 미니맵 업데이트
+        function updateMinimap() {
+            if (!soldier) return;
+            
+            // 캔버스 초기화
+            minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            minimapCtx.fillRect(0, 0, 200, 200);
+            
+            // 격자 그리기
+            minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            minimapCtx.lineWidth = 1;
+            for (let i = 0; i <= 200; i += 20) {
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(i, 0);
+                minimapCtx.lineTo(i, 200);
+                minimapCtx.stroke();
+                minimapCtx.beginPath();
+                minimapCtx.moveTo(0, i);
+                minimapCtx.lineTo(200, i);
+                minimapCtx.stroke();
+            }
+            
+            // 중심점 (플레이어 위치)
+            const centerX = 100;
+            const centerY = 100;
+            
+            // 플레이어 그리기 (파란색 삼각형)
+            minimapCtx.save();
+            minimapCtx.translate(centerX, centerY);
+            minimapCtx.rotate(-soldier.rotation.y); // 플레이어 방향
+            minimapCtx.fillStyle = '#00ffff';
+            minimapCtx.beginPath();
+            minimapCtx.moveTo(0, -8);
+            minimapCtx.lineTo(-6, 8);
+            minimapCtx.lineTo(6, 8);
+            minimapCtx.closePath();
+            minimapCtx.fill();
+            minimapCtx.restore();
+            
+            // 적 그리기 (빨간색 점)
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                const relativeX = (enemy.model.position.x - soldier.position.x) * minimapScale;
+                const relativeZ = (enemy.model.position.z - soldier.position.z) * minimapScale;
+                
+                const mapX = centerX + relativeX;
+                const mapY = centerY + relativeZ;
+                
+                // 미니맵 범위 안에 있는 경우만 표시
+                if (mapX >= 0 && mapX <= 200 && mapY >= 0 && mapY <= 200) {
+                    minimapCtx.fillStyle = '#ff0000';
+                    minimapCtx.beginPath();
+                    minimapCtx.arc(mapX, mapY, 5, 0, Math.PI * 2);
+                    minimapCtx.fill();
+                    
+                    // 적 방향 표시
+                    minimapCtx.strokeStyle = '#ff0000';
+                    minimapCtx.lineWidth = 2;
+                    minimapCtx.beginPath();
+                    minimapCtx.moveTo(mapX, mapY);
+                    const dirX = Math.sin(-enemy.model.rotation.y) * 8;
+                    const dirZ = Math.cos(-enemy.model.rotation.y) * 8;
+                    minimapCtx.lineTo(mapX + dirX, mapY + dirZ);
+                    minimapCtx.stroke();
+                }
+            });
+        }
+
+        // 애니메이션 루프
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            
+            if (tokyoMixer) tokyoMixer.update(delta);
+            
+            // Tokyo 복제본 믹서들 업데이트
+            if (window.tokyoMixers) {
+                window.tokyoMixers.forEach(mixer => mixer.update(delta));
+            }
+            
+            if (soldierMixer) soldierMixer.update(delta);
+            
+            // 적 애니메이션 업데이트
+            enemies.forEach(enemy => {
+                if (enemy.alive && enemy.mixer) {
+                    enemy.mixer.update(delta);
+                }
+            });
+            
+            // 적 AI 업데이트
+            updateEnemyAI(delta);
+            
+            // 총알 이동 및 수명 관리
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                const movement = bullet.velocity.clone().multiplyScalar(delta);
+                bullet.mesh.position.add(movement);
+                bullet.life -= delta;
+                
+                // 총알이 너무 멀리 가면 제거
+                const distanceFromOrigin = bullet.mesh.position.length();
+                if (bullet.life <= 0 || distanceFromOrigin > 200) {
+                    scene.remove(bullet.mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+            
+            // 파티클 업데이트
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.life -= delta;
+                
+                if (particle.life <= 0) {
+                    scene.remove(particle.mesh);
+                    particles.splice(i, 1);
+                    continue;
+                }
+                
+                if (particle.isRing) {
+                    // 링 확대 효과
+                    particle.scale += particle.scaleSpeed * delta;
+                    particle.mesh.scale.set(particle.scale, particle.scale, 1);
+                    particle.mesh.material.opacity = particle.life / 0.3;
+                } else {
+                    // 파티클 물리
+                    particle.velocity.y += particle.gravity * delta;
+                    particle.mesh.position.add(
+                        particle.velocity.clone().multiplyScalar(delta)
+                    );
+                    particle.mesh.material.opacity = particle.life / 0.5;
+                }
+            }
+            
+            // 충돌 감지
+            checkBulletCollisions();
+            checkBulletBuildingCollisions(); // 건물 충돌 감지 추가
+            
+            // 플레이어 피격 체크
+            checkPlayerHit();
+            
+            if (gameStarted && soldier) {
+                // 이동
+                const isMoving = gameState.moveForward || gameState.moveBackward || gameState.moveLeft || gameState.moveRight;
+                const speed = gameState.walk ? 2.5 : 5; // walk이면 느리게, 아니면 빠르게
+                
+                if (isMoving) {
+                    gameState.direction.set(0, 0, 0);
+                    
+                    // 앞뒤 이동
+                    if (gameState.moveForward) gameState.direction.z -= 1;
+                    if (gameState.moveBackward) gameState.direction.z += 1;
+                    
+                    // 좌우 이동
+                    if (gameState.moveLeft) gameState.direction.x -= 1;
+                    if (gameState.moveRight) gameState.direction.x += 1;
+                    
+                    gameState.direction.normalize();
+                    
+                    const moveVector = gameState.direction.clone().multiplyScalar(speed * delta);
+                    moveVector.applyQuaternion(soldier.quaternion);
+                    soldier.position.add(moveVector);
+                    
+                    // 애니메이션 전환 (걷기면 walk, 아니면 run)
+                    if (gameState.walk) {
+                        if (currentAction !== 'walk') fadeToAction('walk');
+                    } else {
+                        if (currentAction !== 'run') fadeToAction('run');
+                    }
+                } else {
+                    if (currentAction !== 'idle') fadeToAction('idle');
+                }
+                
+                // 맵 경계 (플레이 가능 영역 200x200)
+                const maxBoundary = 100;
+                soldier.position.x = Math.max(-maxBoundary, Math.min(maxBoundary, soldier.position.x));
+                soldier.position.z = Math.max(-maxBoundary, Math.min(maxBoundary, soldier.position.z));
+                
+                // 카메라가 캐릭터 따라가기 (3인칭 시점)
+                const cameraWorldOffset = cameraOffset.clone().applyQuaternion(soldier.quaternion);
+                
+                // 카메라 상하 각도 적용
+                const pitchRotation = new THREE.Quaternion();
+                pitchRotation.setFromAxisAngle(new THREE.Vector3(1, 0, 0), cameraPitch);
+                cameraWorldOffset.applyQuaternion(pitchRotation);
+                
+                const targetCameraPosition = soldier.position.clone().add(cameraWorldOffset);
+                camera.position.lerp(targetCameraPosition, 0.1);
+                
+                const lookAtTarget = soldier.position.clone().add(cameraLookAtOffset);
+                // 카메라가 pitch 각도만큼 위/아래를 보도록 조정
+                lookAtTarget.y += Math.tan(cameraPitch) * 5;
+                camera.lookAt(lookAtTarget);
+            }
+            
+            updateUI();
+            updateMinimap();
+            renderer.render(scene, camera);
+        }
+
+        // 윈도우 리사이즈
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 애니메이션 시작
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Three.js Minecraft-Style Game</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/controls/OrbitControls.js"></script>
+<script>
+// Scene, Camera, Renderer 초기화
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 카메라 컨트롤 (OrbitControls 사용)
+const controls = new THREE.Controls.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; // 마우스 드래그 후 자동 감속
+controls.dampingFactor = 0.05;
+camera.position.z = 5;
+
+// 조명 설정
+const light = new THREE.PointLight({ color: 0xffffff, intensity: 1 });
+light.position.set(0, 100, 0);
+scene.add(light);
+
+// 지형 생성 (Minecraft 스타일)
+class Block {
+    constructor(x, y, z, color) {
+        this.geometry = new THREE.BoxGeometry(1, 1, 1);
+        this.material = new THREE.MeshPhongMaterial({ color: color });
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.position.set(x, y, z);
+        scene.add(this.mesh);
+    }
+}
+
+// 대형 지형 생성 (-20 ~ 20 범위)
+function createLargeTerrain() {
+    const blockSize = 1;
+    const terrainColor = 0x999999;
+    for (let x = -20; x <= 20; x++) {
+        for (let z = -20; z <= 20; z++) {
+            new Block(x, 0, z, terrainColor);
+        }
+    }
+}
+createLargeTerrain();
+
+// 캐릭터 로드 (GLTF 모델)
+const loader = new THREE.GLTFLoader();
+let character;
+loader.load('https://example.com/character.gltf', (gltf) => {
+    character = gltf.scene;
+    scene.add(character);
+    character.scale.set(0.3, 0.3, 0.3);
+    character.position.set(0, 1, 0);
+}, undefined, (error) => console.error(error));
+
+// 키보드 입력 처리
+const keys = {};
+document.addEventListener('keydown', (e) => keys[e.key] = true);
+document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+// 블록 조작 시스템 (레이캐스트 기반)
+function getClickedBlock() {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+    );
+    raycaster.setFromCamera(mouse, camera);
+    return raycaster.intersectObjects(scene.children).find(obj => obj instanceof Block);
+}
+
+// 메인 애니메이션 루프
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // 캐릭터 이동 로직
+    if (keys['ArrowUp']) character.position.z += 0.2;
+    if (keys['ArrowDown']) character.position.z -= 0.2;
+    if (keys['ArrowLeft']) character.rotation.y -= 0.05;
+    if (keys['ArrowRight']) character.rotation.y += 0.05;
+
+    // 블록 조작 (Shift 키로 설치/제거)
+    if (keys['Shift']) {
+        const block = getClickedBlock();
+        if (block) block.object.material.color.set(0x00ff00); // 설치
+    } else {
+        const block = getClickedBlock();
+        if (block) block.object.material.color.set(0xff0000); // 제거
+    }
+
+    controls.update(); // 카메라 컨트롤 업데이트
+    renderer.render(scene, camera);
+}
+
+// 윈도우 리사이즈 핸들러
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate(); // 애니메이션 시작
+</script>
+</body>
+</html>

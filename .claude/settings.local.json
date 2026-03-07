@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start chrome \"d:\\\\DEV_GAME\\\\defensegame\\\\clashofclan\\\\coc1.html\")"
+    ]
+  }
+}

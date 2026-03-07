@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Louisiana Digital Fortress - Full Infrastructure</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1c20; font-family: 'Segoe UI', sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #ffffff; pointer-events: none; z-index: 10; }
+        #info-panel { 
+            position: absolute; bottom: 30px; right: 30px; 
+            background: rgba(0, 20, 40, 0.9); color: #00ffcc; 
+            padding: 20px; border: 2px solid #00ffcc; border-radius: 10px;
+            width: 280px; display: none; font-size: 14px;
+        }
+        .stat { margin-bottom: 5px; background: rgba(255,255,255,0.1); padding: 8px; border-left: 3px solid #00ffcc; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h1>LOUISIANA DCIM v4.0 - FULL SCOPE</h1>
+        <p>내부 랙부터 외부 발전기/칠러까지 전체 계통을 확인하세요.</p>
+    </div>
+
+    <div id="info-panel">
+        <h2 id="obj-name">장비명</h2>
+        <div id="obj-desc">상세 정보가 여기에 표시됩니다.</div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1c20);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(120, 80, 150);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        const controls = new OrbitControls(camera, renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        sun.position.set(100, 200, 100);
+        scene.add(sun);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredObj = null;
+
+        const infoData = {
+            "GEN": "비상 발전기: 그리드 중단 시 10초 내 기동. 48시간 연료 비축.",
+            "UTIL": "유틸리티 전력 인입: 230kV 전용선로 수전 중. 변압기 상태 정상.",
+            "NET": "외부 광케이블 인입(ISP): 다중 경로(Multi-homed) 광회선 연결.",
+            "CHILLER": "공기 칠러: 외부 온도를 이용한 1차 냉각. 액침 냉각 효율 보조.",
+            "RACK": "AI 전용 랙: 액침 냉각 가동 중. 현재 부하 85%.",
+            "UPS": "UPS 배터리: 전력 품질 정제 및 비상 전력 유지."
+        };
+
+        const group = new THREE.Group();
+        scene.add(group);
+
+        function createBox(w, h, d, x, y, z, color, name, type) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.userData = { name: name, type: type };
+            group.add(mesh);
+            return mesh;
+        }
+
+        // --- 1. 외부 인프라 구역 ---
+        // 비상 발전기 (빨간색 박스)
+        for(let i=0; i<3; i++) createBox(12, 8, 20, -100, 4, -30 + (i*25), 0xaa2222, `Emergency Generator ${i+1}`, "GEN");
+        
+        // 외부 유틸리티 변압기 (노란색 상자)
+        createBox(15, 10, 15, -100, 5, 60, 0xcccc00, "Main Utility Transformer", "UTIL");
+
+        // 외부 인터넷 인입점 (주황색 기둥)
+        createBox(5, 15, 5, 100, 7.5, 60, 0xff8800, "ISP Provider Edge (WAN)", "NET");
+
+        // 공기 칠러 (파란색 대형 설비 - 건물 뒤편)
+        for(let i=0; i<4; i++) createBox(25, 12, 10, 0 + (i*30) - 45, 6, -80, 0x4444ff, `Air-Cooled Chiller Unit ${i+1}`, "CHILLER");
+
+        // --- 2. 건물 내부 구역 ---
+        // 내부 랙 (파란색 작은 박스)
+        for(let i=0; i<5; i++) {
+            for(let j=0; j<10; j++) {
+                createBox(4, 6, 6, -30 + (i * 15), 3, -40 + (j * 8), 0x00aaff, `AI Rack Row ${i}-${j}`, "RACK");
+            }
+        }
+        // UPS실 (초록색)
+        for(let i=0; i<5; i++) createBox(4, 10, 6, -70, 5, -20 + (i*10), 0x33cc33, "Internal UPS Cluster", "UPS");
+
+        // 바닥 가이드
+        const grid = new THREE.GridHelper(300, 30, 0x444444, 0x222222);
+        scene.add(grid);
+
+        // 마우스 이벤트 및 애니메이션
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        const infoPanel = document.getElementById('info-panel');
+        const objName = document.getElementById('obj-name');
+        const objDesc = document.getElementById('obj-desc');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(group.children);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                if (hoveredObj !== target) {
+                    if (hoveredObj) hoveredObj.material.emissive.setHex(0x000000);
+                    hoveredObj = target;
+                    hoveredObj.material.emissive.setHex(0x444444);
+                    infoPanel.style.display = 'block';
+                    objName.innerText = hoveredObj.userData.name;
+                    objDesc.innerText = infoData[hoveredObj.userData.type] || "정상 가동 중";
+                }
+            } else {
+                if (hoveredObj) hoveredObj.material.emissive.setHex(0x000000);
+                hoveredObj = null;
+                infoPanel.style.display = 'none';
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

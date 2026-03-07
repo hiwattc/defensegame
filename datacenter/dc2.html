@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>배턴루지 데이터 퓨즈 (Baton Rouge Data Fuse)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        /* 상단 바 */
+        #top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 14, 26, 0.95);
+            border-bottom: 2px solid #00ffcc;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+
+        #game-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ffcc;
+        }
+
+        #top-stats {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: #00ffcc;
+            font-weight: bold;
+        }
+
+        #weather-icon {
+            font-size: 24px;
+        }
+
+        /* 중앙 화면 */
+        #main-view {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 320px;
+            bottom: 200px;
+            background: #1a1c20;
+        }
+
+        #map-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #grid-container {
+            width: 100%;
+            height: 100%;
+            display: none;
+            background: #0f1115;
+            position: relative;
+        }
+
+        #grid-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #00ffcc;
+            background: #1a1c20;
+        }
+
+        /* 우측 패널 */
+        #right-panel {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            width: 320px;
+            bottom: 200px;
+            background: rgba(10, 14, 26, 0.95);
+            border-left: 2px solid #00ffcc;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        #right-panel h2 {
+            color: #00ffcc;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .build-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .build-item {
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid #00ffcc;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 5px;
+        }
+
+        .build-item:hover {
+            background: rgba(0, 255, 204, 0.2);
+            transform: translateX(5px);
+        }
+
+        .build-item.selected {
+            background: rgba(0, 255, 204, 0.3);
+            border-width: 2px;
+        }
+
+        .build-item-name {
+            font-weight: bold;
+            color: #00ffcc;
+            margin-bottom: 5px;
+        }
+
+        .build-item-desc {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .build-item-cost {
+            margin-top: 5px;
+            font-size: 11px;
+            color: #ffaa00;
+        }
+
+        /* 하단 대시보드 */
+        #bottom-dashboard {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 320px;
+            height: 200px;
+            background: rgba(10, 14, 26, 0.95);
+            border-top: 2px solid #00ffcc;
+            padding: 15px;
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .dashboard-section {
+            flex: 1;
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid #00ffcc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .dashboard-section h3 {
+            color: #00ffcc;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        #power-chart {
+            width: 100%;
+            height: 120px;
+            background: #0a0e1a;
+        }
+
+        .temp-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 2px;
+            height: 120px;
+        }
+
+        .temp-cell {
+            background: #1a1c20;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #fff;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #00ffcc;
+            color: #0a0e1a;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .site-marker {
+            cursor: pointer;
+        }
+
+        .leaflet-popup-content {
+            color: #0a0e1a;
+        }
+
+        .view-toggle {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(10, 14, 26, 0.9);
+            border: 2px solid #00ffcc;
+            padding: 10px 15px;
+            color: #00ffcc;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- 상단 바 -->
+    <div id="top-bar">
+        <div id="game-title">배턴루지 데이터 퓨즈</div>
+        <div id="top-stats">
+            <div class="stat-item">
+                <span class="stat-label">날짜/시간:</span>
+                <span class="stat-value" id="game-time">2024-01-01 00:00</span>
+            </div>
+            <div class="stat-item">
+                <span id="weather-icon">☀️</span>
+                <span class="stat-value" id="weather-status">NORMAL</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">예산:</span>
+                <span class="stat-value" id="cash">$1,000,000</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">가동률:</span>
+                <span class="stat-value" id="uptime">100%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 중앙 화면 -->
+    <div id="main-view">
+        <div id="map-container"></div>
+        <div id="grid-container">
+            <canvas id="grid-canvas" width="800" height="800"></canvas>
+            <button class="view-toggle" id="back-to-map">지도로 돌아가기</button>
+        </div>
+    </div>
+
+    <!-- 우측 패널 -->
+    <div id="right-panel">
+        <h2>건설 메뉴</h2>
+        <div class="build-menu" id="build-menu">
+            <div class="build-item" data-type="rack">
+                <div class="build-item-name">서버 랙</div>
+                <div class="build-item-desc">전력: 5kW, 발열: 높음, 수익: $500/월</div>
+                <div class="build-item-cost">비용: $10,000</div>
+            </div>
+            <div class="build-item" data-type="ups">
+                <div class="build-item-name">UPS</div>
+                <div class="build-item-desc">최대 공급: 100kW, 전력 품질 정제</div>
+                <div class="build-item-cost">비용: $25,000</div>
+            </div>
+            <div class="build-item" data-type="generator">
+                <div class="build-item-name">비상 발전기</div>
+                <div class="build-item-desc">최대 공급: 200kW, 연료 소모</div>
+                <div class="build-item-cost">비용: $50,000</div>
+            </div>
+            <div class="build-item" data-type="cooling">
+                <div class="build-item-name">냉각 장치 (CRAC)</div>
+                <div class="build-item-desc">냉각 용량: 50kW, 도달 거리: 3칸</div>
+                <div class="build-item-cost">비용: $30,000</div>
+            </div>
+            <div class="build-item" data-type="aisle">
+                <div class="build-item-name">복도</div>
+                <div class="build-item-desc">설비 배치를 위한 통로</div>
+                <div class="build-item-cost">비용: 무료</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 대시보드 -->
+    <div id="bottom-dashboard">
+        <div class="dashboard-section">
+            <h3>실시간 전력량 (kW)</h3>
+            <canvas id="power-chart"></canvas>
+        </div>
+        <div class="dashboard-section">
+            <h3>온도 히트맵</h3>
+            <div class="temp-grid" id="temp-grid"></div>
+            <button class="toggle-btn" id="toggle-heatmap">히트맵 토글</button>
+        </div>
+        <div class="dashboard-section">
+            <h3>경제 현황</h3>
+            <div style="font-size: 12px; line-height: 1.8;">
+                <div>월 수익: <span id="monthly-income" style="color: #00ff00;">$0</span></div>
+                <div>월 지출: <span id="monthly-expense" style="color: #ff0000;">$0</span></div>
+                <div>순이익: <span id="net-profit" style="color: #00ffcc;">$0</span></div>
+                <div>PUE: <span id="current-pue">1.20</span></div>
+                <div>총 전력: <span id="total-power">0 kW</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 게임 상태
+        const gameState = {
+            player: {
+                cash: 1000000,
+                reputation: 50,
+                unlockedTech: ["air_cooling", "diesel_gen"]
+            },
+            buildings: [],
+            currentBuilding: null,
+            selectedBuildType: null,
+            gameTime: new Date(2024, 0, 1, 0, 0, 0),
+            weather: {
+                state: 'NORMAL',
+                externalTemp: 25,
+                windSpeed: 0
+            },
+            powerHistory: [],
+            gridSize: 20,
+            grid: null,
+            showHeatmap: false
+        };
+
+        // 설비 비용 및 속성
+        const equipmentData = {
+            rack: { cost: 10000, power: 5, heat: 2, income: 500, durability: 100 },
+            ups: { cost: 25000, maxPower: 100, efficiency: 0.95 },
+            generator: { cost: 50000, maxPower: 200, fuelRate: 0.1 },
+            cooling: { cost: 30000, capacity: 50, range: 3, power: 10 },
+            aisle: { cost: 0 }
+        };
+
+        // Leaflet 지도 초기화
+        const map = L.map('map-container').setView([30.4515, -91.1871], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 매입 가능 부지 정의
+        const availableSites = [
+            { id: 'SITE_01', coords: [30.4515, -91.1871], name: '시내 중심부', attributes: { powerDiscount: 0.3 } },
+            { id: 'SITE_02', coords: [30.4600, -91.1800], name: '강 인근 부지', attributes: { coolingBonus: 0.2 } },
+            { id: 'SITE_03', coords: [30.4400, -91.1950], name: '교외 부지', attributes: {} }
+        ];
+
+        // 부지 마커 추가
+        availableSites.forEach(site => {
+            const marker = L.marker(site.coords, { className: 'site-marker' })
+                .addTo(map)
+                .bindPopup(`
+                    <strong>${site.name}</strong><br>
+                    ${site.attributes.powerDiscount ? '전력 인입비 -30%' : ''}
+                    ${site.attributes.coolingBonus ? '수랭 효율 +20%' : ''}
+                    <br><button onclick="buySite('${site.id}')">매입 ($500,000)</button>
+                `);
+            marker.siteData = site;
+        });
+
+        // 부지 매입 함수
+        window.buySite = function(siteId) {
+            const site = availableSites.find(s => s.id === siteId);
+            if (!site) return;
+
+            if (gameState.player.cash >= 500000) {
+                gameState.player.cash -= 500000;
+                const building = {
+                    id: `DC_${gameState.buildings.length + 1}`,
+                    location: site.coords,
+                    grid: Array(20).fill(null).map(() => Array(20).fill(null)),
+                    stats: {
+                        currentPUE: 1.25,
+                        totalPower: 0,
+                        tempAlert: false
+                    },
+                    siteAttributes: site.attributes
+                };
+                gameState.buildings.push(building);
+                updateUI();
+                alert(`${site.name} 매입 완료!`);
+            } else {
+                alert('자금이 부족합니다.');
+            }
+        };
+
+        // 그리드 초기화
+        function initGrid(building) {
+            gameState.currentBuilding = building;
+            gameState.grid = building.grid;
+            const canvas = document.getElementById('grid-canvas');
+            const ctx = canvas.getContext('2d');
+            const cellSize = 800 / 20;
+
+            function drawGrid() {
+                ctx.clearRect(0, 0, 800, 800);
+                
+                // 그리드 라인 그리기
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= 20; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(i * cellSize, 0);
+                    ctx.lineTo(i * cellSize, 800);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * cellSize);
+                    ctx.lineTo(800, i * cellSize);
+                    ctx.stroke();
+                }
+
+                // 설비 그리기
+                for (let y = 0; y < 20; y++) {
+                    for (let x = 0; x < 20; x++) {
+                        const cell = gameState.grid[y][x];
+                        if (cell) {
+                            const colors = {
+                                rack: '#00aaff',
+                                ups: '#33cc33',
+                                generator: '#aa2222',
+                                cooling: '#4444ff',
+                                aisle: '#666666'
+                            };
+                            ctx.fillStyle = colors[cell.type] || '#888888';
+                            ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            
+                            // 온도 표시 (히트맵 모드)
+                            if (gameState.showHeatmap && cell.temperature !== undefined) {
+                                const temp = Math.min(cell.temperature, 50);
+                                const intensity = temp / 50;
+                                ctx.fillStyle = `rgba(255, ${255 * (1 - intensity)}, 0, 0.5)`;
+                                ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 클릭 이벤트
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / cellSize);
+                const y = Math.floor((e.clientY - rect.top) / cellSize);
+                
+                if (x >= 0 && x < 20 && y >= 0 && y < 20 && gameState.selectedBuildType) {
+                    placeEquipment(x, y, gameState.selectedBuildType);
+                    drawGrid();
+                    updateUI();
+                }
+            });
+
+            drawGrid();
+        }
+
+        // 설비 배치
+        function placeEquipment(x, y, type) {
+            if (gameState.grid[y][x] !== null) {
+                alert('이미 설비가 배치되어 있습니다.');
+                return;
+            }
+
+            const equipment = equipmentData[type];
+            if (!equipment) return;
+
+            if (gameState.player.cash < equipment.cost) {
+                alert('자금이 부족합니다.');
+                return;
+            }
+
+            gameState.player.cash -= equipment.cost;
+            gameState.grid[y][x] = {
+                type: type,
+                x: x,
+                y: y,
+                ...equipment,
+                temperature: type === 'rack' ? 30 : 25
+            };
+
+            updateBuildingStats();
+        }
+
+        // 건물 통계 업데이트
+        function updateBuildingStats() {
+            if (!gameState.currentBuilding) return;
+
+            let totalPower = 0;
+            let rackCount = 0;
+
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const cell = gameState.grid[y][x];
+                    if (cell) {
+                        if (cell.type === 'rack') {
+                            totalPower += cell.power;
+                            rackCount++;
+                        } else if (cell.type === 'cooling') {
+                            totalPower += cell.power;
+                        }
+                    }
+                }
+            }
+
+            gameState.currentBuilding.stats.totalPower = totalPower;
+        }
+
+        // 날씨 엔진
+        function updateWeather() {
+            const rand = Math.random();
+            if (rand < 0.05) {
+                gameState.weather.state = 'HURRICANE';
+                gameState.weather.windSpeed = 100 + Math.random() * 50;
+            } else if (rand < 0.15) {
+                gameState.weather.state = 'HEATWAVE';
+                gameState.weather.externalTemp = 38 + Math.random() * 5;
+            } else {
+                gameState.weather.state = 'NORMAL';
+                gameState.weather.externalTemp = 20 + Math.random() * 10;
+                gameState.weather.windSpeed = 0;
+            }
+        }
+
+        // 열 시뮬레이션
+        function simulateHeat() {
+            if (!gameState.currentBuilding || !gameState.grid) return;
+
+            const newTemps = Array(20).fill(null).map(() => Array(20).fill(25));
+
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const cell = gameState.grid[y][x];
+                    if (!cell) {
+                        newTemps[y][x] = gameState.weather.externalTemp;
+                        continue;
+                    }
+
+                    let temp = cell.temperature || 25;
+
+                    // 서버 랙은 지속적으로 발열
+                    if (cell.type === 'rack') {
+                        temp += cell.heat * 0.5;
+                    }
+
+                    // 냉각 장치 효과
+                    if (cell.type === 'cooling') {
+                        temp = gameState.weather.externalTemp;
+                        // 주변 타일 냉각
+                        for (let dy = -cell.range; dy <= cell.range; dy++) {
+                            for (let dx = -cell.range; dx <= cell.range; dx++) {
+                                const ny = y + dy;
+                                const nx = x + dx;
+                                if (ny >= 0 && ny < 20 && nx >= 0 && nx < 20) {
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+                                    if (dist <= cell.range) {
+                                        const neighbor = gameState.grid[ny][nx];
+                                        if (neighbor && neighbor.type === 'rack') {
+                                            newTemps[ny][nx] = Math.min(newTemps[ny][nx] || 50, 
+                                                gameState.weather.externalTemp + 5);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 인접 타일과 온도 평균화
+                    let sum = temp;
+                    let count = 1;
+                    const neighbors = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                    neighbors.forEach(([dx, dy]) => {
+                        const ny = y + dy;
+                        const nx = x + dx;
+                        if (ny >= 0 && ny < 20 && nx >= 0 && nx < 20) {
+                            const neighbor = gameState.grid[ny][nx];
+                            if (neighbor && neighbor.temperature !== undefined) {
+                                sum += neighbor.temperature;
+                                count++;
+                            }
+                        }
+                    });
+                    newTemps[y][x] = sum / count;
+                }
+            }
+
+            // 온도 업데이트
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const cell = gameState.grid[y][x];
+                    if (cell) {
+                        cell.temperature = newTemps[y][x];
+                    }
+                }
+            }
+
+            // 온도 경고 체크
+            if (gameState.currentBuilding) {
+                let maxTemp = 0;
+                for (let y = 0; y < 20; y++) {
+                    for (let x = 0; x < 20; x++) {
+                        const cell = gameState.grid[y][x];
+                        if (cell && cell.temperature > maxTemp) {
+                            maxTemp = cell.temperature;
+                        }
+                    }
+                }
+                gameState.currentBuilding.stats.tempAlert = maxTemp > 40;
+            }
+        }
+
+        // 경제 계산
+        function calculateEconomics() {
+            if (!gameState.currentBuilding) return { income: 0, expense: 0 };
+
+            let income = 0;
+            let expense = 0;
+            let totalPower = 0;
+
+            for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                    const cell = gameState.grid[y][x];
+                    if (!cell) continue;
+
+                    if (cell.type === 'rack') {
+                        income += cell.income;
+                        totalPower += cell.power;
+                    } else if (cell.type === 'cooling') {
+                        totalPower += cell.power;
+                    }
+                }
+            }
+
+            // PUE 계산
+            let pueFactor = 1.2;
+            if (gameState.weather.state === 'HEATWAVE') {
+                pueFactor = 1.5;
+            } else if (gameState.weather.state === 'HURRICANE') {
+                pueFactor = 1.8;
+            }
+
+            expense = totalPower * pueFactor * 0.1; // 전력 비용 (kW당 $0.1)
+            expense += gameState.currentBuilding.stats.totalPower * 0.05; // 유지보수
+
+            return { income, expense, totalPower, pue: pueFactor };
+        }
+
+        // UI 업데이트
+        function updateUI() {
+            document.getElementById('cash').textContent = `$${gameState.player.cash.toLocaleString()}`;
+            document.getElementById('weather-status').textContent = gameState.weather.state;
+            
+            const weatherIcons = {
+                'NORMAL': '☀️',
+                'HEATWAVE': '🔥',
+                'HURRICANE': '🌀'
+            };
+            document.getElementById('weather-icon').textContent = weatherIcons[gameState.weather.state] || '☀️';
+
+            const economics = calculateEconomics();
+            document.getElementById('monthly-income').textContent = `$${economics.income.toLocaleString()}`;
+            document.getElementById('monthly-expense').textContent = `$${economics.expense.toLocaleString()}`;
+            document.getElementById('net-profit').textContent = `$${(economics.income - economics.expense).toLocaleString()}`;
+            document.getElementById('current-pue').textContent = economics.pue.toFixed(2);
+            document.getElementById('total-power').textContent = `${economics.totalPower.toFixed(0)} kW`;
+
+            // 전력 그래프 업데이트
+            gameState.powerHistory.push(economics.totalPower);
+            if (gameState.powerHistory.length > 50) {
+                gameState.powerHistory.shift();
+            }
+            drawPowerChart();
+
+            // 온도 그리드 업데이트
+            updateTempGrid();
+        }
+
+        // 전력 그래프 그리기
+        function drawPowerChart() {
+            const canvas = document.getElementById('power-chart');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState.powerHistory.length < 2) return;
+
+            const maxPower = Math.max(...gameState.powerHistory, 100);
+            const stepX = canvas.width / (gameState.powerHistory.length - 1);
+
+            ctx.strokeStyle = '#00ffcc';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            gameState.powerHistory.forEach((power, i) => {
+                const x = i * stepX;
+                const y = canvas.height - (power / maxPower) * canvas.height;
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+        }
+
+        // 온도 그리드 업데이트
+        function updateTempGrid() {
+            const grid = document.getElementById('temp-grid');
+            grid.innerHTML = '';
+
+            if (!gameState.currentBuilding || !gameState.grid) {
+                for (let i = 0; i < 100; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'temp-cell';
+                    cell.textContent = '-';
+                    grid.appendChild(cell);
+                }
+                return;
+            }
+
+            let cellIndex = 0;
+            for (let y = 0; y < 10 && cellIndex < 100; y++) {
+                for (let x = 0; x < 10 && cellIndex < 100; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'temp-cell';
+                    
+                    const gridY = Math.floor(y * 2);
+                    const gridX = Math.floor(x * 2);
+                    const gridCell = gameState.grid[gridY] && gameState.grid[gridY][gridX];
+                    
+                    if (gridCell && gridCell.temperature !== undefined) {
+                        const temp = Math.round(gridCell.temperature);
+                        cell.textContent = temp + '°';
+                        const intensity = Math.min(temp / 50, 1);
+                        cell.style.background = `rgb(${255 * intensity}, ${255 * (1 - intensity)}, 0)`;
+                    } else {
+                        cell.textContent = '-';
+                    }
+                    grid.appendChild(cell);
+                    cellIndex++;
+                }
+            }
+        }
+
+        // 건설 메뉴 이벤트
+        document.querySelectorAll('.build-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.build-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                gameState.selectedBuildType = item.dataset.type;
+            });
+        });
+
+        // 뷰 토글
+        document.getElementById('back-to-map').addEventListener('click', () => {
+            document.getElementById('map-container').style.display = 'block';
+            document.getElementById('grid-container').style.display = 'none';
+            gameState.currentBuilding = null;
+        });
+
+        // 건물 진입 (더블클릭)
+        map.on('dblclick', (e) => {
+            const building = gameState.buildings.find(b => {
+                const dist = Math.sqrt(
+                    Math.pow(b.location[0] - e.latlng.lat, 2) +
+                    Math.pow(b.location[1] - e.latlng.lng, 2)
+                );
+                return dist < 0.01;
+            });
+
+            if (building) {
+                document.getElementById('map-container').style.display = 'none';
+                document.getElementById('grid-container').style.display = 'block';
+                initGrid(building);
+            }
+        });
+
+        // 히트맵 토글
+        document.getElementById('toggle-heatmap').addEventListener('click', () => {
+            gameState.showHeatmap = !gameState.showHeatmap;
+            if (gameState.currentBuilding) {
+                const canvas = document.getElementById('grid-canvas');
+                const ctx = canvas.getContext('2d');
+                const cellSize = 800 / 20;
+                ctx.clearRect(0, 0, 800, 800);
+                
+                // 그리드 다시 그리기
+                for (let i = 0; i <= 20; i++) {
+                    ctx.strokeStyle = '#333';
+                    ctx.beginPath();
+                    ctx.moveTo(i * cellSize, 0);
+                    ctx.lineTo(i * cellSize, 800);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * cellSize);
+                    ctx.lineTo(800, i * cellSize);
+                    ctx.stroke();
+                }
+
+                for (let y = 0; y < 20; y++) {
+                    for (let x = 0; x < 20; x++) {
+                        const cell = gameState.grid[y][x];
+                        if (cell) {
+                            const colors = {
+                                rack: '#00aaff',
+                                ups: '#33cc33',
+                                generator: '#aa2222',
+                                cooling: '#4444ff',
+                                aisle: '#666666'
+                            };
+                            ctx.fillStyle = colors[cell.type] || '#888888';
+                            ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            
+                            if (gameState.showHeatmap && cell.temperature !== undefined) {
+                                const temp = Math.min(cell.temperature, 50);
+                                const intensity = temp / 50;
+                                ctx.fillStyle = `rgba(255, ${255 * (1 - intensity)}, 0, 0.5)`;
+                                ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 게임 루프
+        function gameLoop() {
+            // 게임 시간 업데이트
+            gameState.gameTime.setMinutes(gameState.gameTime.getMinutes() + 1);
+            document.getElementById('game-time').textContent = 
+                gameState.gameTime.toLocaleString('ko-KR', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+
+            // 날씨 업데이트 (1분마다)
+            if (gameState.gameTime.getMinutes() % 1 === 0) {
+                updateWeather();
+            }
+
+            // 열 시뮬레이션
+            simulateHeat();
+
+            // UI 업데이트
+            updateUI();
+
+            // 그리드 다시 그리기
+            if (gameState.currentBuilding) {
+                const canvas = document.getElementById('grid-canvas');
+                const ctx = canvas.getContext('2d');
+                const cellSize = 800 / 20;
+                ctx.clearRect(0, 0, 800, 800);
+                
+                for (let i = 0; i <= 20; i++) {
+                    ctx.strokeStyle = '#333';
+                    ctx.beginPath();
+                    ctx.moveTo(i * cellSize, 0);
+                    ctx.lineTo(i * cellSize, 800);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(0, i * cellSize);
+                    ctx.lineTo(800, i * cellSize);
+                    ctx.stroke();
+                }
+
+                for (let y = 0; y < 20; y++) {
+                    for (let x = 0; x < 20; x++) {
+                        const cell = gameState.grid[y][x];
+                        if (cell) {
+                            const colors = {
+                                rack: '#00aaff',
+                                ups: '#33cc33',
+                                generator: '#aa2222',
+                                cooling: '#4444ff',
+                                aisle: '#666666'
+                            };
+                            ctx.fillStyle = colors[cell.type] || '#888888';
+                            ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            
+                            if (gameState.showHeatmap && cell.temperature !== undefined) {
+                                const temp = Math.min(cell.temperature, 50);
+                                const intensity = temp / 50;
+                                ctx.fillStyle = `rgba(255, ${255 * (1 - intensity)}, 0, 0.5)`;
+                                ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 초기화
+        updateUI();
+        setInterval(gameLoop, 1000); // 1초마다 업데이트
+    </script>
+</body>
+</html>
+

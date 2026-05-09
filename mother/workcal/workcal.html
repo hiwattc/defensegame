@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>근무 워크 캘린더</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: #ffffff;
+        --line: #d9dfeb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --active: #2563eb;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 16px;
+      }
+
+      .toolbar,
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      button,
+      select {
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0 12px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .title {
+        font-weight: 700;
+        font-size: 18px;
+        margin-right: auto;
+      }
+
+      .days-header,
+      .calendar {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .days-header div {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+        padding: 6px 0;
+      }
+
+      .day {
+        min-height: 92px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        padding: 8px;
+        text-align: left;
+        position: relative;
+        cursor: pointer;
+      }
+
+      .day.empty {
+        background: #f9fafb;
+        cursor: default;
+      }
+
+      .day-number {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .shift-badge {
+        margin-top: 8px;
+        display: inline-block;
+        min-width: 34px;
+        text-align: center;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid transparent;
+      }
+
+      .shift-none {
+        background: #f3f4f6;
+        color: #6b7280;
+        border-color: #e5e7eb;
+      }
+
+      .shift-d {
+        background: #e0ecff;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+      }
+
+      .shift-n {
+        background: #e5e7ff;
+        color: #4338ca;
+        border-color: #c7d2fe;
+      }
+
+      .shift-dn {
+        background: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
+      }
+
+      .mode-btn.active {
+        border-color: var(--active);
+        color: var(--active);
+        font-weight: 700;
+      }
+
+      .status {
+        color: var(--muted);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="panel">
+        <div class="toolbar">
+          <div class="title" id="monthTitle"></div>
+          <button id="prevMonthBtn" type="button">이전 월</button>
+          <button id="nextMonthBtn" type="button">다음 월</button>
+          <button id="saveBtn" type="button">저장</button>
+        </div>
+
+        <div class="legend">
+          <span>근무유형 선택:</span>
+          <button class="mode-btn active" type="button" data-shift="">지우기</button>
+          <button class="mode-btn" type="button" data-shift="D">D</button>
+          <button class="mode-btn" type="button" data-shift="N">N</button>
+          <button class="mode-btn" type="button" data-shift="DN">DN</button>
+          <span class="status" id="statusText"></span>
+        </div>
+
+        <div class="days-header">
+          <div>일</div>
+          <div>월</div>
+          <div>화</div>
+          <div>수</div>
+          <div>목</div>
+          <div>금</div>
+          <div>토</div>
+        </div>
+        <div class="calendar" id="calendarGrid"></div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        const STORAGE_KEY = "workCalendarMonthlyData";
+        const monthTitle = document.getElementById("monthTitle");
+        const calendarGrid = document.getElementById("calendarGrid");
+        const statusText = document.getElementById("statusText");
+        const prevMonthBtn = document.getElementById("prevMonthBtn");
+        const nextMonthBtn = document.getElementById("nextMonthBtn");
+        const saveBtn = document.getElementById("saveBtn");
+        const modeButtons = Array.from(document.querySelectorAll(".mode-btn"));
+
+        const state = {
+          viewDate: new Date(),
+          selectedShift: "",
+          allData: loadAllData(),
+        };
+
+        function monthKey(date) {
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, "0");
+          return y + "-" + m;
+        }
+
+        function dayKey(year, monthIndex, day) {
+          const m = String(monthIndex + 1).padStart(2, "0");
+          const d = String(day).padStart(2, "0");
+          return year + "-" + m + "-" + d;
+        }
+
+        function loadAllData() {
+          try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? parsed : {};
+          } catch (error) {
+            console.error("저장 데이터 파싱 오류:", error);
+            return {};
+          }
+        }
+
+        function saveAllData() {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.allData, null, 2));
+        }
+
+        function downloadMonthJson() {
+          const key = monthKey(state.viewDate);
+          const monthData = getMonthData();
+          const payload = {
+            month: key,
+            savedAt: new Date().toISOString(),
+            schedules: monthData,
+          };
+          const jsonText = JSON.stringify(payload, null, 2);
+          const blob = new Blob([jsonText], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "workcal-" + key + ".json";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+
+        function getMonthData() {
+          const key = monthKey(state.viewDate);
+          if (!state.allData[key] || typeof state.allData[key] !== "object") {
+            state.allData[key] = {};
+          }
+          return state.allData[key];
+        }
+
+        function formatMonthTitle(date) {
+          return date.getFullYear() + "년 " + (date.getMonth() + 1) + "월";
+        }
+
+        function setStatus(text) {
+          statusText.textContent = text;
+        }
+
+        function badgeClass(shift) {
+          if (shift === "D") return "shift-d";
+          if (shift === "N") return "shift-n";
+          if (shift === "DN") return "shift-dn";
+          return "shift-none";
+        }
+
+        function renderCalendar() {
+          const year = state.viewDate.getFullYear();
+          const monthIndex = state.viewDate.getMonth();
+          const firstDay = new Date(year, monthIndex, 1).getDay();
+          const lastDate = new Date(year, monthIndex + 1, 0).getDate();
+          const monthData = getMonthData();
+
+          monthTitle.textContent = formatMonthTitle(state.viewDate);
+          calendarGrid.innerHTML = "";
+
+          for (let i = 0; i < firstDay; i += 1) {
+            const emptyCell = document.createElement("div");
+            emptyCell.className = "day empty";
+            calendarGrid.appendChild(emptyCell);
+          }
+
+          for (let day = 1; day <= lastDate; day += 1) {
+            const key = dayKey(year, monthIndex, day);
+            const shift = monthData[key] || "";
+
+            const dayBtn = document.createElement("button");
+            dayBtn.type = "button";
+            dayBtn.className = "day";
+            dayBtn.dataset.dateKey = key;
+            dayBtn.innerHTML =
+              '<div class="day-number">' +
+              day +
+              "</div>" +
+              '<span class="shift-badge ' +
+              badgeClass(shift) +
+              '">' +
+              (shift || "없음") +
+              "</span>";
+
+            dayBtn.addEventListener("click", function () {
+              const monthStore = getMonthData();
+              if (state.selectedShift) {
+                monthStore[key] = state.selectedShift;
+              } else {
+                delete monthStore[key];
+              }
+              renderCalendar();
+            });
+
+            calendarGrid.appendChild(dayBtn);
+          }
+
+          const info = "현재 선택: " + (state.selectedShift || "지우기");
+          setStatus(info);
+        }
+
+        function changeMonth(offset) {
+          const d = state.viewDate;
+          state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
+          renderCalendar();
+          setStatus("월 이동 완료 (저장은 수동)");
+        }
+
+        function handleSave() {
+          saveAllData();
+          const key = monthKey(state.viewDate);
+          downloadMonthJson();
+          setStatus("저장 완료: " + key + " (localStorage + JSON 파일)");
+        }
+
+        function handleSelectShift(shift) {
+          state.selectedShift = shift;
+          modeButtons.forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.shift === shift);
+          });
+          setStatus("현재 선택: " + (shift || "지우기"));
+        }
+
+        prevMonthBtn.addEventListener("click", function () {
+          changeMonth(-1);
+        });
+        nextMonthBtn.addEventListener("click", function () {
+          changeMonth(1);
+        });
+        saveBtn.addEventListener("click", handleSave);
+
+        modeButtons.forEach((btn) => {
+          btn.addEventListener("click", function () {
+            handleSelectShift(btn.dataset.shift || "");
+          });
+        });
+
+        renderCalendar();
+        setStatus("초기 로드 완료: 저장 데이터 자동 불러오기");
+      })();
+    </script>
+  </body>
+</html>

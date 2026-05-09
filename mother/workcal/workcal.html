@@ -124,17 +124,17 @@
 ════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { color-scheme: dark; }
+html { color-scheme: dark; font-size: 18px; } /* JS overwrites this */
 [data-theme="light"] { color-scheme: light; }
 
-/* font-size는 JS가 body.style.fontSize 로만 제어 */
+/* font-size는 JS가 html.style.fontSize 로 제어 → rem 단위 전체 cascade */
 body {
   font-size: 14px;
   font-family: 'Pretendard', -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding: 2.2em 1em 3.2em;
+  padding: 2.2rem 1rem 3.2rem;
   background-image:
     radial-gradient(ellipse 80% 60% at 20% -10%, var(--grad1) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 80% 110%, var(--grad2) 0%, transparent 60%);
@@ -638,7 +638,7 @@ html, body {
   }
   function applyFont(size) {
     if (!FONT_PRESETS.includes(size)) size = FONT_DEF;
-    document.body.style.fontSize = size + "px";
+    document.documentElement.style.fontSize = size + "px";
     document.getElementById("fontCurLabel").textContent = size + "px";
     document.querySelectorAll(".font-preset-btn").forEach(b => {
       b.classList.toggle("active", parseInt(b.dataset.size) === size);

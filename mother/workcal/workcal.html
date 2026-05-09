@@ -82,6 +82,15 @@
         letter-spacing: -0.2px;
       }
 
+      .icon-btn {
+        width: 36px;
+        min-width: 36px;
+        padding: 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
       .days-header,
       .calendar {
         display: grid;
@@ -97,7 +106,7 @@
       }
 
       .day {
-        aspect-ratio: 1 / 1;
+        min-height: 92px;
         border: 1px solid var(--line);
         border-radius: 10px;
         background: #fff;
@@ -118,6 +127,11 @@
 
       .day:active {
         transform: scale(0.99);
+      }
+
+      .day.today {
+        background: #eff6ff;
+        border-color: #93c5fd;
       }
 
       .day.empty {
@@ -197,6 +211,9 @@
       <section class="panel">
         <div class="toolbar">
           <div class="title" id="monthTitle"></div>
+          <button id="refreshBtn" class="icon-btn" type="button" aria-label="새로고침" title="새로고침">
+            ↻
+          </button>
           <button id="saveBtn" type="button">저장</button>
         </div>
 
@@ -252,6 +269,7 @@
       const prevMonthBtn = document.getElementById("prevMonthBtn");
       const nextMonthBtn = document.getElementById("nextMonthBtn");
       const saveBtn = document.getElementById("saveBtn");
+      const refreshBtn = document.getElementById("refreshBtn");
       const modeButtons = Array.from(document.querySelectorAll(".mode-btn"));
 
       const FIREBASE_CONFIG = {
@@ -289,6 +307,11 @@
         const m = String(monthIndex + 1).padStart(2, "0");
         const d = String(day).padStart(2, "0");
         return year + "-" + m + "-" + d;
+      }
+
+      function getTodayKey() {
+        const today = new Date();
+        return dayKey(today.getFullYear(), today.getMonth(), today.getDate());
       }
 
       function getMonthData() {
@@ -337,6 +360,7 @@
         const firstDay = new Date(year, monthIndex, 1).getDay();
         const lastDate = new Date(year, monthIndex + 1, 0).getDate();
         const monthData = getMonthData();
+        const todayKey = getTodayKey();
 
         monthTitle.textContent = formatMonthTitle(state.viewDate);
         calendarGrid.innerHTML = "";
@@ -354,6 +378,9 @@
           const dayBtn = document.createElement("button");
           dayBtn.type = "button";
           dayBtn.className = "day";
+          if (key === todayKey) {
+            dayBtn.classList.add("today");
+          }
           dayBtn.dataset.dateKey = key;
           dayBtn.innerHTML =
             '<div class="day-number">' +
@@ -550,6 +577,10 @@
         );
       }
 
+      function handleRefresh() {
+        location.reload();
+      }
+
       function handleSelectShift(shift) {
         state.selectedShift = shift === "__VIEW__" ? null : shift;
         modeButtons.forEach((btn) => {
@@ -569,6 +600,7 @@
         changeMonth(1);
       });
       saveBtn.addEventListener("click", handleSave);
+      refreshBtn.addEventListener("click", handleRefresh);
 
       modeButtons.forEach((btn) => {
         btn.addEventListener("click", function () {
@@ -577,6 +609,7 @@
       });
 
       renderCalendar();
+      setStatus("초기 로딩중...");
       ensureAuthenticated(false).then((authOk) => {
         if (!authOk) {
           setStatus("초기 로드: 인증 필요 (저장/월이동 시 Google 로그인 시도)");

@@ -158,9 +158,9 @@
       }
 
       .shift-dn {
-        background: #d1fae5;
-        color: #065f46;
-        border-color: #a7f3d0;
+        background: #ffedd5;
+        color: #c2410c;
+        border-color: #fdba74;
       }
 
       .mode-btn.active {
@@ -196,7 +196,6 @@
         </div>
 
         <div class="legend">
-          <span>근무유형 선택:</span>
           <button class="mode-btn active" type="button" data-shift="__VIEW__">조회</button>
           <button class="mode-btn" type="button" data-shift="">지우기</button>
           <button class="mode-btn" type="button" data-shift="D">D</button>
@@ -358,7 +357,7 @@
             '<span class="shift-badge ' +
             badgeClass(shift) +
             '">' +
-            (shift || "없음") +
+            (shift || "&nbsp;") +
             "</span>";
 
           dayBtn.addEventListener("click", function () {

@@ -239,49 +239,63 @@ body {
 [data-theme="light"] .icon-sun  { opacity:0; transform:rotate(90deg) scale(.6); }
 [data-theme="light"] .icon-moon { opacity:1; transform:rotate(0deg) scale(1); }
 
-/* ── Font-size control ── */
-.font-ctrl {
+/* ── Font-bar (3 preset buttons) ── */
+.font-bar {
   display: flex;
   align-items: center;
-  gap: 0;
-  height: 2.4rem;
-  border: 1px solid var(--border-hi);
-  border-radius: 10px;
+  gap: 5px;
+  margin-bottom: 0.8rem;
   background: var(--surface);
-  overflow: hidden;
-  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 5px;
+  box-shadow: 0 2px 10px var(--shadow);
 }
-.font-ctrl-btn {
-  width: 2rem; height: 100%;
-  border: none;
+.font-bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 6px 0 4px;
+  white-space: nowrap;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.3px;
+}
+.font-preset-btn {
+  height: 2rem;
+  padding: 0 1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
   background: transparent;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   color: var(--muted2);
-  font-size: 1rem;
-  font-weight: 700;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background .15s, color .15s;
+  white-space: nowrap;
+  line-height: 1;
+}
+.font-preset-btn:hover { color: var(--text); background: var(--surface2); }
+.font-preset-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+.font-preset-btn[data-size="16"] { font-size: 12px; }
+.font-preset-btn[data-size="18"] { font-size: 14px; }
+.font-preset-btn[data-size="20"] { font-size: 16px; }
+.font-bar-divider {
+  width: 1px; height: 1.2rem;
+  background: var(--border-hi);
   flex-shrink: 0;
 }
-.font-ctrl-btn:hover { background: var(--surface2); color: var(--text); }
-.font-ctrl-btn:active { transform: scale(.9); }
-.font-ctrl-btn:disabled { opacity: .35; cursor: default; }
-
-.font-size-label {
-  min-width: 2.6rem;
-  text-align: center;
-  font-size: 0.72rem;
+.font-cur {
+  font-size: 11px;
   font-weight: 700;
   color: var(--accent);
   font-family: 'DM Mono', monospace;
-  letter-spacing: 0.2px;
-  padding: 0 2px;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  height: 100%;
-  display: flex; align-items: center; justify-content: center;
+  margin-left: auto;
+  padding-right: 4px;
   white-space: nowrap;
-  user-select: none;
 }
 
 .save-btn {
@@ -505,13 +519,31 @@ body {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ── Responsive ── */
-@media (max-width: 540px) {
-  body { padding: 1rem 0.6rem 2rem; }
-  .month-title { font-size: 1.1rem; }
+/* ── Responsive / no-scroll ── */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+@media (max-width: 600px) {
+  body { padding: 0.8rem 0.5rem 1.2rem; }
+  .wrap { max-width: 100%; }
+  .month-title { font-size: 1rem; }
   .status-text { display: none; }
-  .font-size-label { min-width: 2rem; font-size: 0.65rem; }
-  .mode-btn { padding: 0 0.5rem; }
+  .mode-btn { padding: 0 0.45rem; font-size: 0.72rem; }
+  .font-preset-btn { padding: 0 0.7rem; }
+  .font-bar-label { font-size: 10px; }
+  .header { gap: 0.4rem; margin-bottom: 0.8rem; }
+  .mode-bar { margin-bottom: 0.5rem; }
+  .font-bar { margin-bottom: 0.5rem; }
+  .day-labels { gap: 3px; margin-bottom: 3px; }
+  .cal-grid { gap: 3px; }
+  .day-cell { border-radius: 7px; padding: 0.4rem 0.3rem 0.3rem; }
+  .shift-tag { font-size: 0.6rem; padding: 0.1rem 0.35rem; }
+  .day-num { font-size: 0.65rem; }
+  .legend { margin-top: 0.6rem; gap: 0.6rem; }
+  .legend-item { font-size: 0.65rem; }
+  .save-btn { padding: 0 0.7rem; font-size: 0.78rem; }
+  .month-nav-btn, .icon-btn, .theme-toggle { width: 2rem; height: 2rem; font-size: 0.9rem; }
 }
 ```
 
@@ -527,12 +559,6 @@ body {
     <div class="month-title" id="monthTitle"></div>
     <button class="month-nav-btn" id="nextBtn">&#8250;</button>
     <div class="header-actions">
-      <!-- Font size control -->
-      <div class="font-ctrl">
-        <button class="font-ctrl-btn" id="fontDecBtn" title="글자 작게">A−</button>
-        <span class="font-size-label" id="fontSizeLabel">14px</span>
-        <button class="font-ctrl-btn" id="fontIncBtn" title="글자 크게">A+</button>
-      </div>
       <!-- Theme toggle -->
       <button class="theme-toggle" id="themeToggleBtn" title="테마 전환">
         <span class="icon-sun">☀️</span>
@@ -555,11 +581,22 @@ body {
     <span class="status-text" id="statusText"></span>
   </div>
 
+  <!-- Font-size bar -->
+
+  <div class="font-bar">
+    <span class="font-bar-label">글자</span>
+    <div class="font-bar-divider"></div>
+    <button class="font-preset-btn" data-size="16">작게</button>
+    <button class="font-preset-btn active" data-size="18">보통</button>
+    <button class="font-preset-btn" data-size="20">크게</button>
+    <span class="font-cur" id="fontCurLabel">18px</span>
+  </div>
+
   <!-- Day labels -->
 
   <div class="day-labels">
-    <span>SUN</span><span>MON</span><span>TUE</span>
-    <span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
+    <span>일</span><span>월</span><span>화</span>
+    <span>수</span><span>목</span><span>금</span><span>토</span>
   </div>
 
   <!-- Calendar -->
@@ -590,10 +627,9 @@ body {
   const MODE_ERASE = "__ERASE__";
   const COLLECTION = "workcal";
   const THEME_KEY = "workcal_theme";
-  const FONT_KEY  = "workcal_fontsize";
-  const FONT_MIN  = 12;
-  const FONT_MAX  = 20;
-  const FONT_DEF  = 14;
+  const FONT_KEY      = "workcal_fontsize";
+  const FONT_PRESETS  = [16, 18, 20];
+  const FONT_DEF      = 18;
 
   /* ── Font size ── */
   function getStoredFont() {
@@ -601,12 +637,12 @@ body {
     catch { return FONT_DEF; }
   }
   function applyFont(size) {
-    size = Math.min(FONT_MAX, Math.max(FONT_MIN, size));
-    document.documentElement.setAttribute("data-scale", size);
-    document.documentElement.style.fontSize = size + "px";
-    document.getElementById("fontSizeLabel").textContent = size + "px";
-    document.getElementById("fontDecBtn").disabled = (size <= FONT_MIN);
-    document.getElementById("fontIncBtn").disabled = (size >= FONT_MAX);
+    if (!FONT_PRESETS.includes(size)) size = FONT_DEF;
+    document.body.style.fontSize = size + "px";
+    document.getElementById("fontCurLabel").textContent = size + "px";
+    document.querySelectorAll(".font-preset-btn").forEach(b => {
+      b.classList.toggle("active", parseInt(b.dataset.size) === size);
+    });
     try { localStorage.setItem(FONT_KEY, size); } catch {}
     return size;
   }
@@ -832,13 +868,11 @@ body {
   document.getElementById("saveBtn").addEventListener("click", handleSave);
   document.getElementById("refreshBtn").addEventListener("click", () => location.reload());
   document.getElementById("themeToggleBtn").addEventListener("click", toggleTheme);
-  document.getElementById("fontDecBtn").addEventListener("click", () => {
-    currentFont = applyFont(currentFont - 1);
-    toast(`글자 크기: ${currentFont}px`);
-  });
-  document.getElementById("fontIncBtn").addEventListener("click", () => {
-    currentFont = applyFont(currentFont + 1);
-    toast(`글자 크기: ${currentFont}px`);
+  document.querySelectorAll(".font-preset-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      currentFont = applyFont(parseInt(b.dataset.size));
+      toast(`글자 크기: ${currentFont}px`);
+    });
   });
   document.querySelectorAll(".mode-btn").forEach(b =>
     b.addEventListener("click", () => selectMode(b.dataset.shift)));

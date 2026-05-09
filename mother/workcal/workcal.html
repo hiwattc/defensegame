@@ -202,7 +202,6 @@
 
       "use strict";
 
-      const STORAGE_KEY = "workCalendarMonthlyData";
       const WORKCAL_COLLECTION = "workcal";
       const monthTitle = document.getElementById("monthTitle");
       const calendarGrid = document.getElementById("calendarGrid");
@@ -225,7 +224,7 @@
       const state = {
         viewDate: new Date(),
         selectedShift: "",
-        allData: loadAllData(),
+        allData: {},
         firestoreUnavailableReason: "",
         firestoreLastError: "",
         authReady: false,
@@ -247,43 +246,6 @@
         const m = String(monthIndex + 1).padStart(2, "0");
         const d = String(day).padStart(2, "0");
         return year + "-" + m + "-" + d;
-      }
-
-      function loadAllData() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return {};
-          const parsed = JSON.parse(raw);
-          return parsed && typeof parsed === "object" ? parsed : {};
-        } catch (error) {
-          console.error("저장 데이터 파싱 오류:", error);
-          return {};
-        }
-      }
-
-      function saveAllData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.allData, null, 2));
-      }
-
-      function downloadMonthJson() {
-        const key = monthKey(state.viewDate);
-        const monthData = getMonthData();
-        const payload = {
-          month: key,
-          savedAt: new Date().toISOString(),
-          schedules: monthData,
-        };
-        const jsonText = JSON.stringify(payload, null, 2);
-        const blob = new Blob([jsonText], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "workcal-" + key + ".json";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
       }
 
       function getMonthData() {
@@ -469,7 +431,6 @@
           } else {
             state.allData[key] = {};
           }
-          saveAllData();
           return true;
         } catch (error) {
           state.firestoreLastError = getErrorMessage(error);
@@ -511,36 +472,33 @@
         if (loaded) {
           setStatus("월 이동 완료 (Firestore 로드됨)");
         } else if (state.firestoreUnavailableReason) {
-          setStatus("월 이동 완료 (로컬 데이터): " + state.firestoreUnavailableReason);
+          setStatus("월 이동 완료 (Firestore 미사용): " + state.firestoreUnavailableReason);
         } else if (state.firestoreLastError) {
-          setStatus("월 이동 완료 (로컬 데이터): " + state.firestoreLastError);
+          setStatus("월 이동 완료 (Firestore 실패): " + state.firestoreLastError);
         } else {
-          setStatus("월 이동 완료 (로컬 데이터 표시)");
+          setStatus("월 이동 완료 (Firestore 연결 실패)");
         }
       }
 
       async function handleSave() {
-        saveAllData();
-        downloadMonthJson();
-
         const key = monthKey(state.viewDate);
         await ensureAuthenticated(true);
         const savedToFirestore = await saveMonthToFirestore();
         if (savedToFirestore) {
           const providerLabel = state.authProvider === "google" ? "Google" : "익명";
           setStatus(
-            "저장 완료: " + key + " (Firestore + localStorage + JSON 파일, 인증: " + providerLabel + ")"
+            "저장 완료: " + key + " (Firestore, 인증: " + providerLabel + ")"
           );
           return;
         }
         if (state.firestoreUnavailableReason) {
-          setStatus("저장 완료: " + key + " (로컬/JSON) - " + state.firestoreUnavailableReason);
+          setStatus("저장 실패: " + key + " (Firestore 미사용) - " + state.firestoreUnavailableReason);
           return;
         }
         setStatus(
-          "저장 완료: " +
+          "저장 실패: " +
             key +
-            " (로컬/JSON) - Firestore 실패: " +
+            " (Firestore) - " +
             (state.firestoreLastError || "원인 미확인")
         );
       }
@@ -570,7 +528,7 @@
       renderCalendar();
       ensureAuthenticated(false).then((authOk) => {
         if (!authOk) {
-          setStatus("초기 로드 완료: 로컬 데이터 사용 (익명 인증 실패, 저장 시 Google 로그인 시도)");
+          setStatus("초기 로드: 인증 필요 (저장/월이동 시 Google 로그인 시도)");
           return;
         }
         loadMonthFromFirestore().then((loaded) => {
@@ -581,11 +539,11 @@
               "초기 로드 완료: Firestore에서 월 데이터 불러옴 (" + providerLabel + " 로그인 완료)"
             );
           } else if (state.firestoreUnavailableReason) {
-            setStatus("초기 로드 완료: 로컬 데이터 사용 (" + state.firestoreUnavailableReason + ")");
+            setStatus("초기 로드 실패: " + state.firestoreUnavailableReason);
           } else if (state.firestoreLastError) {
-            setStatus("초기 로드 완료: 로컬 데이터 사용 (" + state.firestoreLastError + ")");
+            setStatus("초기 로드 실패: " + state.firestoreLastError);
           } else {
-            setStatus("초기 로드 완료: 로컬 데이터 사용 (Firestore 연결 실패)");
+            setStatus("초기 로드 실패: Firestore 연결 실패");
           }
         });
       });

@@ -280,9 +280,11 @@ body {
   color: var(--accent);
   border-color: var(--accent-border);
 }
-.font-preset-btn[data-size="16"] { font-size: 12px; }
-.font-preset-btn[data-size="18"] { font-size: 14px; }
-.font-preset-btn[data-size="20"] { font-size: 16px; }
+.font-preset-btn[data-size="16"] { font-size: 11px; }
+.font-preset-btn[data-size="18"] { font-size: 13px; }
+.font-preset-btn[data-size="20"] { font-size: 15px; }
+.font-preset-btn[data-size="23"] { font-size: 17px; }
+.font-preset-btn[data-size="25"] { font-size: 19px; }
 .font-bar-divider {
   width: 1px; height: 1.2rem;
   background: var(--border-hi);
@@ -589,6 +591,8 @@ html, body {
     <button class="font-preset-btn" data-size="16">작게</button>
     <button class="font-preset-btn active" data-size="18">보통</button>
     <button class="font-preset-btn" data-size="20">크게</button>
+    <button class="font-preset-btn" data-size="23">특대</button>
+    <button class="font-preset-btn" data-size="25">최대</button>
     <span class="font-cur" id="fontCurLabel">18px</span>
   </div>
 
@@ -628,7 +632,7 @@ html, body {
   const COLLECTION = "workcal";
   const THEME_KEY = "workcal_theme";
   const FONT_KEY      = "workcal_fontsize";
-  const FONT_PRESETS  = [16, 18, 20];
+  const FONT_PRESETS  = [16, 18, 20, 23, 25];
   const FONT_DEF      = 18;
 
   /* ── Font size ── */

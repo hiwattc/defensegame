@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
@@ -15,196 +16,199 @@
         --active-soft: #dbeafe;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+```
+  * {
+    box-sizing: border-box;
+  }
 
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
 
-      .container {
-        max-width: 900px;
-        margin: 20px auto;
-        padding: 20px;
-      }
+  .container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+  }
 
-      .toolbar,
-      .legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 12px;
-      }
+  .toolbar,
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
 
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 16px;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-      }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  }
 
-      button,
-      select {
-        height: 36px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
-        padding: 0 12px;
-        font-size: 14px;
-        cursor: pointer;
-        color: var(--text);
-        transition: transform 0.08s ease, border-color 0.2s ease, background 0.2s ease;
-      }
+  button,
+  select {
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 0 12px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text);
+    transition: transform 0.08s ease, border-color 0.2s ease, background 0.2s ease;
+  }
 
-      button:hover {
-        border-color: #b8c5db;
-      }
+  button:hover {
+    border-color: #b8c5db;
+  }
 
-      button:active {
-        transform: translateY(1px);
-      }
+  button:active {
+    transform: translateY(1px);
+  }
 
-      button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
 
-      .title {
-        font-weight: 700;
-        font-size: 20px;
-        margin-right: auto;
-        letter-spacing: -0.2px;
-      }
+  .title {
+    font-weight: 700;
+    font-size: 20px;
+    margin-right: auto;
+    letter-spacing: -0.2px;
+  }
 
-      .icon-btn {
-        width: 36px;
-        min-width: 36px;
-        padding: 0;
-        font-size: 16px;
-        font-weight: 700;
-        line-height: 1;
-      }
+  .icon-btn {
+    width: 36px;
+    min-width: 36px;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
 
-      .days-header,
-      .calendar {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        gap: 6px;
-      }
+  .days-header,
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+  }
 
-      .days-header div {
-        text-align: center;
-        color: var(--muted);
-        font-size: 13px;
-        padding: 6px 0;
-      }
+  .days-header div {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 6px 0;
+  }
 
-      .day {
-        min-height: 92px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
-        padding: 8px;
-        text-align: left;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        position: relative;
-        cursor: pointer;
-        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.08s ease;
-      }
+  .day {
+    min-height: 92px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    padding: 8px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.08s ease;
+  }
 
-      .day:hover {
-        border-color: #9db2d5;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
-      }
+  .day:hover {
+    border-color: #9db2d5;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  }
 
-      .day:active {
-        transform: scale(0.99);
-      }
+  .day:active {
+    transform: scale(0.99);
+  }
 
-      .day.today {
-        background: #eff6ff;
-        border-color: #93c5fd;
-      }
+  .day.today {
+    background: #eff6ff;
+    border-color: #93c5fd;
+  }
 
-      .day.empty {
-        background: #f9fafb;
-        cursor: default;
-      }
+  .day.empty {
+    background: #f9fafb;
+    cursor: default;
+  }
 
-      .day-number {
-        font-size: 13px;
-        color: var(--muted);
-      }
+  .day-number {
+    font-size: 13px;
+    color: var(--muted);
+  }
 
-      .shift-badge {
-        margin-top: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 34px;
-        text-align: center;
-        padding: 3px 8px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
-        border: 1px solid transparent;
-      }
+  .shift-badge {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    text-align: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
 
-      .shift-none {
-        background: #f3f4f6;
-        color: #6b7280;
-        border-color: #e5e7eb;
-      }
+  .shift-none {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #e5e7eb;
+  }
 
-      .shift-d {
-        background: #e0ecff;
-        color: #1d4ed8;
-        border-color: #bfdbfe;
-      }
+  .shift-d {
+    background: #e0ecff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
 
-      .shift-n {
-        background: #e5e7ff;
-        color: #4338ca;
-        border-color: #c7d2fe;
-      }
+  .shift-n {
+    background: #e5e7ff;
+    color: #4338ca;
+    border-color: #c7d2fe;
+  }
 
-      .shift-dn {
-        background: #ffedd5;
-        color: #c2410c;
-        border-color: #fdba74;
-      }
+  .shift-dn {
+    background: #ffedd5;
+    color: #c2410c;
+    border-color: #fdba74;
+  }
 
-      .mode-btn.active {
-        border-color: var(--active);
-        color: #1d4ed8;
-        background: var(--active-soft);
-        font-weight: 700;
-      }
+  .mode-btn.active {
+    border-color: var(--active);
+    color: #1d4ed8;
+    background: var(--active-soft);
+    font-weight: 700;
+  }
 
-      .month-nav {
-        margin-top: 14px;
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-      }
+  .month-nav {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
 
-      .month-nav button {
-        min-width: 110px;
-      }
+  .month-nav button {
+    min-width: 110px;
+  }
 
-      .status {
-        color: var(--muted);
-        font-size: 13px;
-      }
-    </style>
+  .status {
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+```
+
   </head>
   <body>
     <main class="container">
@@ -217,421 +221,409 @@
           <button id="saveBtn" type="button">저장</button>
         </div>
 
-        <div class="legend">
-          <button class="mode-btn active" type="button" data-shift="__VIEW__">조회</button>
-          <button class="mode-btn" type="button" data-shift="">지우기</button>
-          <button class="mode-btn" type="button" data-shift="D">D</button>
-          <button class="mode-btn" type="button" data-shift="N">N</button>
-          <button class="mode-btn" type="button" data-shift="DN">DN</button>
-          <span class="status" id="statusText"></span>
-        </div>
+```
+    <div class="legend">
+      <button class="mode-btn active" type="button" data-shift="__VIEW__">조회</button>
+      <button class="mode-btn" type="button" data-shift="__ERASE__">지우기</button>
+      <button class="mode-btn" type="button" data-shift="D">D</button>
+      <button class="mode-btn" type="button" data-shift="N">N</button>
+      <button class="mode-btn" type="button" data-shift="DN">DN</button>
+      <span class="status" id="statusText"></span>
+    </div>
 
-        <div class="days-header">
-          <div>일</div>
-          <div>월</div>
-          <div>화</div>
-          <div>수</div>
-          <div>목</div>
-          <div>금</div>
-          <div>토</div>
-        </div>
-        <div class="calendar" id="calendarGrid"></div>
+    <div class="days-header">
+      <div>일</div>
+      <div>월</div>
+      <div>화</div>
+      <div>수</div>
+      <div>목</div>
+      <div>금</div>
+      <div>토</div>
+    </div>
+    <div class="calendar" id="calendarGrid"></div>
 
-        <div class="month-nav">
-          <button id="prevMonthBtn" type="button">이전 월</button>
-          <button id="nextMonthBtn" type="button">다음 월</button>
-        </div>
-      </section>
-    </main>
+    <div class="month-nav">
+      <button id="prevMonthBtn" type="button">이전 월</button>
+      <button id="nextMonthBtn" type="button">다음 월</button>
+    </div>
+  </section>
+</main>
 
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      import {
-        getAuth,
-        GoogleAuthProvider,
-        signInAnonymously,
-        signInWithPopup,
-      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-      import {
-        doc,
-        getDoc,
-        getFirestore,
-        serverTimestamp,
-        setDoc,
-      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInAnonymously,
+    signInWithPopup,
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    doc,
+    getDoc,
+    getFirestore,
+    serverTimestamp,
+    setDoc,
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      "use strict";
+  "use strict";
 
-      const WORKCAL_COLLECTION = "workcal";
-      const monthTitle = document.getElementById("monthTitle");
-      const calendarGrid = document.getElementById("calendarGrid");
-      const statusText = document.getElementById("statusText");
-      const prevMonthBtn = document.getElementById("prevMonthBtn");
-      const nextMonthBtn = document.getElementById("nextMonthBtn");
-      const saveBtn = document.getElementById("saveBtn");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const modeButtons = Array.from(document.querySelectorAll(".mode-btn"));
+  // 모드 상수 — 빈 문자열 대신 명시적 심볼 사용
+  const MODE_VIEW  = "__VIEW__";
+  const MODE_ERASE = "__ERASE__";
 
-      const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyDv8E7ZRPcLIF6dIMcvVfpolPYqIy6UjhU",
-        authDomain: "momworkcal.firebaseapp.com",
-        projectId: "momworkcal",
-        storageBucket: "momworkcal.firebasestorage.app",
-        messagingSenderId: "968519288658",
-        appId: "1:968519288658:web:9b0f02431bd3f433151c8b",
-        measurementId: "G-X92BNRR5ZK",
-      };
+  const WORKCAL_COLLECTION = "workcal";
+  const monthTitle   = document.getElementById("monthTitle");
+  const calendarGrid = document.getElementById("calendarGrid");
+  const statusText   = document.getElementById("statusText");
+  const prevMonthBtn = document.getElementById("prevMonthBtn");
+  const nextMonthBtn = document.getElementById("nextMonthBtn");
+  const saveBtn      = document.getElementById("saveBtn");
+  const refreshBtn   = document.getElementById("refreshBtn");
+  const modeButtons  = Array.from(document.querySelectorAll(".mode-btn"));
 
-      const state = {
-        viewDate: new Date(),
-        selectedShift: null,
-        allData: {},
-        firestoreUnavailableReason: "",
-        firestoreLastError: "",
-        authReady: false,
-        authUid: "",
-        authProvider: "",
-      };
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDv8E7ZRPcLIF6dIMcvVfpolPYqIy6UjhU",
+    authDomain: "momworkcal.firebaseapp.com",
+    projectId: "momworkcal",
+    storageBucket: "momworkcal.firebasestorage.app",
+    messagingSenderId: "968519288658",
+    appId: "1:968519288658:web:9b0f02431bd3f433151c8b",
+    measurementId: "G-X92BNRR5ZK",
+  };
 
-      const firebaseBundle = initFirebase();
-      const db = firebaseBundle ? firebaseBundle.db : null;
-      const auth = firebaseBundle ? firebaseBundle.auth : null;
+  const state = {
+    viewDate: new Date(),
+    // MODE_VIEW | MODE_ERASE | "D" | "N" | "DN"
+    selectedShift: MODE_VIEW,
+    allData: {},
+    firestoreUnavailableReason: "",
+    firestoreLastError: "",
+    authReady: false,
+    authUid: "",
+    authProvider: "",
+  };
 
-      function monthKey(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        return y + "-" + m;
-      }
+  const firebaseBundle = initFirebase();
+  const db   = firebaseBundle ? firebaseBundle.db   : null;
+  const auth = firebaseBundle ? firebaseBundle.auth : null;
 
-      function dayKey(year, monthIndex, day) {
-        const m = String(monthIndex + 1).padStart(2, "0");
-        const d = String(day).padStart(2, "0");
-        return year + "-" + m + "-" + d;
-      }
+  function monthKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    return y + "-" + m;
+  }
 
-      function getTodayKey() {
-        const today = new Date();
-        return dayKey(today.getFullYear(), today.getMonth(), today.getDate());
-      }
+  function dayKey(year, monthIndex, day) {
+    const m = String(monthIndex + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    return year + "-" + m + "-" + d;
+  }
 
-      function getMonthData() {
-        const key = monthKey(state.viewDate);
-        if (!state.allData[key] || typeof state.allData[key] !== "object") {
-          state.allData[key] = {};
+  function getTodayKey() {
+    const today = new Date();
+    return dayKey(today.getFullYear(), today.getMonth(), today.getDate());
+  }
+
+  function getMonthData() {
+    const key = monthKey(state.viewDate);
+    if (!state.allData[key] || typeof state.allData[key] !== "object") {
+      state.allData[key] = {};
+    }
+    return state.allData[key];
+  }
+
+  function formatMonthTitle(date) {
+    return date.getFullYear() + "년 " + (date.getMonth() + 1) + "월";
+  }
+
+  function setStatus(text) {
+    statusText.textContent = text;
+  }
+
+  function getErrorMessage(error) {
+    if (!error) return "알 수 없는 오류";
+    if (error.code === "permission-denied")   return "권한 없음 (Firestore 규칙 확인 필요)";
+    if (error.code === "unauthenticated")     return "인증 필요 (익명 로그인/보안 규칙 확인)";
+    if (error.code === "failed-precondition") return "Firestore DB 미생성 또는 인덱스/설정 미완료";
+    if (error.code === "unavailable")         return "네트워크 또는 Firestore 서비스 연결 오류";
+    return error.message || String(error);
+  }
+
+  function badgeClass(shift) {
+    if (shift === "D")  return "shift-d";
+    if (shift === "N")  return "shift-n";
+    if (shift === "DN") return "shift-dn";
+    return "shift-none";
+  }
+
+  function renderCalendar() {
+    const year       = state.viewDate.getFullYear();
+    const monthIndex = state.viewDate.getMonth();
+    const firstDay   = new Date(year, monthIndex, 1).getDay();
+    const lastDate   = new Date(year, monthIndex + 1, 0).getDate();
+    const monthData  = getMonthData();
+    const todayKey   = getTodayKey();
+
+    monthTitle.textContent = formatMonthTitle(state.viewDate);
+    calendarGrid.innerHTML = "";
+
+    for (let i = 0; i < firstDay; i += 1) {
+      const emptyCell = document.createElement("div");
+      emptyCell.className = "day empty";
+      calendarGrid.appendChild(emptyCell);
+    }
+
+    for (let day = 1; day <= lastDate; day += 1) {
+      const key   = dayKey(year, monthIndex, day);
+      const shift = monthData[key] || "";
+
+      const dayBtn = document.createElement("button");
+      dayBtn.type      = "button";
+      dayBtn.className = "day";
+      if (key === todayKey) dayBtn.classList.add("today");
+      dayBtn.dataset.dateKey = key;
+      dayBtn.innerHTML =
+        '<div class="day-number">' + day + "</div>" +
+        '<span class="shift-badge ' + badgeClass(shift) + '">' +
+        (shift || "&nbsp;") + "</span>";
+
+      dayBtn.addEventListener("click", function () {
+        const mode = state.selectedShift;
+
+        // 조회 모드 — 클릭 무시
+        if (mode === MODE_VIEW) {
+          setStatus("조회 모드: 근무유형을 선택하면 수정할 수 있습니다.");
+          return;
         }
-        return state.allData[key];
-      }
 
-      function formatMonthTitle(date) {
-        return date.getFullYear() + "년 " + (date.getMonth() + 1) + "월";
-      }
+        const monthStore = getMonthData();
 
-      function setStatus(text) {
-        statusText.textContent = text;
-      }
-
-      function getErrorMessage(error) {
-        if (!error) return "알 수 없는 오류";
-        if (error.code === "permission-denied") {
-          return "권한 없음 (Firestore 규칙 확인 필요)";
-        }
-        if (error.code === "unauthenticated") {
-          return "인증 필요 (익명 로그인/보안 규칙 확인)";
-        }
-        if (error.code === "failed-precondition") {
-          return "Firestore DB 미생성 또는 인덱스/설정 미완료";
-        }
-        if (error.code === "unavailable") {
-          return "네트워크 또는 Firestore 서비스 연결 오류";
-        }
-        return error.message || String(error);
-      }
-
-      function badgeClass(shift) {
-        if (shift === "D") return "shift-d";
-        if (shift === "N") return "shift-n";
-        if (shift === "DN") return "shift-dn";
-        return "shift-none";
-      }
-
-      function renderCalendar() {
-        const year = state.viewDate.getFullYear();
-        const monthIndex = state.viewDate.getMonth();
-        const firstDay = new Date(year, monthIndex, 1).getDay();
-        const lastDate = new Date(year, monthIndex + 1, 0).getDate();
-        const monthData = getMonthData();
-        const todayKey = getTodayKey();
-
-        monthTitle.textContent = formatMonthTitle(state.viewDate);
-        calendarGrid.innerHTML = "";
-
-        for (let i = 0; i < firstDay; i += 1) {
-          const emptyCell = document.createElement("div");
-          emptyCell.className = "day empty";
-          calendarGrid.appendChild(emptyCell);
-        }
-
-        for (let day = 1; day <= lastDate; day += 1) {
-          const key = dayKey(year, monthIndex, day);
-          const shift = monthData[key] || "";
-
-          const dayBtn = document.createElement("button");
-          dayBtn.type = "button";
-          dayBtn.className = "day";
-          if (key === todayKey) {
-            dayBtn.classList.add("today");
-          }
-          dayBtn.dataset.dateKey = key;
-          dayBtn.innerHTML =
-            '<div class="day-number">' +
-            day +
-            "</div>" +
-            '<span class="shift-badge ' +
-            badgeClass(shift) +
-            '">' +
-            (shift || "&nbsp;") +
-            "</span>";
-
-          dayBtn.addEventListener("click", function () {
-            if (state.selectedShift === null) {
-              setStatus("조회 모드: 근무유형을 선택하면 수정할 수 있습니다.");
-              return;
-            }
-            const monthStore = getMonthData();
-            if (state.selectedShift) {
-              monthStore[key] = state.selectedShift;
-            } else {
-              delete monthStore[key];
-            }
-            renderCalendar();
-            setStatus("현재 선택: " + (state.selectedShift || "지우기"));
-          });
-
-          calendarGrid.appendChild(dayBtn);
-        }
-      }
-
-      function hasValidFirebaseConfig() {
-        return (
-          FIREBASE_CONFIG.apiKey &&
-          FIREBASE_CONFIG.projectId &&
-          !FIREBASE_CONFIG.apiKey.startsWith("YOUR_") &&
-          !FIREBASE_CONFIG.projectId.startsWith("YOUR_")
-        );
-      }
-
-      function initFirebase() {
-        if (!hasValidFirebaseConfig()) {
-          state.firestoreUnavailableReason = "Firebase 설정값 누락";
-          console.warn("Firebase 설정값이 비어 있어 Firebase를 비활성화합니다.");
-          return null;
-        }
-        if (location.protocol === "file:") {
-          state.firestoreUnavailableReason = "file:// 실행 중 (http/https 서버 필요)";
-          console.warn("file:// 환경에서는 Firebase 연결이 제한될 수 있습니다.");
-          return null;
-        }
-        try {
-          const app = initializeApp(FIREBASE_CONFIG);
-          return {
-            db: getFirestore(app),
-            auth: getAuth(app),
-          };
-        } catch (error) {
-          state.firestoreUnavailableReason = getErrorMessage(error);
-          console.error("Firebase 초기화 실패:", error);
-          return null;
-        }
-      }
-
-      async function ensureAnonymousAuth() {
-        if (!auth || state.authReady) return state.authReady;
-        try {
-          const credential = await signInAnonymously(auth);
-          state.authReady = true;
-          state.authUid = credential.user ? credential.user.uid : "";
-          state.authProvider = "anonymous";
-          state.firestoreLastError = "";
-          return true;
-        } catch (error) {
-          state.firestoreLastError = getErrorMessage(error);
-          console.error("Firebase 익명 로그인 실패:", error);
-          return false;
-        }
-      }
-
-      async function ensureGoogleAuth() {
-        if (!auth) return false;
-        try {
-          const provider = new GoogleAuthProvider();
-          const credential = await signInWithPopup(auth, provider);
-          state.authReady = true;
-          state.authUid = credential.user ? credential.user.uid : "";
-          state.authProvider = "google";
-          state.firestoreLastError = "";
-          return true;
-        } catch (error) {
-          state.firestoreLastError = getErrorMessage(error);
-          console.error("Google 로그인 실패:", error);
-          return false;
-        }
-      }
-
-      async function ensureAuthenticated(interactive) {
-        if (state.authReady) return true;
-
-        const anonymousOk = await ensureAnonymousAuth();
-        if (anonymousOk) return true;
-
-        if (!interactive) return false;
-        return ensureGoogleAuth();
-      }
-
-      async function loadMonthFromFirestore() {
-        if (!db) return false;
-        const authOk = await ensureAuthenticated(false);
-        if (!authOk) return false;
-        const key = monthKey(state.viewDate);
-        const ref = doc(db, WORKCAL_COLLECTION, key);
-        try {
-          const snap = await getDoc(ref);
-          if (snap.exists()) {
-            const payload = snap.data();
-            const schedules =
-              payload && payload.schedules && typeof payload.schedules === "object"
-                ? payload.schedules
-                : {};
-            state.allData[key] = schedules;
-          } else {
-            state.allData[key] = {};
-          }
-          return true;
-        } catch (error) {
-          state.firestoreLastError = getErrorMessage(error);
-          console.error("Firestore 월 데이터 로드 실패:", error);
-          return false;
-        }
-      }
-
-      async function saveMonthToFirestore() {
-        if (!db) return false;
-        const authOk = await ensureAuthenticated(true);
-        if (!authOk) return false;
-        const key = monthKey(state.viewDate);
-        const ref = doc(db, WORKCAL_COLLECTION, key);
-        const payload = {
-          month: key,
-          schedules: getMonthData(),
-          updatedAt: serverTimestamp(),
-        };
-        try {
-          await setDoc(ref, payload, { merge: true });
-          state.firestoreLastError = "";
-          return true;
-        } catch (error) {
-          state.firestoreLastError = getErrorMessage(error);
-          console.error("Firestore 저장 실패:", error);
-          return false;
-        }
-      }
-
-      async function changeMonth(offset) {
-        const d = state.viewDate;
-        state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
-        renderCalendar();
-
-        const authOk = await ensureAuthenticated(true);
-        const loaded = authOk ? await loadMonthFromFirestore() : false;
-        renderCalendar();
-        if (loaded) {
-          setStatus("월 이동 완료 (Firestore 로드됨)");
-        } else if (state.firestoreUnavailableReason) {
-          setStatus("월 이동 완료 (Firestore 미사용): " + state.firestoreUnavailableReason);
-        } else if (state.firestoreLastError) {
-          setStatus("월 이동 완료 (Firestore 실패): " + state.firestoreLastError);
+        if (mode === MODE_ERASE) {
+          // 지우기 모드 — 해당 날짜 삭제
+          delete monthStore[key];
+          setStatus("지움: " + key);
         } else {
-          setStatus("월 이동 완료 (Firestore 연결 실패)");
+          // D / N / DN — 해당 날짜에 근무 유형 저장
+          monthStore[key] = mode;
+          setStatus("입력: " + key + " → " + mode);
         }
-      }
 
-      async function handleSave() {
-        const key = monthKey(state.viewDate);
-        await ensureAuthenticated(true);
-        const savedToFirestore = await saveMonthToFirestore();
-        if (savedToFirestore) {
-          const providerLabel = state.authProvider === "google" ? "Google" : "익명";
-          setStatus(
-            "저장 완료: " + key + " (Firestore, 인증: " + providerLabel + ")"
-          );
-          return;
-        }
-        if (state.firestoreUnavailableReason) {
-          setStatus("저장 실패: " + key + " (Firestore 미사용) - " + state.firestoreUnavailableReason);
-          return;
-        }
-        setStatus(
-          "저장 실패: " +
-            key +
-            " (Firestore) - " +
-            (state.firestoreLastError || "원인 미확인")
-        );
-      }
-
-      function handleRefresh() {
-        location.reload();
-      }
-
-      function handleSelectShift(shift) {
-        state.selectedShift = shift === "__VIEW__" ? null : shift;
-        modeButtons.forEach((btn) => {
-          btn.classList.toggle("active", btn.dataset.shift === shift);
-        });
-        if (state.selectedShift === null) {
-          setStatus("현재 선택: 조회 (날짜 클릭 시 수정 안 함)");
-          return;
-        }
-        setStatus("현재 선택: " + (state.selectedShift || "지우기"));
-      }
-
-      prevMonthBtn.addEventListener("click", function () {
-        changeMonth(-1);
-      });
-      nextMonthBtn.addEventListener("click", function () {
-        changeMonth(1);
-      });
-      saveBtn.addEventListener("click", handleSave);
-      refreshBtn.addEventListener("click", handleRefresh);
-
-      modeButtons.forEach((btn) => {
-        btn.addEventListener("click", function () {
-          handleSelectShift(btn.dataset.shift || "__VIEW__");
-        });
+        renderCalendar();
       });
 
-      renderCalendar();
-      setStatus("초기 로딩중...");
-      ensureAuthenticated(false).then((authOk) => {
-        if (!authOk) {
-          setStatus("초기 로드: 인증 필요 (저장/월이동 시 Google 로그인 시도)");
-          return;
-        }
-        loadMonthFromFirestore().then((loaded) => {
-          renderCalendar();
-          if (loaded) {
-            const providerLabel = state.authProvider === "google" ? "Google" : "익명";
-            setStatus(
-              "초기 로드 완료: Firestore에서 월 데이터 불러옴 (" + providerLabel + " 로그인 완료)"
-            );
-          } else if (state.firestoreUnavailableReason) {
-            setStatus("초기 로드 실패: " + state.firestoreUnavailableReason);
-          } else if (state.firestoreLastError) {
-            setStatus("초기 로드 실패: " + state.firestoreLastError);
-          } else {
-            setStatus("초기 로드 실패: Firestore 연결 실패");
-          }
-        });
-      });
+      calendarGrid.appendChild(dayBtn);
+    }
+  }
+
+  function hasValidFirebaseConfig() {
+    return (
+      FIREBASE_CONFIG.apiKey &&
+      FIREBASE_CONFIG.projectId &&
+      !FIREBASE_CONFIG.apiKey.startsWith("YOUR_") &&
+      !FIREBASE_CONFIG.projectId.startsWith("YOUR_")
+    );
+  }
+
+  function initFirebase() {
+    if (!hasValidFirebaseConfig()) {
+      state.firestoreUnavailableReason = "Firebase 설정값 누락";
+      console.warn("Firebase 설정값이 비어 있어 Firebase를 비활성화합니다.");
+      return null;
+    }
+    if (location.protocol === "file:") {
+      state.firestoreUnavailableReason = "file:// 실행 중 (http/https 서버 필요)";
+      console.warn("file:// 환경에서는 Firebase 연결이 제한될 수 있습니다.");
+      return null;
+    }
+    try {
+      const app = initializeApp(FIREBASE_CONFIG);
+      return { db: getFirestore(app), auth: getAuth(app) };
+    } catch (error) {
+      state.firestoreUnavailableReason = getErrorMessage(error);
+      console.error("Firebase 초기화 실패:", error);
+      return null;
+    }
+  }
+
+  async function ensureAnonymousAuth() {
+    if (!auth || state.authReady) return state.authReady;
+    try {
+      const credential = await signInAnonymously(auth);
+      state.authReady   = true;
+      state.authUid     = credential.user ? credential.user.uid : "";
+      state.authProvider = "anonymous";
+      state.firestoreLastError = "";
+      return true;
+    } catch (error) {
+      state.firestoreLastError = getErrorMessage(error);
+      console.error("Firebase 익명 로그인 실패:", error);
+      return false;
+    }
+  }
+
+  async function ensureGoogleAuth() {
+    if (!auth) return false;
+    try {
+      const provider   = new GoogleAuthProvider();
+      const credential = await signInWithPopup(auth, provider);
+      state.authReady   = true;
+      state.authUid     = credential.user ? credential.user.uid : "";
+      state.authProvider = "google";
+      state.firestoreLastError = "";
+      return true;
+    } catch (error) {
+      state.firestoreLastError = getErrorMessage(error);
+      console.error("Google 로그인 실패:", error);
+      return false;
+    }
+  }
+
+  async function ensureAuthenticated(interactive) {
+    if (state.authReady) return true;
+    const anonymousOk = await ensureAnonymousAuth();
+    if (anonymousOk) return true;
+    if (!interactive) return false;
+    return ensureGoogleAuth();
+  }
+
+  async function loadMonthFromFirestore() {
+    if (!db) return false;
+    const authOk = await ensureAuthenticated(false);
+    if (!authOk) return false;
+    const key = monthKey(state.viewDate);
+    const ref = doc(db, WORKCAL_COLLECTION, key);
+    try {
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const payload   = snap.data();
+        const schedules = payload && payload.schedules && typeof payload.schedules === "object"
+          ? payload.schedules
+          : {};
+        state.allData[key] = schedules;
+      } else {
+        state.allData[key] = {};
+      }
+      return true;
+    } catch (error) {
+      state.firestoreLastError = getErrorMessage(error);
+      console.error("Firestore 월 데이터 로드 실패:", error);
+      return false;
+    }
+  }
+
+  async function saveMonthToFirestore() {
+    if (!db) return false;
+    const authOk = await ensureAuthenticated(true);
+    if (!authOk) return false;
+    const key = monthKey(state.viewDate);
+    const ref = doc(db, WORKCAL_COLLECTION, key);
+    const payload = {
+      month: key,
+      schedules: getMonthData(),
+      updatedAt: serverTimestamp(),
+    };
+    try {
+      await setDoc(ref, payload, { merge: true });
+      state.firestoreLastError = "";
+      return true;
+    } catch (error) {
+      state.firestoreLastError = getErrorMessage(error);
+      console.error("Firestore 저장 실패:", error);
+      return false;
+    }
+  }
+
+  async function changeMonth(offset) {
+    const d = state.viewDate;
+    state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
+    renderCalendar();
+
+    const authOk = await ensureAuthenticated(true);
+    const loaded  = authOk ? await loadMonthFromFirestore() : false;
+    renderCalendar();
+    if (loaded) {
+      setStatus("월 이동 완료 (Firestore 로드됨)");
+    } else if (state.firestoreUnavailableReason) {
+      setStatus("월 이동 완료 (Firestore 미사용): " + state.firestoreUnavailableReason);
+    } else if (state.firestoreLastError) {
+      setStatus("월 이동 완료 (Firestore 실패): " + state.firestoreLastError);
+    } else {
+      setStatus("월 이동 완료 (Firestore 연결 실패)");
+    }
+  }
+
+  async function handleSave() {
+    const key = monthKey(state.viewDate);
+    await ensureAuthenticated(true);
+    const savedToFirestore = await saveMonthToFirestore();
+    if (savedToFirestore) {
+      const providerLabel = state.authProvider === "google" ? "Google" : "익명";
+      setStatus("저장 완료: " + key + " (Firestore, 인증: " + providerLabel + ")");
+      return;
+    }
+    if (state.firestoreUnavailableReason) {
+      setStatus("저장 실패: " + key + " (Firestore 미사용) - " + state.firestoreUnavailableReason);
+      return;
+    }
+    setStatus("저장 실패: " + key + " (Firestore) - " + (state.firestoreLastError || "원인 미확인"));
+  }
+
+  function handleRefresh() {
+    location.reload();
+  }
+
+  function handleSelectShift(shift) {
+    // ★ data-shift 값을 그대로 사용 (빈 문자열 falsy 문제 없음)
+    state.selectedShift = shift;
+    modeButtons.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.shift === shift);
+    });
+
+    if (shift === MODE_VIEW) {
       setStatus("현재 선택: 조회 (날짜 클릭 시 수정 안 함)");
-    </script>
+    } else if (shift === MODE_ERASE) {
+      setStatus("현재 선택: 지우기 (날짜 클릭 시 근무 삭제)");
+    } else {
+      setStatus("현재 선택: " + shift);
+    }
+  }
+
+  prevMonthBtn.addEventListener("click", function () { changeMonth(-1); });
+  nextMonthBtn.addEventListener("click", function () { changeMonth(1); });
+  saveBtn.addEventListener("click", handleSave);
+  refreshBtn.addEventListener("click", handleRefresh);
+
+  modeButtons.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      // ★ 수정 핵심: || 연산자 제거 → data-shift 값을 있는 그대로 전달
+      handleSelectShift(btn.dataset.shift);
+    });
+  });
+
+  renderCalendar();
+  setStatus("초기 로딩중...");
+  ensureAuthenticated(false).then((authOk) => {
+    if (!authOk) {
+      setStatus("초기 로드: 인증 필요 (저장/월이동 시 Google 로그인 시도)");
+      return;
+    }
+    loadMonthFromFirestore().then((loaded) => {
+      renderCalendar();
+      if (loaded) {
+        const providerLabel = state.authProvider === "google" ? "Google" : "익명";
+        setStatus("초기 로드 완료: Firestore에서 월 데이터 불러옴 (" + providerLabel + " 로그인 완료)");
+      } else if (state.firestoreUnavailableReason) {
+        setStatus("초기 로드 실패: " + state.firestoreUnavailableReason);
+      } else if (state.firestoreLastError) {
+        setStatus("초기 로드 실패: " + state.firestoreLastError);
+      } else {
+        setStatus("초기 로드 실패: Firestore 연결 실패");
+      }
+    });
+  });
+  setStatus("현재 선택: 조회 (날짜 클릭 시 수정 안 함)");
+</script>
+```
+
   </body>
 </html>

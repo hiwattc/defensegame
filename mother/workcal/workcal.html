@@ -1,6 +1,6 @@
 <!doctype html>
 
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    :root {
+    /* ════════════════════════════════════════
+       DARK THEME (default)
+    ════════════════════════════════════════ */
+    :root,
+    [data-theme="dark"] {
       --bg:        #0d0f14;
       --surface:   #141720;
       --surface2:  #1c2030;
@@ -17,30 +21,111 @@
       --text:      #e8eaf0;
       --muted:     #5a6070;
       --muted2:    #8890a0;
+      --shadow:    rgba(0,0,0,0.40);
+      --hover-shadow: rgba(0,0,0,0.35);
 
 ```
-  --d-bg:   #0f2a4a;
-  --d-fg:   #60b3ff;
-  --d-ring: rgba(96,179,255,0.25);
+  --d-bg:    #0f2a4a;
+  --d-fg:    #60b3ff;
+  --d-ring:  rgba(96,179,255,0.28);
+  --d-tag-border: rgba(96,179,255,0.22);
 
-  --n-bg:   #1a1440;
-  --n-fg:   #a78bfa;
-  --n-ring: rgba(167,139,250,0.25);
+  --n-bg:    #1a1440;
+  --n-fg:    #a78bfa;
+  --n-ring:  rgba(167,139,250,0.28);
+  --n-tag-border: rgba(167,139,250,0.22);
 
   --dn-bg:   #2a1800;
   --dn-fg:   #fb923c;
-  --dn-ring: rgba(251,146,60,0.25);
+  --dn-ring: rgba(251,146,60,0.28);
+  --dn-tag-border: rgba(251,146,60,0.22);
 
-  --today-ring: rgba(99,210,140,0.6);
-  --today-glow: rgba(99,210,140,0.12);
-  --accent:    #63d28c;
+  --erase-bg:   #2a1520;
+  --erase-fg:   #f87171;
+  --erase-ring: rgba(248,113,113,0.28);
 
-  --erase-bg:  #2a1520;
-  --erase-fg:  #f87171;
-  --erase-ring:rgba(248,113,113,0.25);
+  --today-ring: rgba(99,210,140,0.55);
+  --today-glow: rgba(99,210,140,0.10);
+  --accent:     #63d28c;
+  --accent-dim: rgba(99,210,140,0.12);
+  --accent-border: rgba(99,210,140,0.30);
+
+  --grad1: rgba(63,120,255,0.06);
+  --grad2: rgba(99,210,140,0.04);
+
+  --sun-color: #e05555;
+  --sat-color: #4a90d9;
+
+  /* theme toggle */
+  --toggle-bg:     #1c2030;
+  --toggle-border: rgba(255,255,255,0.12);
+  --toggle-icon:   #8890a0;
+  --toggle-active-bg: rgba(99,210,140,0.15);
+  --toggle-active-border: rgba(99,210,140,0.40);
+  --toggle-active-icon: #63d28c;
 }
 
+/* ════════════════════════════════════════
+   LIGHT THEME
+════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg:        #f0f4fa;
+  --surface:   #ffffff;
+  --surface2:  #f5f7fc;
+  --border:    rgba(0,0,0,0.08);
+  --border-hi: rgba(0,0,0,0.14);
+  --text:      #111827;
+  --muted:     #9ca3af;
+  --muted2:    #6b7280;
+  --shadow:    rgba(15,23,42,0.08);
+  --hover-shadow: rgba(15,23,42,0.12);
+
+  --d-bg:    #dbeafe;
+  --d-fg:    #1d4ed8;
+  --d-ring:  rgba(29,78,216,0.22);
+  --d-tag-border: rgba(29,78,216,0.18);
+
+  --n-bg:    #ede9fe;
+  --n-fg:    #6d28d9;
+  --n-ring:  rgba(109,40,217,0.22);
+  --n-tag-border: rgba(109,40,217,0.18);
+
+  --dn-bg:   #ffedd5;
+  --dn-fg:   #c2410c;
+  --dn-ring: rgba(194,65,12,0.22);
+  --dn-tag-border: rgba(194,65,12,0.18);
+
+  --erase-bg:   #fee2e2;
+  --erase-fg:   #dc2626;
+  --erase-ring: rgba(220,38,38,0.22);
+
+  --today-ring: rgba(22,163,74,0.55);
+  --today-glow: rgba(22,163,74,0.06);
+  --accent:     #16a34a;
+  --accent-dim: rgba(22,163,74,0.08);
+  --accent-border: rgba(22,163,74,0.30);
+
+  --grad1: rgba(63,120,255,0.04);
+  --grad2: rgba(22,163,74,0.03);
+
+  --sun-color: #dc2626;
+  --sat-color: #2563eb;
+
+  --toggle-bg:     #ffffff;
+  --toggle-border: rgba(0,0,0,0.12);
+  --toggle-icon:   #6b7280;
+  --toggle-active-bg: rgba(22,163,74,0.10);
+  --toggle-active-border: rgba(22,163,74,0.35);
+  --toggle-active-icon: #16a34a;
+}
+
+/* ════════════════════════════════════════
+   BASE
+════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
 
 body {
   font-family: 'Pretendard', -apple-system, sans-serif;
@@ -48,29 +133,38 @@ body {
   color: var(--text);
   min-height: 100vh;
   padding: 32px 16px 48px;
-  /* subtle noise texture */
   background-image:
-    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(63,120,255,0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(99,210,140,0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 20% -10%, var(--grad1) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 110%, var(--grad2) 0%, transparent 60%);
+  transition: background .35s ease, color .35s ease, background-image .35s ease;
 }
 
 .wrap {
   max-width: 860px;
   margin: 0 auto;
-  animation: fadeUp 0.5s cubic-bezier(.22,1,.36,1) both;
+  animation: fadeUp 0.45s cubic-bezier(.22,1,.36,1) both;
 }
 
 @keyframes fadeUp {
-  from { opacity:0; transform:translateY(18px); }
+  from { opacity:0; transform:translateY(16px); }
   to   { opacity:1; transform:translateY(0); }
 }
 
-/* ── Header ── */
+/* ── Smooth token transition on all elements ── */
+*, button, .day-cell, .mode-bar, .mode-btn, .shift-tag {
+  transition-property: background, background-color, border-color, color, box-shadow;
+  transition-duration: .25s;
+  transition-timing-function: ease;
+}
+
+/* ════════════════════════════════════════
+   HEADER
+════════════════════════════════════════ */
 .header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 10px;
+  margin-bottom: 24px;
 }
 
 .month-nav-btn {
@@ -79,30 +173,24 @@ body {
   border-radius: 10px;
   background: var(--surface);
   color: var(--muted2);
-  font-size: 15px;
+  font-size: 18px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: background .15s, color .15s, border-color .15s, transform .1s;
   flex-shrink: 0;
 }
-.month-nav-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border-hi); }
-.month-nav-btn:active { transform: scale(.94); }
+.month-nav-btn:hover { background: var(--surface2); color: var(--text); }
+.month-nav-btn:active { transform: scale(.93); }
 
 .month-title {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
   flex: 1;
   text-align: center;
 }
-.month-title span {
-  color: var(--accent);
-}
+.month-title span { color: var(--accent); }
 
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
+.header-actions { display: flex; gap: 8px; align-items: center; }
 
 .icon-btn {
   width: 36px; height: 36px;
@@ -113,43 +201,83 @@ body {
   font-size: 15px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: background .15s, color .15s, transform .1s;
 }
 .icon-btn:hover { background: var(--surface2); color: var(--text); }
-.icon-btn:active { transform: scale(.94); }
+.icon-btn:active { transform: scale(.93); }
+
+/* ── Theme toggle ── */
+.theme-toggle {
+  width: 36px; height: 36px;
+  border: 1px solid var(--toggle-border);
+  border-radius: 10px;
+  background: var(--toggle-bg);
+  color: var(--toggle-icon);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.theme-toggle:hover {
+  background: var(--toggle-active-bg);
+  border-color: var(--toggle-active-border);
+  color: var(--toggle-active-icon);
+}
+.theme-toggle:active { transform: scale(.93); }
+
+/* sun / moon icons swap */
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon {
+  position: absolute;
+  transition: opacity .3s, transform .3s;
+  line-height: 1;
+}
+[data-theme="dark"]  .icon-sun  { opacity:1; transform:rotate(0deg) scale(1); }
+[data-theme="dark"]  .icon-moon { opacity:0; transform:rotate(-90deg) scale(.6); }
+[data-theme="light"] .icon-sun  { opacity:0; transform:rotate(90deg) scale(.6); }
+[data-theme="light"] .icon-moon { opacity:1; transform:rotate(0deg) scale(1); }
 
 .save-btn {
   height: 36px;
   padding: 0 18px;
   border-radius: 10px;
-  border: 1px solid rgba(99,210,140,0.3);
-  background: rgba(99,210,140,0.1);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-dim);
   color: var(--accent);
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background .15s, border-color .15s, transform .1s;
   letter-spacing: 0.2px;
 }
-.save-btn:hover { background: rgba(99,210,140,0.18); border-color: rgba(99,210,140,0.5); }
+.save-btn:hover {
+  background: rgba(99,210,140,0.2);
+  border-color: rgba(99,210,140,0.5);
+}
+[data-theme="light"] .save-btn:hover {
+  background: rgba(22,163,74,0.14);
+  border-color: rgba(22,163,74,0.45);
+}
 .save-btn:active { transform: scale(.97); }
 
-/* ── Mode selector ── */
+/* ════════════════════════════════════════
+   MODE BAR
+════════════════════════════════════════ */
 .mode-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
+  gap: 5px;
+  margin-bottom: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 6px;
+  box-shadow: 0 2px 10px var(--shadow);
 }
 
 .mode-btn {
   height: 32px;
-  padding: 0 14px;
+  padding: 0 13px;
   border-radius: 9px;
   border: 1px solid transparent;
   background: transparent;
@@ -159,56 +287,36 @@ body {
   letter-spacing: 0.3px;
   color: var(--muted2);
   cursor: pointer;
-  transition: all .18s;
   white-space: nowrap;
 }
 .mode-btn:hover { color: var(--text); background: var(--surface2); }
 
-.mode-btn[data-shift="__VIEW__"].active {
-  background: var(--surface2);
-  color: var(--text);
-  border-color: var(--border-hi);
-}
-.mode-btn[data-shift="__ERASE__"].active {
-  background: var(--erase-bg);
-  color: var(--erase-fg);
-  border-color: var(--erase-ring);
-}
-.mode-btn[data-shift="D"].active {
-  background: var(--d-bg);
-  color: var(--d-fg);
-  border-color: var(--d-ring);
-}
-.mode-btn[data-shift="N"].active {
-  background: var(--n-bg);
-  color: var(--n-fg);
-  border-color: var(--n-ring);
-}
-.mode-btn[data-shift="DN"].active {
-  background: var(--dn-bg);
-  color: var(--dn-fg);
-  border-color: var(--dn-ring);
-}
+.mode-btn[data-shift="__VIEW__"].active  { background:var(--surface2); color:var(--text); border-color:var(--border-hi); }
+.mode-btn[data-shift="__ERASE__"].active { background:var(--erase-bg); color:var(--erase-fg); border-color:var(--erase-ring); }
+.mode-btn[data-shift="D"].active         { background:var(--d-bg);     color:var(--d-fg);    border-color:var(--d-ring); }
+.mode-btn[data-shift="N"].active         { background:var(--n-bg);     color:var(--n-fg);    border-color:var(--n-ring); }
+.mode-btn[data-shift="DN"].active        { background:var(--dn-bg);    color:var(--dn-fg);   border-color:var(--dn-ring); }
 
 .mode-divider {
-  width: 1px;
-  height: 20px;
+  width: 1px; height: 20px;
   background: var(--border-hi);
   flex-shrink: 0;
 }
 
 .status-text {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   margin-left: auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 180px;
   font-family: 'DM Mono', monospace;
 }
 
-/* ── Calendar grid ── */
+/* ════════════════════════════════════════
+   CALENDAR
+════════════════════════════════════════ */
 .day-labels {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -220,12 +328,11 @@ body {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
-  text-transform: uppercase;
   color: var(--muted);
   padding: 4px 0;
 }
-.day-labels span:first-child { color: #e05555; }
-.day-labels span:last-child  { color: #4a90d9; }
+.day-labels span:first-child { color: var(--sun-color); }
+.day-labels span:last-child  { color: var(--sat-color); }
 
 .cal-grid {
   display: grid;
@@ -243,38 +350,29 @@ body {
   flex-direction: column;
   align-items: flex-start;
   cursor: pointer;
-  transition: border-color .18s, background .18s, box-shadow .18s, transform .1s;
   position: relative;
   overflow: hidden;
-}
-.day-cell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  transition: background .18s;
-  border-radius: inherit;
 }
 .day-cell:hover {
   border-color: var(--border-hi);
   background: var(--surface2);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  box-shadow: 0 6px 20px var(--hover-shadow);
 }
-.day-cell:active { transform: scale(.97) translateY(0); }
-.day-cell.empty  { background: rgba(20,23,32,0.4); cursor: default; border-color: rgba(255,255,255,0.03); }
-.day-cell.empty:hover { transform: none; box-shadow: none; }
+.day-cell:active { transform: scale(.97); }
+
+.day-cell.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+  pointer-events: none;
+}
 
 .day-cell.today {
   border-color: var(--today-ring);
-  box-shadow: 0 0 0 1px var(--today-ring), inset 0 0 20px var(--today-glow);
+  box-shadow: 0 0 0 1px var(--today-ring), inset 0 0 18px var(--today-glow);
 }
-.day-cell.today .day-num { color: var(--accent); font-weight: 700; }
-
-/* Sunday / Saturday color */
-.day-cell:nth-child(7n+1) .day-num { color: #e05555; }
-.day-cell:nth-child(7n)   .day-num { color: #4a90d9; }
-.day-cell.today .day-num { color: var(--accent) !important; }
+.day-cell.today .day-num { color: var(--accent) !important; font-weight: 700; }
 
 .day-num {
   font-size: 12px;
@@ -282,6 +380,20 @@ body {
   color: var(--muted2);
   font-family: 'DM Mono', monospace;
   line-height: 1;
+}
+
+/* Sunday = col 1 (nth-child 7n+1 after empties — use class instead) */
+.day-cell.sun .day-num { color: var(--sun-color); }
+.day-cell.sat .day-num { color: var(--sat-color); }
+.day-cell.today .day-num { color: var(--accent) !important; }
+
+.today-dot {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
 }
 
 .shift-tag {
@@ -294,32 +406,18 @@ body {
   border-radius: 6px;
   border: 1px solid transparent;
   font-family: 'DM Mono', monospace;
-  transition: all .2s;
 }
-
 .tag-none { opacity: 0; }
+.tag-d  { background:var(--d-bg);  color:var(--d-fg);  border-color:var(--d-tag-border); }
+.tag-n  { background:var(--n-bg);  color:var(--n-fg);  border-color:var(--n-tag-border); }
+.tag-dn { background:var(--dn-bg); color:var(--dn-fg); border-color:var(--dn-tag-border); }
 
-.tag-d  { background: var(--d-bg);  color: var(--d-fg);  border-color: rgba(96,179,255,0.2); }
-.tag-n  { background: var(--n-bg);  color: var(--n-fg);  border-color: rgba(167,139,250,0.2); }
-.tag-dn { background: var(--dn-bg); color: var(--dn-fg); border-color: rgba(251,146,60,0.2); }
-
-/* Today badge */
-.today-dot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-}
-
-/* ── Legend chips at bottom ── */
+/* ── Legend ── */
 .legend {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 18px;
   flex-wrap: wrap;
 }
 .legend-item {
@@ -338,39 +436,38 @@ body {
 .legend-dot.n  { background: var(--n-fg); }
 .legend-dot.dn { background: var(--dn-fg); }
 
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--surface2);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 12.5px;
+  color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+  font-family: 'DM Mono', monospace;
+  box-shadow: 0 8px 32px var(--shadow);
+  white-space: nowrap;
+  /* override the global transition */
+  transition: opacity .25s ease, transform .25s ease !important;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 /* ── Responsive ── */
 @media (max-width: 520px) {
   body { padding: 16px 10px 32px; }
   .month-title { font-size: 17px; }
   .status-text { display: none; }
   .day-cell { border-radius: 8px; padding: 7px 5px 6px; }
-  .shift-tag { font-size: 9px; padding: 2px 6px; }
+  .shift-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; }
   .day-num { font-size: 11px; }
-}
-
-/* ── Toast ── */
-.toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: var(--surface2);
-  border: 1px solid var(--border-hi);
-  border-radius: 12px;
-  padding: 10px 20px;
-  font-size: 13px;
-  color: var(--text);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .25s, transform .25s;
-  white-space: nowrap;
-  z-index: 999;
-  font-family: 'DM Mono', monospace;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-}
-.toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  .mode-btn { padding: 0 9px; font-size: 11px; }
 }
 ```
 
@@ -386,6 +483,11 @@ body {
     <div class="month-title" id="monthTitle"></div>
     <button class="month-nav-btn" id="nextBtn">&#8250;</button>
     <div class="header-actions">
+      <!-- Theme toggle -->
+      <button class="theme-toggle" id="themeToggleBtn" title="테마 전환">
+        <span class="icon-sun">☀️</span>
+        <span class="icon-moon">🌙</span>
+      </button>
       <button class="icon-btn" id="refreshBtn" title="새로고침">↻</button>
       <button class="save-btn" id="saveBtn">저장</button>
     </div>
@@ -423,8 +525,6 @@ body {
   </div>
 </div>
 
-<!-- Toast -->
-
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -439,6 +539,7 @@ body {
   const MODE_VIEW  = "__VIEW__";
   const MODE_ERASE = "__ERASE__";
   const COLLECTION = "workcal";
+  const THEME_KEY  = "workcal_theme";
 
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyDv8E7ZRPcLIF6dIMcvVfpolPYqIy6UjhU",
@@ -461,7 +562,7 @@ body {
     authProvider: "",
   };
 
-  /* ── Firebase init ── */
+  /* ── Firebase ── */
   const fb = (() => {
     if (!FIREBASE_CONFIG.apiKey || location.protocol === "file:") return null;
     try {
@@ -472,10 +573,29 @@ body {
   const db   = fb?.db   ?? null;
   const auth = fb?.auth ?? null;
 
+  /* ── Theme ── */
+  function getStoredTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "dark"; }
+    catch { return "dark"; }
+  }
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  }
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next    = current === "dark" ? "light" : "dark";
+    applyTheme(next);
+    toast(next === "dark" ? "🌙 다크 모드" : "☀️ 라이트 모드");
+  }
+
+  // Apply saved theme immediately
+  applyTheme(getStoredTheme());
+
   /* ── Helpers ── */
   const monthKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
   const dayKey   = (y,m,d) => `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  const todayKey = () => { const t=new Date(); return dayKey(t.getFullYear(),t.getMonth(),t.getDate()); };
+  const todayKey = () => { const t = new Date(); return dayKey(t.getFullYear(), t.getMonth(), t.getDate()); };
   const getMonthData = () => {
     const k = monthKey(state.viewDate);
     if (!state.allData[k]) state.allData[k] = {};
@@ -483,59 +603,60 @@ body {
   };
   const errMsg = e => {
     if (!e) return "알 수 없는 오류";
-    const map = { "permission-denied":"권한 없음", "unauthenticated":"인증 필요",
-                  "failed-precondition":"Firestore 미설정", "unavailable":"네트워크 오류" };
-    return map[e.code] || e.message || String(e);
+    const m = { "permission-denied":"권한 없음", "unauthenticated":"인증 필요",
+                "failed-precondition":"Firestore 미설정", "unavailable":"네트워크 오류" };
+    return m[e.code] || e.message || String(e);
   };
 
   /* ── Toast ── */
   let toastTimer;
-  function toast(msg, duration=2400) {
+  function toast(msg, dur = 2200) {
     const el = document.getElementById("toast");
     el.textContent = msg;
     el.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), duration);
+    toastTimer = setTimeout(() => el.classList.remove("show"), dur);
   }
-  function setStatus(msg) {
-    document.getElementById("statusText").textContent = msg;
-  }
+  function setStatus(msg) { document.getElementById("statusText").textContent = msg; }
 
   /* ── Render ── */
-  function tagClass(shift) {
-    return shift === "D" ? "tag-d" : shift === "N" ? "tag-n" : shift === "DN" ? "tag-dn" : "tag-none";
+  function tagClass(s) {
+    return s === "D" ? "tag-d" : s === "N" ? "tag-n" : s === "DN" ? "tag-dn" : "tag-none";
   }
 
   function renderCalendar() {
-    const y = state.viewDate.getFullYear();
-    const m = state.viewDate.getMonth();
-    const firstDay = new Date(y, m, 1).getDay();
+    const y        = state.viewDate.getFullYear();
+    const m        = state.viewDate.getMonth();
+    const firstDay = new Date(y, m, 1).getDay();   // 0=Sun
     const lastDate = new Date(y, m+1, 0).getDate();
     const data     = getMonthData();
     const tKey     = todayKey();
 
-    // Month title
-    const el = document.getElementById("monthTitle");
-    el.innerHTML = `${y}년 <span>${m+1}월</span>`;
+    document.getElementById("monthTitle").innerHTML =
+      `${y}년 <span>${m+1}월</span>`;
 
     const grid = document.getElementById("calGrid");
     grid.innerHTML = "";
 
-    // Empty cells
-    for (let i=0; i<firstDay; i++) {
+    // Empty leading cells
+    for (let i = 0; i < firstDay; i++) {
       const c = document.createElement("div");
       c.className = "day-cell empty";
       grid.appendChild(c);
     }
 
     // Day cells
-    for (let d=1; d<=lastDate; d++) {
-      const k     = dayKey(y, m, d);
-      const shift = data[k] || "";
+    for (let d = 1; d <= lastDate; d++) {
+      const k       = dayKey(y, m, d);
+      const shift   = data[k] || "";
       const isToday = k === tKey;
+      const dow     = (firstDay + d - 1) % 7;   // 0=Sun, 6=Sat
 
       const cell = document.createElement("div");
-      cell.className = "day-cell" + (isToday ? " today" : "");
+      cell.className = "day-cell"
+        + (isToday      ? " today" : "")
+        + (dow === 0    ? " sun"   : "")
+        + (dow === 6    ? " sat"   : "");
 
       cell.innerHTML =
         `<div class="day-num">${String(d).padStart(2,"0")}</div>` +
@@ -543,15 +664,15 @@ body {
         `<div class="shift-tag ${tagClass(shift)}">${shift || "&nbsp;"}</div>`;
 
       cell.addEventListener("click", () => {
-        const mode = state.selectedShift;
+        const mode  = state.selectedShift;
         if (mode === MODE_VIEW) { toast("조회 모드 — 근무유형을 선택하세요"); return; }
         const store = getMonthData();
         if (mode === MODE_ERASE) {
-          if (store[k]) { delete store[k]; toast(`삭제 ${k}`); }
-          else toast("이미 비어있습니다");
+          if (store[k]) { delete store[k]; toast(`🗑 삭제: ${k}`); }
+          else { toast("이미 비어있습니다"); }
         } else {
           store[k] = mode;
-          toast(`${k} → ${mode}`);
+          toast(`✓ ${k}  →  ${mode}`);
         }
         renderCalendar();
       });
@@ -577,7 +698,7 @@ body {
       return true;
     } catch(e) { state.fsLastErr = errMsg(e); return false; }
   }
-  async function ensureAuth(interactive=false) {
+  async function ensureAuth(interactive = false) {
     if (state.authReady) return true;
     return await anonAuth() || (interactive && await googleAuth());
   }
@@ -592,7 +713,6 @@ body {
       return true;
     } catch(e) { state.fsLastErr = errMsg(e); return false; }
   }
-
   async function saveMonth() {
     if (!db || !await ensureAuth(true)) return false;
     const k = monthKey(state.viewDate);
@@ -605,10 +725,10 @@ body {
     } catch(e) { state.fsLastErr = errMsg(e); return false; }
   }
 
-  /* ── Event handlers ── */
+  /* ── Handlers ── */
   async function changeMonth(offset) {
     const d = state.viewDate;
-    state.viewDate = new Date(d.getFullYear(), d.getMonth()+offset, 1);
+    state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
     renderCalendar();
     const ok = await ensureAuth(true) && await loadMonth();
     renderCalendar();
@@ -618,30 +738,31 @@ body {
   async function handleSave() {
     toast("저장 중…", 60000);
     const ok = await saveMonth();
-    if (ok) {
-      toast(`저장 완료 (${monthKey(state.viewDate)})`);
-    } else {
-      toast(`저장 실패: ${state.fsLastErr || state.fsUnavailable || "원인 미확인"}`);
-    }
+    toast(ok
+      ? `✓ 저장 완료 (${monthKey(state.viewDate)})`
+      : `✗ 저장 실패: ${state.fsLastErr || state.fsUnavailable || "원인 미확인"}`
+    );
   }
 
   function selectMode(shift) {
     state.selectedShift = shift;
-    document.querySelectorAll(".mode-btn").forEach(b => {
-      b.classList.toggle("active", b.dataset.shift === shift);
-    });
-    const labels = { [MODE_VIEW]:"조회", [MODE_ERASE]:"지우기", D:"D근무", N:"N근무", DN:"DN근무" };
+    document.querySelectorAll(".mode-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.shift === shift));
+    const labels = {
+      [MODE_VIEW]: "조회", [MODE_ERASE]: "지우기",
+      D: "D근무", N: "N근무", DN: "DN근무"
+    };
     setStatus(labels[shift] || shift);
   }
 
   /* ── Bind ── */
-  document.getElementById("prevBtn").addEventListener("click",    () => changeMonth(-1));
-  document.getElementById("nextBtn").addEventListener("click",    () => changeMonth(1));
-  document.getElementById("saveBtn").addEventListener("click",    handleSave);
+  document.getElementById("prevBtn").addEventListener("click", () => changeMonth(-1));
+  document.getElementById("nextBtn").addEventListener("click", () => changeMonth(1));
+  document.getElementById("saveBtn").addEventListener("click", handleSave);
   document.getElementById("refreshBtn").addEventListener("click", () => location.reload());
-  document.querySelectorAll(".mode-btn").forEach(b => {
-    b.addEventListener("click", () => selectMode(b.dataset.shift));
-  });
+  document.getElementById("themeToggleBtn").addEventListener("click", toggleTheme);
+  document.querySelectorAll(".mode-btn").forEach(b =>
+    b.addEventListener("click", () => selectMode(b.dataset.shift)));
 
   /* ── Init ── */
   renderCalendar();
@@ -650,7 +771,7 @@ body {
     if (!ok) { setStatus("인증 대기"); return; }
     const loaded = await loadMonth();
     renderCalendar();
-    setStatus(loaded ? "로드 완료" : (state.fsLastErr || "오프라인"));
+    setStatus(loaded ? "로드 완료" : state.fsLastErr || "오프라인");
   });
 </script>
 

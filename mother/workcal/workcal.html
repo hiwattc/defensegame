@@ -188,7 +188,9 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
       import {
         getAuth,
+        GoogleAuthProvider,
         signInAnonymously,
+        signInWithPopup,
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
       import {
         doc,
@@ -228,6 +230,7 @@
         firestoreLastError: "",
         authReady: false,
         authUid: "",
+        authProvider: "",
       };
 
       const firebaseBundle = initFirebase();
@@ -411,6 +414,7 @@
           const credential = await signInAnonymously(auth);
           state.authReady = true;
           state.authUid = credential.user ? credential.user.uid : "";
+          state.authProvider = "anonymous";
           state.firestoreLastError = "";
           return true;
         } catch (error) {
@@ -420,9 +424,36 @@
         }
       }
 
+      async function ensureGoogleAuth() {
+        if (!auth) return false;
+        try {
+          const provider = new GoogleAuthProvider();
+          const credential = await signInWithPopup(auth, provider);
+          state.authReady = true;
+          state.authUid = credential.user ? credential.user.uid : "";
+          state.authProvider = "google";
+          state.firestoreLastError = "";
+          return true;
+        } catch (error) {
+          state.firestoreLastError = getErrorMessage(error);
+          console.error("Google 로그인 실패:", error);
+          return false;
+        }
+      }
+
+      async function ensureAuthenticated(interactive) {
+        if (state.authReady) return true;
+
+        const anonymousOk = await ensureAnonymousAuth();
+        if (anonymousOk) return true;
+
+        if (!interactive) return false;
+        return ensureGoogleAuth();
+      }
+
       async function loadMonthFromFirestore() {
         if (!db) return false;
-        const authOk = await ensureAnonymousAuth();
+        const authOk = await ensureAuthenticated(false);
         if (!authOk) return false;
         const key = monthKey(state.viewDate);
         const ref = doc(db, WORKCAL_COLLECTION, key);
@@ -449,7 +480,7 @@
 
       async function saveMonthToFirestore() {
         if (!db) return false;
-        const authOk = await ensureAnonymousAuth();
+        const authOk = await ensureAuthenticated(true);
         if (!authOk) return false;
         const key = monthKey(state.viewDate);
         const ref = doc(db, WORKCAL_COLLECTION, key);
@@ -474,7 +505,8 @@
         state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
         renderCalendar();
 
-        const loaded = await loadMonthFromFirestore();
+        const authOk = await ensureAuthenticated(true);
+        const loaded = authOk ? await loadMonthFromFirestore() : false;
         renderCalendar();
         if (loaded) {
           setStatus("월 이동 완료 (Firestore 로드됨)");
@@ -492,9 +524,13 @@
         downloadMonthJson();
 
         const key = monthKey(state.viewDate);
+        await ensureAuthenticated(true);
         const savedToFirestore = await saveMonthToFirestore();
         if (savedToFirestore) {
-          setStatus("저장 완료: " + key + " (Firestore + localStorage + JSON 파일)");
+          const providerLabel = state.authProvider === "google" ? "Google" : "익명";
+          setStatus(
+            "저장 완료: " + key + " (Firestore + localStorage + JSON 파일, 인증: " + providerLabel + ")"
+          );
           return;
         }
         if (state.firestoreUnavailableReason) {
@@ -532,15 +568,18 @@
       });
 
       renderCalendar();
-      ensureAnonymousAuth().then((authOk) => {
+      ensureAuthenticated(false).then((authOk) => {
         if (!authOk) {
-          setStatus("초기 로드 완료: 로컬 데이터 사용 (익명 로그인 실패)");
+          setStatus("초기 로드 완료: 로컬 데이터 사용 (익명 인증 실패, 저장 시 Google 로그인 시도)");
           return;
         }
         loadMonthFromFirestore().then((loaded) => {
           renderCalendar();
           if (loaded) {
-            setStatus("초기 로드 완료: Firestore에서 월 데이터 불러옴 (익명 로그인 완료)");
+            const providerLabel = state.authProvider === "google" ? "Google" : "익명";
+            setStatus(
+              "초기 로드 완료: Firestore에서 월 데이터 불러옴 (" + providerLabel + " 로그인 완료)"
+            );
           } else if (state.firestoreUnavailableReason) {
             setStatus("초기 로드 완료: 로컬 데이터 사용 (" + state.firestoreUnavailableReason + ")");
           } else if (state.firestoreLastError) {

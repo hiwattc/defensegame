@@ -184,187 +184,286 @@
       </section>
     </main>
 
-    <script>
-      (function () {
-        "use strict";
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        doc,
+        getDoc,
+        getFirestore,
+        serverTimestamp,
+        setDoc,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        const STORAGE_KEY = "workCalendarMonthlyData";
-        const monthTitle = document.getElementById("monthTitle");
-        const calendarGrid = document.getElementById("calendarGrid");
-        const statusText = document.getElementById("statusText");
-        const prevMonthBtn = document.getElementById("prevMonthBtn");
-        const nextMonthBtn = document.getElementById("nextMonthBtn");
-        const saveBtn = document.getElementById("saveBtn");
-        const modeButtons = Array.from(document.querySelectorAll(".mode-btn"));
+      "use strict";
 
-        const state = {
-          viewDate: new Date(),
-          selectedShift: "",
-          allData: loadAllData(),
+      const STORAGE_KEY = "workCalendarMonthlyData";
+      const WORKCAL_COLLECTION = "workcal";
+      const monthTitle = document.getElementById("monthTitle");
+      const calendarGrid = document.getElementById("calendarGrid");
+      const statusText = document.getElementById("statusText");
+      const prevMonthBtn = document.getElementById("prevMonthBtn");
+      const nextMonthBtn = document.getElementById("nextMonthBtn");
+      const saveBtn = document.getElementById("saveBtn");
+      const modeButtons = Array.from(document.querySelectorAll(".mode-btn"));
+
+      const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyDv8E7ZRPcLIF6dIMcvVfpolPYqIy6UjhU",
+        authDomain: "momworkcal.firebaseapp.com",
+        projectId: "momworkcal",
+        storageBucket: "momworkcal.firebasestorage.app",
+        messagingSenderId: "968519288658",
+        appId: "1:968519288658:web:9b0f02431bd3f433151c8b",
+        measurementId: "G-X92BNRR5ZK",
+      };
+
+      const state = {
+        viewDate: new Date(),
+        selectedShift: "",
+        allData: loadAllData(),
+      };
+
+      const db = initFirestore();
+
+      function monthKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        return y + "-" + m;
+      }
+
+      function dayKey(year, monthIndex, day) {
+        const m = String(monthIndex + 1).padStart(2, "0");
+        const d = String(day).padStart(2, "0");
+        return year + "-" + m + "-" + d;
+      }
+
+      function loadAllData() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (error) {
+          console.error("저장 데이터 파싱 오류:", error);
+          return {};
+        }
+      }
+
+      function saveAllData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.allData, null, 2));
+      }
+
+      function downloadMonthJson() {
+        const key = monthKey(state.viewDate);
+        const monthData = getMonthData();
+        const payload = {
+          month: key,
+          savedAt: new Date().toISOString(),
+          schedules: monthData,
         };
+        const jsonText = JSON.stringify(payload, null, 2);
+        const blob = new Blob([jsonText], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
 
-        function monthKey(date) {
-          const y = date.getFullYear();
-          const m = String(date.getMonth() + 1).padStart(2, "0");
-          return y + "-" + m;
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "workcal-" + key + ".json";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      function getMonthData() {
+        const key = monthKey(state.viewDate);
+        if (!state.allData[key] || typeof state.allData[key] !== "object") {
+          state.allData[key] = {};
+        }
+        return state.allData[key];
+      }
+
+      function formatMonthTitle(date) {
+        return date.getFullYear() + "년 " + (date.getMonth() + 1) + "월";
+      }
+
+      function setStatus(text) {
+        statusText.textContent = text;
+      }
+
+      function badgeClass(shift) {
+        if (shift === "D") return "shift-d";
+        if (shift === "N") return "shift-n";
+        if (shift === "DN") return "shift-dn";
+        return "shift-none";
+      }
+
+      function renderCalendar() {
+        const year = state.viewDate.getFullYear();
+        const monthIndex = state.viewDate.getMonth();
+        const firstDay = new Date(year, monthIndex, 1).getDay();
+        const lastDate = new Date(year, monthIndex + 1, 0).getDate();
+        const monthData = getMonthData();
+
+        monthTitle.textContent = formatMonthTitle(state.viewDate);
+        calendarGrid.innerHTML = "";
+
+        for (let i = 0; i < firstDay; i += 1) {
+          const emptyCell = document.createElement("div");
+          emptyCell.className = "day empty";
+          calendarGrid.appendChild(emptyCell);
         }
 
-        function dayKey(year, monthIndex, day) {
-          const m = String(monthIndex + 1).padStart(2, "0");
-          const d = String(day).padStart(2, "0");
-          return year + "-" + m + "-" + d;
+        for (let day = 1; day <= lastDate; day += 1) {
+          const key = dayKey(year, monthIndex, day);
+          const shift = monthData[key] || "";
+
+          const dayBtn = document.createElement("button");
+          dayBtn.type = "button";
+          dayBtn.className = "day";
+          dayBtn.dataset.dateKey = key;
+          dayBtn.innerHTML =
+            '<div class="day-number">' +
+            day +
+            "</div>" +
+            '<span class="shift-badge ' +
+            badgeClass(shift) +
+            '">' +
+            (shift || "없음") +
+            "</span>";
+
+          dayBtn.addEventListener("click", function () {
+            const monthStore = getMonthData();
+            if (state.selectedShift) {
+              monthStore[key] = state.selectedShift;
+            } else {
+              delete monthStore[key];
+            }
+            renderCalendar();
+            setStatus("현재 선택: " + (state.selectedShift || "지우기"));
+          });
+
+          calendarGrid.appendChild(dayBtn);
         }
+      }
 
-        function loadAllData() {
-          try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return {};
-            const parsed = JSON.parse(raw);
-            return parsed && typeof parsed === "object" ? parsed : {};
-          } catch (error) {
-            console.error("저장 데이터 파싱 오류:", error);
-            return {};
-          }
+      function hasValidFirebaseConfig() {
+        return (
+          FIREBASE_CONFIG.apiKey &&
+          FIREBASE_CONFIG.projectId &&
+          !FIREBASE_CONFIG.apiKey.startsWith("YOUR_") &&
+          !FIREBASE_CONFIG.projectId.startsWith("YOUR_")
+        );
+      }
+
+      function initFirestore() {
+        if (!hasValidFirebaseConfig()) {
+          console.warn("Firebase 설정값이 비어 있어 Firestore를 비활성화합니다.");
+          return null;
         }
-
-        function saveAllData() {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.allData, null, 2));
+        try {
+          const app = initializeApp(FIREBASE_CONFIG);
+          return getFirestore(app);
+        } catch (error) {
+          console.error("Firebase 초기화 실패:", error);
+          return null;
         }
+      }
 
-        function downloadMonthJson() {
-          const key = monthKey(state.viewDate);
-          const monthData = getMonthData();
-          const payload = {
-            month: key,
-            savedAt: new Date().toISOString(),
-            schedules: monthData,
-          };
-          const jsonText = JSON.stringify(payload, null, 2);
-          const blob = new Blob([jsonText], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = "workcal-" + key + ".json";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }
-
-        function getMonthData() {
-          const key = monthKey(state.viewDate);
-          if (!state.allData[key] || typeof state.allData[key] !== "object") {
+      async function loadMonthFromFirestore() {
+        if (!db) return false;
+        const key = monthKey(state.viewDate);
+        const ref = doc(db, WORKCAL_COLLECTION, key);
+        try {
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+            const payload = snap.data();
+            const schedules =
+              payload && payload.schedules && typeof payload.schedules === "object"
+                ? payload.schedules
+                : {};
+            state.allData[key] = schedules;
+          } else {
             state.allData[key] = {};
           }
-          return state.allData[key];
-        }
-
-        function formatMonthTitle(date) {
-          return date.getFullYear() + "년 " + (date.getMonth() + 1) + "월";
-        }
-
-        function setStatus(text) {
-          statusText.textContent = text;
-        }
-
-        function badgeClass(shift) {
-          if (shift === "D") return "shift-d";
-          if (shift === "N") return "shift-n";
-          if (shift === "DN") return "shift-dn";
-          return "shift-none";
-        }
-
-        function renderCalendar() {
-          const year = state.viewDate.getFullYear();
-          const monthIndex = state.viewDate.getMonth();
-          const firstDay = new Date(year, monthIndex, 1).getDay();
-          const lastDate = new Date(year, monthIndex + 1, 0).getDate();
-          const monthData = getMonthData();
-
-          monthTitle.textContent = formatMonthTitle(state.viewDate);
-          calendarGrid.innerHTML = "";
-
-          for (let i = 0; i < firstDay; i += 1) {
-            const emptyCell = document.createElement("div");
-            emptyCell.className = "day empty";
-            calendarGrid.appendChild(emptyCell);
-          }
-
-          for (let day = 1; day <= lastDate; day += 1) {
-            const key = dayKey(year, monthIndex, day);
-            const shift = monthData[key] || "";
-
-            const dayBtn = document.createElement("button");
-            dayBtn.type = "button";
-            dayBtn.className = "day";
-            dayBtn.dataset.dateKey = key;
-            dayBtn.innerHTML =
-              '<div class="day-number">' +
-              day +
-              "</div>" +
-              '<span class="shift-badge ' +
-              badgeClass(shift) +
-              '">' +
-              (shift || "없음") +
-              "</span>";
-
-            dayBtn.addEventListener("click", function () {
-              const monthStore = getMonthData();
-              if (state.selectedShift) {
-                monthStore[key] = state.selectedShift;
-              } else {
-                delete monthStore[key];
-              }
-              renderCalendar();
-            });
-
-            calendarGrid.appendChild(dayBtn);
-          }
-
-          const info = "현재 선택: " + (state.selectedShift || "지우기");
-          setStatus(info);
-        }
-
-        function changeMonth(offset) {
-          const d = state.viewDate;
-          state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
-          renderCalendar();
-          setStatus("월 이동 완료 (저장은 수동)");
-        }
-
-        function handleSave() {
           saveAllData();
-          const key = monthKey(state.viewDate);
-          downloadMonthJson();
-          setStatus("저장 완료: " + key + " (localStorage + JSON 파일)");
+          return true;
+        } catch (error) {
+          console.error("Firestore 월 데이터 로드 실패:", error);
+          return false;
         }
+      }
 
-        function handleSelectShift(shift) {
-          state.selectedShift = shift;
-          modeButtons.forEach((btn) => {
-            btn.classList.toggle("active", btn.dataset.shift === shift);
-          });
-          setStatus("현재 선택: " + (shift || "지우기"));
+      async function saveMonthToFirestore() {
+        if (!db) return false;
+        const key = monthKey(state.viewDate);
+        const ref = doc(db, WORKCAL_COLLECTION, key);
+        const payload = {
+          month: key,
+          schedules: getMonthData(),
+          updatedAt: serverTimestamp(),
+        };
+        try {
+          await setDoc(ref, payload, { merge: true });
+          return true;
+        } catch (error) {
+          console.error("Firestore 저장 실패:", error);
+          return false;
         }
+      }
 
-        prevMonthBtn.addEventListener("click", function () {
-          changeMonth(-1);
-        });
-        nextMonthBtn.addEventListener("click", function () {
-          changeMonth(1);
-        });
-        saveBtn.addEventListener("click", handleSave);
-
-        modeButtons.forEach((btn) => {
-          btn.addEventListener("click", function () {
-            handleSelectShift(btn.dataset.shift || "");
-          });
-        });
-
+      async function changeMonth(offset) {
+        const d = state.viewDate;
+        state.viewDate = new Date(d.getFullYear(), d.getMonth() + offset, 1);
         renderCalendar();
-        setStatus("초기 로드 완료: 저장 데이터 자동 불러오기");
-      })();
+
+        const loaded = await loadMonthFromFirestore();
+        renderCalendar();
+        setStatus(loaded ? "월 이동 완료 (Firestore 로드됨)" : "월 이동 완료 (로컬 데이터 표시)");
+      }
+
+      async function handleSave() {
+        saveAllData();
+        downloadMonthJson();
+
+        const key = monthKey(state.viewDate);
+        const savedToFirestore = await saveMonthToFirestore();
+        setStatus(
+          savedToFirestore
+            ? "저장 완료: " + key + " (Firestore + localStorage + JSON 파일)"
+            : "저장 완료: " + key + " (localStorage + JSON 파일, Firestore 미연결)"
+        );
+      }
+
+      function handleSelectShift(shift) {
+        state.selectedShift = shift;
+        modeButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.shift === shift);
+        });
+        setStatus("현재 선택: " + (shift || "지우기"));
+      }
+
+      prevMonthBtn.addEventListener("click", function () {
+        changeMonth(-1);
+      });
+      nextMonthBtn.addEventListener("click", function () {
+        changeMonth(1);
+      });
+      saveBtn.addEventListener("click", handleSave);
+
+      modeButtons.forEach((btn) => {
+        btn.addEventListener("click", function () {
+          handleSelectShift(btn.dataset.shift || "");
+        });
+      });
+
+      renderCalendar();
+      loadMonthFromFirestore().then((loaded) => {
+        renderCalendar();
+        if (loaded) {
+          setStatus("초기 로드 완료: Firestore에서 월 데이터 불러옴");
+        } else {
+          setStatus("초기 로드 완료: 로컬 데이터 사용 (Firebase 설정 필요)");
+        }
+      });
     </script>
   </body>
 </html>

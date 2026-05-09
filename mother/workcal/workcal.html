@@ -6,12 +6,13 @@
     <title>근무 워크 캘린더</title>
     <style>
       :root {
-        --bg: #f5f7fb;
+        --bg: #eef3fb;
         --panel: #ffffff;
-        --line: #d9dfeb;
-        --text: #1f2937;
-        --muted: #6b7280;
+        --line: #d6deeb;
+        --text: #111827;
+        --muted: #64748b;
         --active: #2563eb;
+        --active-soft: #dbeafe;
       }
 
       * {
@@ -27,8 +28,8 @@
 
       .container {
         max-width: 900px;
-        margin: 24px auto;
-        padding: 16px;
+        margin: 20px auto;
+        padding: 20px;
       }
 
       .toolbar,
@@ -43,19 +44,30 @@
       .panel {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 12px;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
       }
 
       button,
       select {
         height: 36px;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 10px;
         background: #fff;
         padding: 0 12px;
         font-size: 14px;
         cursor: pointer;
+        color: var(--text);
+        transition: transform 0.08s ease, border-color 0.2s ease, background 0.2s ease;
+      }
+
+      button:hover {
+        border-color: #b8c5db;
+      }
+
+      button:active {
+        transform: translateY(1px);
       }
 
       button:disabled {
@@ -65,8 +77,9 @@
 
       .title {
         font-weight: 700;
-        font-size: 18px;
+        font-size: 20px;
         margin-right: auto;
+        letter-spacing: -0.2px;
       }
 
       .days-header,
@@ -92,6 +105,16 @@
         text-align: left;
         position: relative;
         cursor: pointer;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.08s ease;
+      }
+
+      .day:hover {
+        border-color: #9db2d5;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+      }
+
+      .day:active {
+        transform: scale(0.99);
       }
 
       .day.empty {
@@ -142,8 +165,20 @@
 
       .mode-btn.active {
         border-color: var(--active);
-        color: var(--active);
+        color: #1d4ed8;
+        background: var(--active-soft);
         font-weight: 700;
+      }
+
+      .month-nav {
+        margin-top: 14px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .month-nav button {
+        min-width: 110px;
       }
 
       .status {
@@ -157,14 +192,13 @@
       <section class="panel">
         <div class="toolbar">
           <div class="title" id="monthTitle"></div>
-          <button id="prevMonthBtn" type="button">이전 월</button>
-          <button id="nextMonthBtn" type="button">다음 월</button>
           <button id="saveBtn" type="button">저장</button>
         </div>
 
         <div class="legend">
           <span>근무유형 선택:</span>
-          <button class="mode-btn active" type="button" data-shift="">지우기</button>
+          <button class="mode-btn active" type="button" data-shift="__VIEW__">조회</button>
+          <button class="mode-btn" type="button" data-shift="">지우기</button>
           <button class="mode-btn" type="button" data-shift="D">D</button>
           <button class="mode-btn" type="button" data-shift="N">N</button>
           <button class="mode-btn" type="button" data-shift="DN">DN</button>
@@ -181,6 +215,11 @@
           <div>토</div>
         </div>
         <div class="calendar" id="calendarGrid"></div>
+
+        <div class="month-nav">
+          <button id="prevMonthBtn" type="button">이전 월</button>
+          <button id="nextMonthBtn" type="button">다음 월</button>
+        </div>
       </section>
     </main>
 
@@ -223,7 +262,7 @@
 
       const state = {
         viewDate: new Date(),
-        selectedShift: "",
+        selectedShift: null,
         allData: {},
         firestoreUnavailableReason: "",
         firestoreLastError: "",
@@ -323,6 +362,10 @@
             "</span>";
 
           dayBtn.addEventListener("click", function () {
+            if (state.selectedShift === null) {
+              setStatus("조회 모드: 근무유형을 선택하면 수정할 수 있습니다.");
+              return;
+            }
             const monthStore = getMonthData();
             if (state.selectedShift) {
               monthStore[key] = state.selectedShift;
@@ -504,11 +547,15 @@
       }
 
       function handleSelectShift(shift) {
-        state.selectedShift = shift;
+        state.selectedShift = shift === "__VIEW__" ? null : shift;
         modeButtons.forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.shift === shift);
         });
-        setStatus("현재 선택: " + (shift || "지우기"));
+        if (state.selectedShift === null) {
+          setStatus("현재 선택: 조회 (날짜 클릭 시 수정 안 함)");
+          return;
+        }
+        setStatus("현재 선택: " + (state.selectedShift || "지우기"));
       }
 
       prevMonthBtn.addEventListener("click", function () {
@@ -521,7 +568,7 @@
 
       modeButtons.forEach((btn) => {
         btn.addEventListener("click", function () {
-          handleSelectShift(btn.dataset.shift || "");
+          handleSelectShift(btn.dataset.shift || "__VIEW__");
         });
       });
 
@@ -547,6 +594,7 @@
           }
         });
       });
+      setStatus("현재 선택: 조회 (날짜 클릭 시 수정 안 함)");
     </script>
   </body>
 </html>
